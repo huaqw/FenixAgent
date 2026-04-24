@@ -15,6 +15,7 @@ import v1Environments from "./routes/v1/environments";
 import webSessions from "./routes/web/sessions";
 import webEnvironments from "./routes/web/environments";
 import webApiKeys from "./routes/web/api-keys";
+import webConfig from "./routes/web/config";
 
 console.log("[RCS] Database initialized (SQLite + better-auth)");
 
@@ -65,6 +66,7 @@ app.route("/v1/environments", v1Environments);
 app.route("/web", webSessions);
 app.route("/web", webEnvironments);
 app.route("/web", webApiKeys);
+app.route("/web", webConfig);
 
 // ACP protocol routes
 console.log("[RCS] ACP support enabled");

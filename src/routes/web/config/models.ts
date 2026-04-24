@@ -1,0 +1,90 @@
+import { Hono } from "hono";
+import { sessionAuth } from "../../../auth/middleware";
+import { getConfig, setTopLevelField } from "../../../services/config";
+
+const app = new Hono();
+
+/** 可用模型缓存：{ models, updatedAt } */
+let cachedAvailable: { models: Array<{ id: string; provider: string; label: string }>; updatedAt: number } | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 分钟
+
+function ok(data: unknown) { return { success: true as const, data }; }
+function err(code: string, message: string) { return { success: false as const, error: { code, message } }; }
+
+type ModelEntry = { id: string; provider: string; label: string };
+
+async function buildAvailableList(): Promise<ModelEntry[]> {
+  const config = await getConfig();
+  const providers = (config.provider as Record<string, Record<string, unknown>>) ?? {};
+  const models: ModelEntry[] = [];
+  for (const [providerName, providerCfg] of Object.entries(providers)) {
+    const providerModels = providerCfg.models as Record<string, Record<string, unknown>> | undefined;
+    if (!providerModels) continue;
+    for (const [modelId, modelCfg] of Object.entries(providerModels)) {
+      models.push({
+        id: modelId,
+        provider: providerName,
+        label: (modelCfg?.name as string) ?? modelId,
+      });
+    }
+  }
+  return models;
+}
+
+async function getAvailable(forceRefresh = false): Promise<ModelEntry[]> {
+  const now = Date.now();
+  if (!forceRefresh && cachedAvailable && (now - cachedAvailable.updatedAt) < CACHE_TTL_MS) {
+    return cachedAvailable.models;
+  }
+  const models = await buildAvailableList();
+  cachedAvailable = { models, updatedAt: now };
+  return models;
+}
+
+async function handleGet() {
+  const config = await getConfig();
+  const available = await getAvailable();
+  return ok({
+    current: {
+      model: (config.model as string) ?? null,
+      small_model: (config.small_model as string) ?? null,
+    },
+    available,
+  });
+}
+
+async function handleSet(data: { model?: string; small_model?: string }) {
+  if (!data.model && !data.small_model) {
+    return err("VALIDATION_ERROR", "At least one of 'model' or 'small_model' is required");
+  }
+  if (data.model) await setTopLevelField("model", data.model);
+  if (data.small_model) await setTopLevelField("small_model", data.small_model);
+  // 读回确认
+  const config = await getConfig();
+  return ok({
+    model: (config.model as string | null) ?? null,
+    small_model: (config.small_model as string | null) ?? null,
+  });
+}
+
+async function handleRefresh() {
+  const available = await getAvailable(true);
+  return ok({ count: available.length });
+}
+
+app.post("/config/models", sessionAuth, async (c) => {
+  const body = await c.req.json<{ action: string; data?: { model?: string; small_model?: string } }>().catch((): { action: string; data?: { model?: string; small_model?: string } } => ({ action: "" }));
+  try {
+    switch (body.action) {
+      case "get": return c.json(await handleGet());
+      case "set": return c.json(await handleSet(body.data ?? {}));
+      case "refresh": return c.json(await handleRefresh());
+      default: return c.json(err("VALIDATION_ERROR", `Unknown action: ${body.action}`), 400);
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return c.json(err("CONFIG_READ_ERROR", message), 500);
+  }
+});
+
+export default app;
