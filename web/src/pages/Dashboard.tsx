@@ -34,6 +34,7 @@ export function Dashboard({ onNavigateSession }: DashboardProps) {
     setCreatingInstance(true);
     try {
       await apiCreateInstance();
+      await new Promise((r) => setTimeout(r, 500));
       await loadDashboard();
     } catch (err) {
       console.error("Failed to create instance:", err);

@@ -70,6 +70,38 @@ export interface OpenCodeAgent {
     permission?: PermissionConfig;
 }
 
+// === MCP 类型定义 ===
+
+/** OAuth 认证配置 */
+export interface McpOAuthConfig {
+    clientId?: string;
+    clientSecret?: string;
+    scope?: string;
+    redirectUri?: string;
+}
+
+/** 本地 MCP 服务器配置（命令行启动） */
+export interface McpLocalConfig {
+    type: "local";
+    command: string[];
+    environment?: Record<string, string>;
+    enabled?: boolean;
+    timeout?: number;
+}
+
+/** 远程 MCP 服务器配置（URL 连接） */
+export interface McpRemoteConfig {
+    type: "remote";
+    url: string;
+    enabled?: boolean;
+    headers?: Record<string, string>;
+    oauth?: McpOAuthConfig | false;
+    timeout?: number;
+}
+
+/** MCP 服务器配置联合类型（含禁用变体） */
+export type McpServerConfig = McpLocalConfig | McpRemoteConfig | { enabled: false };
+
 export interface OpenCodeConfig {
     $schema?: string;
     model?: string;
@@ -78,6 +110,7 @@ export interface OpenCodeConfig {
     agent?: Record<string, OpenCodeAgent>;
     experimental?: Record<string, unknown>;
     plugin?: string[];
+    mcp?: Record<string, McpServerConfig>;
     theme?: string;
 }
 
@@ -179,6 +212,42 @@ export interface SkillDetail {
     enabled: boolean;
     path: string;
     metadata: Record<string, string>;
+}
+
+// --- MCP ---
+
+/** 用于前端列表展示的 MCP 服务器信息 */
+export interface McpServerInfo {
+    name: string;
+    type: "local" | "remote" | "disabled";
+    enabled: boolean;
+    summary: string;
+    timeout?: number;
+    toolsCount?: number;
+}
+
+/** MCP 服务器详情（编辑用） */
+export interface McpServerDetail {
+    name: string;
+    config: McpServerConfig;
+}
+
+/** MCP Tool 缓存记录 */
+export interface McpToolInfo {
+    id: string;
+    toolName: string;
+    description: string | null;
+    inputSchema: string | null;
+    inspectedAt: number;
+}
+
+/** MCP 检测结果 */
+export interface McpInspectResult {
+    name: string;
+    serverInfo: { name?: string; version?: string };
+    tools: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>;
+    transport?: "streamable-http" | "sse";
+    stored: boolean;
 }
 
 // === Generic API Response ===

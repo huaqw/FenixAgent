@@ -62,3 +62,13 @@ export const apiKey = sqliteTable("api_key", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
 });
+
+// MCP Tool 缓存表
+export const mcpTool = sqliteTable("mcp_tool", {
+  id: text("id").primaryKey(),
+  serverName: text("server_name").notNull(),
+  toolName: text("tool_name").notNull(),
+  description: text("description"),
+  inputSchema: text("input_schema"),
+  inspectedAt: integer("inspected_at", { mode: "timestamp" }).notNull(),
+});

@@ -82,6 +82,18 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_api_key_user_id ON api_key(user_id);
     CREATE INDEX IF NOT EXISTS idx_session_user_id ON session(user_id);
     CREATE INDEX IF NOT EXISTS idx_session_token ON session(token);
+
+    CREATE TABLE IF NOT EXISTS mcp_tool (
+      id TEXT PRIMARY KEY,
+      server_name TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      description TEXT,
+      input_schema TEXT,
+      inspected_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_mcp_tool_server ON mcp_tool(server_name);
+    CREATE INDEX IF NOT EXISTS idx_mcp_tool_server_tool ON mcp_tool(server_name, tool_name);
   `);
 }
 

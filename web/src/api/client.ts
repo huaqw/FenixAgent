@@ -1,5 +1,5 @@
 import type { Session, Environment, ControlResponse, SessionEvent } from "../types";
-import type { ProviderInfo, ProviderDetail, ModelConfig, AgentInfo, AgentDetail, SkillInfo, SkillDetail, ApiResponse } from "../types/config";
+import type { ProviderInfo, ProviderDetail, ModelConfig, AgentInfo, AgentDetail, SkillInfo, SkillDetail, McpServerInfo, McpServerDetail, McpServerConfig, McpToolInfo, McpInspectResult, ApiResponse } from "../types/config";
 
 
 const BASE = "";
@@ -137,7 +137,7 @@ export function apiUpdateApiKeyLabel(id: string, label: string) {
 // --- Config ---
 
 async function apiConfigAction<T>(
-  module: 'providers' | 'models' | 'agents' | 'skills',
+  module: 'providers' | 'models' | 'agents' | 'skills' | 'mcp',
   action: string,
   payload?: Record<string, unknown>
 ): Promise<T> {
@@ -228,4 +228,40 @@ export function apiEnableSkill(name: string) {
 }
 export function apiDisableSkill(name: string) {
   return apiConfigAction<{ name: string; enabled: boolean }>("skills", "disable", { name });
+}
+
+// --- MCP ---
+
+export function apiListMcpServers() {
+  return apiConfigAction<{ servers: McpServerInfo[] }>("mcp", "list").then(d => d.servers);
+}
+export function apiGetMcpServer(name: string) {
+  return apiConfigAction<McpServerDetail>("mcp", "get", { name });
+}
+export function apiCreateMcpServer(name: string, config: McpServerConfig) {
+  return apiConfigAction<{ name: string }>("mcp", "create", { name, config });
+}
+export function apiUpdateMcpServer(name: string, config: McpServerConfig) {
+  return apiConfigAction<{ name: string }>("mcp", "update", { name, config });
+}
+export function apiDeleteMcpServer(name: string) {
+  return apiConfigAction<null>("mcp", "delete", { name });
+}
+export function apiEnableMcpServer(name: string) {
+  return apiConfigAction<{ name: string; enabled: boolean }>("mcp", "enable", { name });
+}
+export function apiDisableMcpServer(name: string) {
+  return apiConfigAction<{ name: string; enabled: boolean }>("mcp", "disable", { name });
+}
+export function apiTestMcpServer(name: string) {
+  return apiConfigAction<{ name: string; reachable: boolean; protocol: boolean; serverName?: string; serverVersion?: string; toolsCount?: number; transport?: string; message?: string }>("mcp", "test", { name });
+}
+export function apiTestMcpUrl(url: string, headers?: Record<string, string>, timeout?: number) {
+  return apiConfigAction<{ reachable: boolean; protocol: boolean; serverName?: string; serverVersion?: string; toolsCount?: number; transport?: string; message?: string }>("mcp", "test_url", { url, headers, timeout });
+}
+export function apiInspectMcpServer(name: string) {
+  return apiConfigAction<McpInspectResult>("mcp", "inspect", { name });
+}
+export function apiListMcpTools(name: string) {
+  return apiConfigAction<{ name: string; tools: McpToolInfo[] }>("mcp", "list_tools", { name });
 }
