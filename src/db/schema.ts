@@ -115,6 +115,31 @@ export const taskExecutionLog = sqliteTable("task_execution_log", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
+// Share Link 分享链接表
+export const shareLink = sqliteTable("share_link", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  environmentId: text("environment_id").notNull(),
+  token: text("token").notNull().unique(),
+  mode: text("mode", { enum: ["readonly", "writable"] }).notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  createdBy: text("created_by").notNull(),
+  accessCount: integer("access_count").notNull().default(0),
+  lastAccessedAt: integer("last_accessed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+// Share Event Snapshot 分享事件快照表
+export const shareEventSnapshot = sqliteTable("share_event_snapshot", {
+  id: text("id").primaryKey(),
+  shareLinkId: text("share_link_id")
+    .notNull()
+    .references(() => shareLink.id, { onDelete: "cascade" }),
+  events: text("events").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
 // Environment 持久化表
 export const environment = sqliteTable("environment", {
   id: text("id").primaryKey(),

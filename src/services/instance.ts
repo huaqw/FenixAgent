@@ -7,6 +7,7 @@ import { createApiKey } from "../auth/api-key-service";
 import { getBaseUrl } from "../config";
 import { log } from "../logger";
 import { storeGetEnvironment, storeCreateSession, storeListSessionsByEnvironment } from "../store";
+import { closeInstanceLocalWs } from "../transport/acp-relay-handler";
 
 export interface SpawnedInstance {
   id: string;
@@ -148,6 +149,12 @@ export function stopInstance(id: string, userId: string): { ok: boolean; error?:
   if (!inst) return { ok: false, error: "Instance not found" };
   if (inst.userId !== userId) return { ok: false, error: "Not your instance" };
   if (inst.status === "stopped") return { ok: false, error: "Already stopped" };
+
+  // Close the shared local WS to acp-link before killing the process
+  if (inst.environmentId) {
+    closeInstanceLocalWs(inst.environmentId);
+  }
+
   if (!inst.pid) { inst.status = "stopped"; return { ok: true }; }
   try {
     process.kill(inst.pid, "SIGTERM");

@@ -25,6 +25,14 @@ interface RelayConnectionEntry {
 
 const relayConnections = new Map<string, RelayConnectionEntry>(); // key: relayWsId
 
+// Track the current localWs per agent so we can reuse/replace on reconnect
+// Includes a keep_alive interval to keep acp-link alive even when no relay is connected.
+interface AgentLocalConn {
+  ws: WebSocket;
+  keepalive: ReturnType<typeof setInterval>;
+}
+const agentLocalWsMap = new Map<string, AgentLocalConn>(); // agentId → localWs + keepalive
+
 const RELAY_KEEPALIVE_INTERVAL_MS = 20_000;
 
 /** Send a JSON message to relay WS */
@@ -63,22 +71,74 @@ export function handleRelayOpen(ws: WSContext, relayWsId: string, agentId: strin
 
 /** Instance mode: open direct WS to acp-link's local server */
 function openInstanceRelay(ws: WSContext, relayWsId: string, agentId: string, userId: string, port: number, token: string): void {
-  const localWs = new WebSocket(`ws://localhost:${port}/ws?token=${encodeURIComponent(token)}`);
-
-  const keepalive = setInterval(() => {
+  // Relay keepalive — only runs while relay is alive
+  const relayKeepalive = setInterval(() => {
     const entry = relayConnections.get(relayWsId);
     if (!entry || entry.ws.readyState !== 1) {
-      clearInterval(keepalive);
+      clearInterval(relayKeepalive);
       return;
     }
     sendToRelayWs(entry.ws, { type: "keep_alive" });
   }, RELAY_KEEPALIVE_INTERVAL_MS);
 
+  // Reuse existing local WS if available and still connected
+  const existingConn = agentLocalWsMap.get(agentId);
+  if (existingConn && existingConn.ws.readyState === 1) {
+    log(`[ACP-Relay] Reusing existing local WS for ${agentId}`);
+
+    const entry: RelayConnectionEntry = {
+      agentId,
+      userId,
+      unsub: null,
+      keepalive: relayKeepalive,
+      ws,
+      openTime: Date.now(),
+      localWs: existingConn.ws,
+      pendingMessages: [],
+    };
+    relayConnections.set(relayWsId, entry);
+
+    // Retarget message forwarding to the new relay WS
+    existingConn.ws.onmessage = (event) => {
+      if (ws.readyState !== 1) return;
+      const text = typeof event.data === "string" ? event.data : String(event.data);
+      for (const line of text.split("\n").filter((l: string) => l.trim())) {
+        try {
+          ws.send(line);
+        } catch (err) {
+          logError("[ACP-Relay] Error forwarding to frontend:", err);
+        }
+      }
+    };
+
+    // Notify frontend that agent is connected
+    sendToRelayWs(ws, { type: "status", payload: { connected: true } });
+    return;
+  }
+
+  // No existing connection — clean up stale entry if any, then create new
+  if (existingConn) {
+    clearInterval(existingConn.keepalive);
+    try { existingConn.ws.close(); } catch {}
+    agentLocalWsMap.delete(agentId);
+  }
+
+  const localWs = new WebSocket(`ws://localhost:${port}/ws?token=${encodeURIComponent(token)}`);
+
+  // Independent keep_alive to acp-link — runs even when no relay is connected
+  const localKeepalive = setInterval(() => {
+    if (localWs.readyState === 1) {
+      localWs.send(JSON.stringify({ type: "keep_alive" }));
+    }
+  }, RELAY_KEEPALIVE_INTERVAL_MS);
+
+  agentLocalWsMap.set(agentId, { ws: localWs, keepalive: localKeepalive });
+
   const entry: RelayConnectionEntry = {
     agentId,
     userId,
     unsub: null,
-    keepalive,
+    keepalive: relayKeepalive,
     ws,
     openTime: Date.now(),
     localWs,
@@ -113,6 +173,12 @@ function openInstanceRelay(ws: WSContext, relayWsId: string, agentId: string, us
 
   localWs.onclose = (event) => {
     log(`[ACP-Relay] Local WS closed: code=${event.code} reason=${event.reason || "(none)"}`);
+    // Clean up shared connection
+    const conn = agentLocalWsMap.get(agentId);
+    if (conn && conn.ws === localWs) {
+      clearInterval(conn.keepalive);
+      agentLocalWsMap.delete(agentId);
+    }
     if (ws.readyState === 1) {
       sendToRelayWs(ws, { type: "status", payload: { connected: false } });
     }
@@ -223,7 +289,13 @@ export function handleRelayClose(ws: WSContext, relayWsId: string, code?: number
   log(`[ACP-Relay] Connection closed: relayWsId=${relayWsId} agentId=${entry.agentId} code=${code ?? "none"} reason=${reason || "(none)"} duration=${duration}s`);
 
   if (entry.localWs) {
-    try { entry.localWs.close(); } catch {}
+    // Don't close localWs — keep acp-link process alive for reconnection.
+    // Only the explicit stop-instance action should kill the process.
+    // Remove the message forwarder (which targets the now-closed relay WS),
+    // but the independent keep_alive in agentLocalWsMap keeps acp-link active.
+    entry.localWs.onmessage = null;
+    // Retain onclose/onerror so we can detect acp-link crashes.
+    entry.localWs = null;
   }
   if (entry.unsub) {
     entry.unsub();
@@ -237,12 +309,21 @@ export function handleRelayClose(ws: WSContext, relayWsId: string, code?: number
 
 /** Close all relay connections (for graceful shutdown) */
 export function closeAllRelayConnections(): void {
+  // Close shared local WS connections to instances
+  for (const [agentId, conn] of agentLocalWsMap) {
+    clearInterval(conn.keepalive);
+    try { conn.ws.close(); } catch {}
+  }
+  agentLocalWsMap.clear();
+
   if (relayConnections.size === 0) return;
 
   log(`[ACP-Relay] Closing ${relayConnections.size} relay connection(s)...`);
   for (const [relayWsId, entry] of relayConnections) {
     try {
-      if (entry.localWs) entry.localWs.close();
+      if (entry.localWs) {
+        entry.localWs.onmessage = null;
+      }
       if (entry.unsub) entry.unsub();
       if (entry.keepalive) clearInterval(entry.keepalive);
       if (entry.ws.readyState === 1) {
@@ -254,4 +335,15 @@ export function closeAllRelayConnections(): void {
   }
   relayConnections.clear();
   log("[ACP-Relay] All connections closed");
+}
+
+/** Close the shared local WS for a specific agent (called when instance is stopped) */
+export function closeInstanceLocalWs(agentId: string): void {
+  const conn = agentLocalWsMap.get(agentId);
+  if (conn) {
+    clearInterval(conn.keepalive);
+    try { conn.ws.close(); } catch {}
+    agentLocalWsMap.delete(agentId);
+    log(`[ACP-Relay] Closed local WS for agent ${agentId}`);
+  }
 }

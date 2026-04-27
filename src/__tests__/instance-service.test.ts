@@ -45,6 +45,10 @@ mock.module("../auth/api-key-service", () => ({
   })),
 }));
 
+mock.module("../transport/acp-relay-handler", () => ({
+  closeInstanceLocalWs: mock(() => {}),
+}));
+
 // Import after mocks are set up
 const {
   spawnInstance,
