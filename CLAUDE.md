@@ -8,8 +8,12 @@ Remote Control Server (RCS) 是一个基于 Hono + Bun 的 AI Agent 控制面板
 
 - **ACP 协议支持**：通过 WebSocket 与 acp-link Agent通信，实现远程 Agent 控制和事件流转发
 - **配置管理**：Providers/Models/Agents/Skills/MCP 的动态配置，存储于 `~/.config/opencode/opencode.json`
-- **会话管理**：通过 SSE 向前端推送会话事件（user/assistant/tool_use/permission_request 等）
+- **会话管理**：通过 SSE 向前端推送会话事件（user/assistant/tool_use/permission_request 等），支持 ACP session/list 按 cwd 过滤
 - **认证授权**：better-auth (SQLite) + API Key 认证，支持用户会话和 acp-link 的 Bearer token
+- **定时 HTTP 任务**：cron 调度、执行历史记录、失败重试（Drizzle ORM + node-schedule）
+- **用户文件系统**：会话级文件读写上传，支持 iframe 预览（`/web/sessions/:id/user/*`）
+- **Channel 层**：多频道通信支持（`/web/channels`）
+- **会话分享**：share link 表已创建（readonly/writable 模式），功能开发中
 
 ## 常用命令
 
@@ -43,11 +47,14 @@ bun test src/__tests__
 # 运行特定测试文件
 bun test src/__tests__/config-service.test.ts
 
-# 前端测试（通过 vitest，在 web 目录下运行）
-cd web && bun test
+# 前端全部测试（从项目根目录运行）
+bun test web/src/__tests__/
+
+# 前端单个测试文件
+bun test web/src/__tests__/app-i18n.test.ts
 ```
 
-**注意**：前端代码在 `web/` 目录，但没有独立的 `package.json`。所有依赖在根目录 `package.json`，构建命令需要从项目根目录执行。
+**注意**：前端代码在 `web/` 目录，但没有独立的 `package.json`。所有依赖在根目录 `package.json`，构建命令需要从项目根目录执行。前端测试使用 `import.meta.dirname` 解析文件路径，从项目根目录运行即可。
 
 ### 工作目录注意事项
 
@@ -72,7 +79,9 @@ cd web && bunx vite build && cd .. && ls src/
 
 - 挂载所有路由：`/v1/*`（兼容）、`/web/*`（控制面板 API）、`/acp/*`（ACP 协议）
 - 静态文件服务：`/code/*` → `web/dist/`（构建后的前端）
-- 优雅关闭：清理 WebSocket 连接和 instances
+- iframe 预览重定向：`/code/:sessionId/user/*` → `/web/sessions/:id/user/*?preview=true`
+- 启动时初始化：skills 目录迁移（`migrateSkillsDir`）、定时任务调度器（`startScheduler`）
+- 优雅关闭：清理 WebSocket 连接、instances、调度器
 
 **认证层**：
 
@@ -86,12 +95,12 @@ cd web && bunx vite build && cd .. && ls src/
 - 存储路径：`~/.config/opencode/opencode.json`
 - 写入互斥锁：防止并发写入损坏配置
 - deep merge：`setSection` 会合并而非覆盖现有配置
-- **子服务**：`skill.ts`、`instance.ts` 负责特定配置的 CRUD
+- **子服务**：`skill.ts`、`instance.ts`、`task.ts`、`scheduler.ts`、`session.ts` 负责特定功能的 CRUD 和调度
 
 **传输层**：`src/transport/`
 
 - `acp-ws-handler.ts`：处理 `/acp/ws` 连接（acp-link 注册）
-- `acp-relay-handler.ts`：处理 `/acp/relay/:agentId` 连接（前端与 Agent 的中继）
+- `acp-relay-handler.ts`：处理 `/acp/relay/:agentId` 连接（前端与 Agent 的中继），拦截 `list_sessions` 由服务端直接响应
 - `event-bus.ts`：事件总线，连接会话事件和 ACP 连接
 - `sse-writer.ts`：SSE 事件规范化
 
@@ -101,6 +110,12 @@ cd web && bunx vite build && cd .. && ls src/
 - `sessions` Map：会话元数据（environment 删除时关联 session 也会被删除）
 - `sessionWorkers` Map：Worker 状态（`storeGetSessionWorker`、`storeUpsertSessionWorker`）
 - `tokens` Map：遗留 token 存储（`storeCreateToken`、`storeGetUserByToken`）
+- 辅助查询：`storeListSessionsForAgentByCwd`（按 cwd 过滤 session）、`storeListAcpAgentsByUserId`
+
+**数据库持久化**：`src/db/schema.ts`（Drizzle ORM + SQLite）
+
+- better-auth 表：`user`、`session`、`account`、`verification`
+- 自定义表：`apiKey`、`mcpTool`、`scheduledTask`、`taskExecutionLog`、`shareLink`、`shareEventSnapshot`、`environment`
 
 ### ACP 协议要点
 
@@ -143,6 +158,9 @@ acp-link 有两种认证方式（优先级从高到低）：
 
 - 认证：better-auth session（cookie-based）
 - 用途：前端通过此 WebSocket 与 acp-link 通信，服务器双向转发消息
+- `keep_alive` 消息在 relay 层被拦截，不透传到前端（防止 "Unknown message type: keep_alive" 错误）
+- `list_sessions` 消息由 relay 层拦截，服务端直接按 ACP `AgentSessionInfo` 格式响应（支持 `cwd` 过滤）
+- relay 断连时不关闭 acp-link 子进程（只关闭 WebSocket 连接），仅用户显式删除时才终止进程
 - 消息流向：
   - 前端 → relay → acp-link（`direction: "outbound"`）
   - acp-link → relay → 前端（`direction: "inbound"`）
@@ -172,7 +190,7 @@ acp-link 有两种认证方式（优先级从高到低）：
 #### 连接状态管理
 
 - **注册**：创建 `EnvironmentRecord`（`workerType="acp"`），状态为 `active`
-- **断开**：WS 断开时**直接删除记录和关联 session**（不保留 offline 状态）
+- **断开**：WS 断开时**直接删除内存记录和关联 session**（不保留 offline 状态），但 acp-link 子进程不会被杀掉（除非用户显式删除）
 - **注销**：DELETE `/v1/environments/bridge/:id` 直接删除记录（不是标记 `deregistered`）
 - **自动会话**：注册时若无 session，自动创建一个默认 session
 - **超时清理**：`disconnect-monitor` 检测到 ACP agent 超时也会直接删除记录
@@ -196,7 +214,9 @@ acp-link 有两种认证方式（优先级从高到低）：
 - `web/src/App.tsx`：路由 + better-auth session 管理
 - `web/src/components/shell/`：AppShell、Sidebar（应用外壳）
 - `web/src/components/config/`：DataTable、FormDialog、StatusBadge（配置页通用组件）
-- `web/src/pages/`：Dashboard、ModelsPage、AgentsPage、SkillsPage、McpPage 等
+- `web/src/components/`：FilePickerDialog、PermissionTab、SessionDetail 等功能组件
+- `web/src/pages/`：Dashboard、ModelsPage、AgentsPage、SkillsPage、McpPage、TasksPage、ChannelsPage、LoginPage、ApiKeyManager 等
+- `web/src/acp/`：ACP 客户端（`client.ts`、`types.ts`），处理 session/list、session/load、session/resume 等 ACP 协议
 
 **状态管理**：
 
@@ -352,9 +372,11 @@ MCP (Model Context Protocol) 支持两种类型：
 - SQLite：`data/db.sqlite`（gitignored）
 - ORM：Drizzle ORM
 - Schema：`src/db/schema.ts`
-- 表：user、session、account、verification（better-auth）、apiKey（自定义）
+- 表：
+  - better-auth：`user`、`session`、`account`、`verification`
+  - 自定义：`apiKey`、`mcpTool`（MCP Tool 缓存）、`scheduledTask`（定时任务）、`taskExecutionLog`（执行日志）、`shareLink`（分享链接）、`shareEventSnapshot`（分享事件快照）、`environment`（环境持久化）
 
-迁移：无正式迁移系统，better-auth 自动创建表。
+迁移：无正式迁移系统，better-auth 自动创建表。RCS 启动时自动执行表创建（`CREATE TABLE IF NOT EXISTS`）。
 
 ## 测试策略
 
@@ -373,8 +395,6 @@ bun test web/src/__tests__/
 # 前端单个测试文件
 bun test web/src/__tests__/app-i18n.test.ts
 ```
-
-**重要**：前端测试使用 `import.meta.dirname` 解析文件路径，从项目根目录运行即可，不需要 `cd web`。
 
 ### tsconfig
 
@@ -400,6 +420,7 @@ bun test web/src/__tests__/app-i18n.test.ts
 
 - **`middleware.test.ts` 和 `routes.test.ts`**：在 `bun test src/__tests__/` 全局运行时，因 mock 缓存污染可能无法加载 `auth/middleware.ts`（报 `Export named 'xxx' not found`）。单独运行这两个文件时正常。这是 bun test 的 mock 隔离限制，非代码 bug
 - **`routes.test.ts` Web Session Routes**：32 个测试预期 UUID-based 认证（`?uuid=` query param），但当前 `/web/sessions` 路由使用 `sessionAuth`（better-auth cookie）。需要更新测试或实现新的 API 端点
+- **文件路由测试**：`files-route.test.ts` 和 `file-api.test.ts` 中路由路径已从 `/files` 更新为 `/user`，需确保同步
 
 ### 前端测试 (Bun test)
 
@@ -442,8 +463,11 @@ Permission 选项（`web/src/components/PermissionTab.tsx`）：
 5. **状态 Badge 混淆**：两个不同文件中的 StatusBadge，状态值不同
 6. **工作目录漂移**：Bash `cd web` 后，相对路径命令会失败
 7. **acp-link 实例 spawn 认证**：acp-link 本地 WS 始终启用 auth（`authEnabled: true`），会自动生成 64 位 hex token，不受 `--group`、`ACP_RCS_TOKEN`、`--no-auth` 参数控制。relay 连接时必须从 acp-link stdout 中用正则 `Token:\s*([a-f0-9]{64})` 捕获实际 token，通过 `?token=` 传递。不能假设环境 secret 能复用为本地 WS 认证 token
-8. **acp-link 实例端口残留**：服务器重启时不会自动杀掉已 spawn 的 acp-link 子进程。若旧进程仍占用端口（如 8888），新实例 spawn 会因 `EADDRINUSE` 失败，导致 relay 找不到 running instance（报 "Agent not found or offline"）。重启服务器前应先清理残留的 acp-link 进程
+8. **acp-link 实例端口残留**：服务器重启时不会自动杀掉已 spawn 的 acp-link 子进程。若旧进程仍占用端口（如 8888），新实例 spawn 会因 `EADDRINUSE` 失败，导致 relay 找不到 running instance（报 "Agent not found or offline"）。重启服务器前应先清理残留的 acp-link 进程（`restart-server.sh` 脚本已包含清理逻辑）
 9. **acp-link standalone 模式**：spawn 时不设 `ACP_RCS_URL`，acp-link 只做本地代理不连 RCS upstream。opencode 子进程由本地 WS 连接触发启动（即 relay 连接时才启动 agent）
+10. **relay 断连不杀进程**：前端断连（刷新、关闭 dashboard）不应终止 acp-link 子进程，只在用户显式点击删除时才关闭。前端断连只关闭 WebSocket 连接
+11. **keep_alive 不透传前端**：relay 层拦截 `keep_alive` 消息，不转发给前端，否则前端报 "Unknown message type: keep_alive"
+12. **文件 API 路径**：文件系统路由已改为 `/web/sessions/:id/user/*`（不是 `/files/*`），前端 API client 同步使用 `/user` 路径
 
 ## 代码风格
 
@@ -462,8 +486,8 @@ Permission 选项（`web/src/components/PermissionTab.tsx`）：
 
 - **后端**：
   - `src/routes/`：按 API 版本或功能分组（`v1/`, `v2/`, `web/`, `acp/`）
-  - `src/services/`：业务逻辑层（`config.ts`, `skill.ts`, `instance.ts`）
-  - `src/transport/`：WebSocket/传输层（`acp-ws-handler.ts`, `event-bus.ts`）
+  - `src/services/`：业务逻辑层（`config.ts`, `skill.ts`, `instance.ts`, `task.ts`, `scheduler.ts`, `session.ts`, `environment.ts`）
+  - `src/transport/`：WebSocket/传输层（`acp-ws-handler.ts`, `acp-relay-handler.ts`, `event-bus.ts`）
   - `src/auth/`：认证相关（`better-auth.ts`, `api-key-service.ts`, `middleware.ts`）
   - `src/__tests__/`：测试文件与源码同名，加 `.test.ts` 后缀
 
@@ -472,8 +496,9 @@ Permission 选项（`web/src/components/PermissionTab.tsx`）：
     - `config/`：配置页专用组件（`DataTable`, `FormDialog`）
     - `shell/`：应用外壳（`AppShell`, `Sidebar`）
     - `ui/`：shadcn 原子组件
-  - `web/src/pages/`：页面组件（`Dashboard.tsx`, `ModelsPage.tsx`）
+  - `web/src/pages/`：页面组件（`Dashboard.tsx`, `ModelsPage.tsx`, `TasksPage.tsx`, `ChannelsPage.tsx`, `SessionDetail.tsx` 等）
   - `web/src/api/`：API 客户端（`client.ts`）
+  - `web/src/acp/`：ACP 协议客户端（`client.ts`, `types.ts`）
   - `web/src/__tests__/`：测试文件
 
 ### 代码组织模式
