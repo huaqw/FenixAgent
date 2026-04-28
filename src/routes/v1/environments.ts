@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { randomBytes } from "node:crypto";
 import { apiKeyAuth } from "../../auth/middleware";
 import {
   storeCreateEnvironment,
@@ -10,6 +11,10 @@ import {
 } from "../../store";
 
 const app = new Hono();
+
+function generateBridgeSecret(): string {
+  return `rest_${randomBytes(24).toString("hex")}`;
+}
 
 /** POST /v1/environments/bridge — REST registration for acp-link compatibility */
 app.post("/bridge", apiKeyAuth, async (c) => {
@@ -51,7 +56,7 @@ app.post("/bridge", apiKeyAuth, async (c) => {
   const workerType = body.worker_type || body.metadata?.worker_type || "acp";
 
   const record = storeCreateEnvironment({
-    secret: `rest_${Date.now()}`,
+    secret: generateBridgeSecret(),
     userId: user.id,
     machineName: body.machine_name,
     directory: body.directory,

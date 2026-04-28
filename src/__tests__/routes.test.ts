@@ -317,6 +317,26 @@ describe("V1 Environment Routes", () => {
     expect(body.status).toBe("active");
   });
 
+  test("POST /v1/environments/bridge — generates unique secret across rapid registrations", async () => {
+    const first = await app.request("/v1/environments/bridge", {
+      method: "POST",
+      headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const second = await app.request("/v1/environments/bridge", {
+      method: "POST",
+      headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    const firstBody = await first.json();
+    const secondBody = await second.json();
+    expect(firstBody.environment_secret).not.toBe(secondBody.environment_secret);
+  });
+
   test("DELETE /v1/environments/bridge/:id — deregisters environment", async () => {
     const envRes = await app.request("/v1/environments/bridge", {
       method: "POST",
