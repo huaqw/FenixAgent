@@ -17,6 +17,14 @@ docker compose up -d --build
 
 默认提供 OpenCode 作为 ACP Agent
 
+### 本地 部署
+
+```bash
+bash restart-server.sh
+```
+
+需要安装 OpenCode 作为 ACP Agent
+
 ### 使用
 
 1、模型页 - 配置模型
@@ -31,6 +39,9 @@ docker compose up -d --build
 ```bash
 # 安装依赖
 bun install
+
+# 构建前端（更新前端代码后）
+bun run build:web
 
 # 开发模式（热重载）
 bun run dev
