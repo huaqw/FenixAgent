@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import type { ExpandedState } from "@tanstack/react-table";
 
 interface DashboardProps {
-  onNavigateToSession?: (sessionId: string) => void;
+  onNavigateToSession?: (sessionId: string, options?: { cwd?: string }) => void;
 }
 
 export function Dashboard({ onNavigateToSession }: DashboardProps) {
@@ -231,7 +231,7 @@ export function Dashboard({ onNavigateToSession }: DashboardProps) {
                       <td className="py-1.5">
                         <div className="flex gap-1">
                           {onNavigateToSession && inst.session_id && (
-                            <Button variant="outline" size="sm" onClick={() => onNavigateToSession(inst.session_id!)}>
+                            <Button variant="outline" size="sm" onClick={() => onNavigateToSession(inst.session_id!, { cwd: env.workspace_path })}>
                               进入对话
                             </Button>
                           )}

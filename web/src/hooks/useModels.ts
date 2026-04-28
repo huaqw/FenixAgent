@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { ACPClient } from "../acp/client";
 import type { ModelInfo, SessionModelState } from "../acp/types";
+import { apiGetModels } from "../api/client";
+import type { ModelEntry } from "../types/config";
+import { filterConfiguredAcpModels } from "../lib/acp-model-filter";
 
 export interface UseModelsResult {
   /** Whether model selection is supported by the current agent */
@@ -29,7 +32,26 @@ export function useModels(client: ACPClient): UseModelsResult {
   const [modelState, setModelState] = useState<SessionModelState | null>(
     client.modelState
   );
+  const [configuredModels, setConfiguredModels] = useState<ModelEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    apiGetModels()
+      .then((config) => {
+        if (!cancelled) {
+          setConfiguredModels(config.available);
+        }
+      })
+      .catch((error) => {
+        console.error("[useModels] Failed to load configured models:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Subscribe to model state changes (session created/destroyed)
   // This replaces the previous 500ms polling approach
@@ -70,8 +92,8 @@ export function useModels(client: ACPClient): UseModelsResult {
   }, [client]);
 
   const availableModels = useMemo(
-    () => modelState?.availableModels ?? [],
-    [modelState]
+    () => filterConfiguredAcpModels(modelState?.availableModels ?? [], configuredModels),
+    [configuredModels, modelState]
   );
 
   const currentModelId = modelState?.currentModelId ?? null;

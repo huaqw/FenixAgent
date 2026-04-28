@@ -29,9 +29,10 @@ import { ACPMain } from "../../components/ACPMain";
 
 interface SessionDetailProps {
   sessionId: string;
+  initialCwd?: string;
 }
 
-export function SessionDetail({ sessionId }: SessionDetailProps) {
+export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionStatus, setSessionStatus] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -240,7 +241,7 @@ export function SessionDetail({ sessionId }: SessionDetailProps) {
 
   // ACP session — render ACP relay chat
   if (session.source === "acp" && session.environment_id) {
-    return <ACPSessionDetail sessionId={sessionId} agentId={session.environment_id} />;
+    return <ACPSessionDetail sessionId={sessionId} agentId={session.environment_id} initialCwd={initialCwd} />;
   }
 
   return (
@@ -403,7 +404,7 @@ function PermissionEventView({
 // ACP Session Detail — renders ACP relay chat in session page
 // ============================================================
 
-function ACPSessionDetail({ sessionId, agentId }: { sessionId: string; agentId: string }) {
+function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: string; agentId: string; initialCwd?: string }) {
   const [client, setClient] = useState<ACPClient | null>(null);
   const [connectionState, setConnectionState] = useState<"disconnected" | "connecting" | "connected" | "error">("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -448,7 +449,7 @@ function ACPSessionDetail({ sessionId, agentId }: { sessionId: string; agentId: 
 
         {connectionState === "connected" && client && (
           <div className="flex-1 min-h-0">
-            <ACPMain client={client} agentId={agentId} />
+            <ACPMain client={client} agentId={agentId} initialCwd={initialCwd} />
           </div>
         )}
 

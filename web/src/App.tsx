@@ -71,16 +71,19 @@ export default function App() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(
         null,
     );
+    const [currentSessionCwd, setCurrentSessionCwd] = useState<string | null>(null);
     const [showApiKeys, setShowApiKeys] = useState(false);
     const [configView, setConfigView] = useState<string | null>(null);
 
     const parseRoute = useCallback(() => {
         const path = window.location.pathname;
+        const params = new URLSearchParams(window.location.search);
         const configViews = ["models", "agents", "skills", "mcp", "tasks", "channels"];
         const segment = path.replace(/^\/code\/?/, "").split("/")[0];
         if (configViews.includes(segment)) {
             setConfigView(segment);
             setCurrentSessionId(null);
+            setCurrentSessionCwd(null);
         } else {
             setConfigView(null);
             const match = path.match(/^\/code\/([^/]+)$/);
@@ -92,6 +95,7 @@ export default function App() {
                 !configViews.includes(match[1])
             ) {
                 setCurrentSessionId(match[1]);
+                setCurrentSessionCwd(params.get("cwd"));
                 window.history.replaceState(null, "", `/code/${match[1]}/`);
             } else {
                 const pathMatch = path.match(/^\/code\/([^/]+)/);
@@ -103,8 +107,10 @@ export default function App() {
                     !configViews.includes(pathMatch[1])
                 ) {
                     setCurrentSessionId(pathMatch[1]);
+                    setCurrentSessionCwd(params.get("cwd"));
                 } else {
                     setCurrentSessionId(null);
+                    setCurrentSessionCwd(null);
                 }
             }
         }
@@ -116,14 +122,21 @@ export default function App() {
         return () => window.removeEventListener("popstate", parseRoute);
     }, [parseRoute]);
 
-    const navigateToSession = useCallback((sessionId: string) => {
-        window.history.pushState(null, "", `/code/${sessionId}/`);
+    const navigateToSession = useCallback((sessionId: string, options?: { cwd?: string }) => {
+        const params = new URLSearchParams();
+        if (options?.cwd) {
+            params.set("cwd", options.cwd);
+        }
+        const query = params.toString();
+        window.history.pushState(null, "", `/code/${sessionId}/${query ? `?${query}` : ""}`);
         setCurrentSessionId(sessionId);
+        setCurrentSessionCwd(options?.cwd ?? null);
     }, []);
 
     const navigateToDashboard = useCallback(() => {
         window.history.pushState(null, "", "/code/");
         setCurrentSessionId(null);
+        setCurrentSessionCwd(null);
         setShowApiKeys(false);
         setConfigView(null);
     }, []);
@@ -131,6 +144,7 @@ export default function App() {
     const navigateToApiKeys = useCallback(() => {
         setShowApiKeys(true);
         setCurrentSessionId(null);
+        setCurrentSessionCwd(null);
         setConfigView(null);
     }, []);
 
@@ -139,6 +153,7 @@ export default function App() {
         setConfigView(view);
         setShowApiKeys(false);
         setCurrentSessionId(null);
+        setCurrentSessionCwd(null);
     }, []);
 
     const handleLogout = useCallback(async () => {
@@ -263,6 +278,7 @@ export default function App() {
                         <SessionDetail
                             key={currentSessionId}
                             sessionId={currentSessionId}
+                            initialCwd={currentSessionCwd ?? undefined}
                         />
                     ) : (
                         <Dashboard onNavigateToSession={navigateToSession} />

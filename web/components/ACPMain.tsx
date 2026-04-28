@@ -11,6 +11,7 @@ import { apiGetEnvironment } from "../src/api/client";
 interface ACPMainProps {
   client: ACPClient;
   agentId?: string;
+  initialCwd?: string;
   readonly?: boolean;
 }
 
@@ -18,17 +19,34 @@ interface ACPMainProps {
  * Main container — Anthropic sidebar + chat layout.
  * Sidebar: sectioned by recency, orange active state, warm raised bg.
  */
-export function ACPMain({ client, agentId, readonly }: ACPMainProps) {
+export function ACPMain({ client, agentId, initialCwd, readonly }: ACPMainProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [cwd, setCwd] = useState<string | undefined>();
+  const [cwd, setCwd] = useState<string | undefined>(initialCwd?.replace(/\/+$/, ""));
+  const [cwdReady, setCwdReady] = useState(!agentId || !!initialCwd);
   const chatRef = useRef<ChatInterfaceHandle>(null);
 
   useEffect(() => {
-    if (!agentId) return;
+    if (initialCwd) {
+      setCwd(initialCwd.replace(/\/+$/, ""));
+      setCwdReady(true);
+      return;
+    }
+
+    if (!agentId) {
+      setCwdReady(true);
+      return;
+    }
+
+    setCwdReady(false);
     apiGetEnvironment(agentId)
-      .then((env) => setCwd(env.workspace_path.replace(/\/+$/, "")))
-      .catch(() => {});
-  }, [agentId]);
+      .then((env) => {
+        setCwd(env.workspace_path.replace(/\/+$/, ""));
+        setCwdReady(true);
+      })
+      .catch(() => {
+        setCwdReady(true);
+      });
+  }, [agentId, initialCwd]);
 
   // Handle session selection
   const handleSelectSession = useCallback(async (session: AgentSessionInfo) => {
@@ -89,7 +107,7 @@ export function ACPMain({ client, agentId, readonly }: ACPMainProps) {
         {/* 会话列表 */}
         {!sidebarCollapsed && (
           <ScrollArea className="flex-1">
-            <SidebarSessionList client={client} cwd={cwd} onSelectSession={handleSelectSession} />
+            <SidebarSessionList client={client} cwd={cwd} cwdReady={cwdReady} onSelectSession={handleSelectSession} />
           </ScrollArea>
         )}
       </div>}
@@ -109,10 +127,12 @@ export function ACPMain({ client, agentId, readonly }: ACPMainProps) {
 function SidebarSessionList({
   client,
   cwd,
+  cwdReady,
   onSelectSession,
 }: {
   client: ACPClient;
   cwd?: string;
+  cwdReady: boolean;
   onSelectSession: (session: AgentSessionInfo) => void;
 }) {
   const [sessions, setSessions] = useState<AgentSessionInfo[]>([]);
@@ -120,6 +140,9 @@ function SidebarSessionList({
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const loadSessions = useCallback(async () => {
+    if (!cwdReady) {
+      return;
+    }
     if (!client.supportsSessionList) {
       setLoading(false);
       return;
@@ -133,28 +156,35 @@ function SidebarSessionList({
     } finally {
       setLoading(false);
     }
-  }, [client, cwd]);
+  }, [client, cwd, cwdReady]);
 
   useEffect(() => {
+    if (!cwdReady) {
+      setLoading(true);
+      return;
+    }
     if (client.getState() === "connected" && client.supportsSessionList) {
       loadSessions();
     }
-  }, [client, loadSessions]);
+  }, [client, cwdReady, loadSessions]);
 
   useEffect(() => {
     const handler = (state: string) => {
-      if (state === "connected") {
+      if (state === "connected" && cwdReady) {
         setTimeout(loadSessions, 200);
       }
     };
     client.setConnectionStateHandler(handler);
     return () => client.removeConnectionStateHandler(handler);
-  }, [client, loadSessions]);
+  }, [client, cwdReady, loadSessions]);
 
   useEffect(() => {
+    if (!cwdReady) {
+      return;
+    }
     const interval = setInterval(loadSessions, 10000);
     return () => clearInterval(interval);
-  }, [loadSessions]);
+  }, [cwdReady, loadSessions]);
 
   const sorted = useMemo(
     () =>
