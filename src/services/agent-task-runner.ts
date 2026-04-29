@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import { accessSync, constants } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { environment } from "../db/schema";
+import { resolveExecutable } from "../utils/executable";
 
 const SUMMARY_LIMIT = 2000;
 
@@ -24,32 +24,6 @@ export interface AgentTaskRunResult {
   resultSummary: string | null;
   error: string | null;
   duration: number;
-}
-
-function isExecutable(filePath: string): boolean {
-  try {
-    accessSync(filePath, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveExecutable(command: string): string {
-  const localBin = join(process.cwd(), "node_modules", ".bin", command);
-  if (isExecutable(localBin)) {
-    return localBin;
-  }
-
-  const pathEntries = (process.env.PATH ?? "").split(":").filter(Boolean);
-  for (const entry of pathEntries) {
-    const candidate = join(entry, command);
-    if (isExecutable(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error(`Required executable not found: ${command}`);
 }
 
 function formatRunTimestamp(date: Date): string {

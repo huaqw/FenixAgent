@@ -1,13 +1,13 @@
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import * as net from "node:net";
-import { accessSync, constants, existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { createApiKey } from "../auth/api-key-service";
 import { getBaseUrl } from "../config";
 import { log } from "../logger";
 import { storeGetEnvironment, storeCreateSession, storeListSessionsByEnvironment } from "../store";
 import { closeInstanceLocalWs } from "../transport/acp-relay-handler";
+import { resolveExecutable } from "../utils/executable";
 
 export interface SpawnedInstance {
   id: string;
@@ -30,32 +30,6 @@ const ACP_LINK_BIND_HOST = "0.0.0.0";
 const instances = new Map<string, SpawnedInstance>();
 const allocatingPorts = new Set<number>();
 let spawnImpl: typeof spawn = spawn;
-
-function isExecutable(filePath: string): boolean {
-  try {
-    accessSync(filePath, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveExecutable(command: string): string {
-  // 1. Check project-local node_modules/.bin first
-  const localBin = join(process.cwd(), "node_modules", ".bin", command);
-  if (isExecutable(localBin)) {
-    return localBin;
-  }
-
-  // 2. Fall back to system PATH (e.g. bun install -g)
-  try {
-    const which = process.platform === "win32" ? "where" : "which";
-    const result = execSync(`${which} ${command}`, { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
-    if (result) return result.split("\n")[0].trim();
-  } catch {}
-
-  throw new Error(`Required executable not found: ${command}. Install it with: bun install -g ${command}`);
-}
 
 function allocatePort(): number | null {
   const occupied = new Set<number>();

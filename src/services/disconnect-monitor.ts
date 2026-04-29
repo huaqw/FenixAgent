@@ -1,6 +1,9 @@
 import { log, error as logError } from "../logger";
-import { storeListActiveEnvironments, storeUpdateEnvironment } from "../store";
-import { storeListSessions } from "../store";
+import {
+  storeListActiveEnvironments,
+  storeListSessions,
+  storeUpdateEnvironment,
+} from "../store";
 import { config } from "../config";
 import { updateSessionStatus } from "./session";
 

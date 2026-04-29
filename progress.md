@@ -30,3 +30,15 @@
 
 ### 测试补充
 - 新增 `mcp-inspector.test.ts`（7 个测试）：验证 McpInspectResult/McpToolItem 类型结构和 URL 校验
+
+## 2026-04-29 (Round 3)
+
+### 可执行文件解析工具提取
+- 提取 `src/utils/executable.ts` 共享模块，合并 `instance.ts` 和 `agent-task-runner.ts` 中重复的 `isExecutable` + `resolveExecutable` 函数
+- 新的 `resolveExecutable` 集成三种解析策略：local node_modules/.bin → PATH 遍历 → system which/where
+
+### disconnect-monitor.ts 优化
+- 合并两行重复的 `"../store"` import 为单行
+
+### 测试补充
+- 新增 `executable.test.ts`（7 个测试）：验证 isExecutable 和 resolveExecutable 的正确性
