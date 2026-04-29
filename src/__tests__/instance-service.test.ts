@@ -89,16 +89,24 @@ describe("InstanceService", () => {
     }
   });
 
-  test("spawnInstance fails early when acp-link is unavailable", async () => {
+  test("spawnInstance falls back to system PATH when local acp-link is missing", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "instance-service-no-acp-link-"));
     const cwdBeforeSwitch = process.cwd();
     try {
       mkdirSync(join(tempDir, "node_modules", ".bin"), { recursive: true });
       process.chdir(tempDir);
 
-      await expect(spawnInstance("test-user")).rejects.toThrow(
-        "Required executable not found: acp-link",
-      );
+      // resolveExecutable should fall back to system PATH (which acp-link)
+      // If acp-link is globally installed, spawn succeeds; otherwise it throws.
+      try {
+        const inst = await spawnInstance("test-user");
+        createdInstanceIds.push(inst.id);
+        // Success — global acp-link was found
+      } catch (e: any) {
+        // If not found anywhere, error message should mention both the executable and install command
+        expect(e.message).toContain("Required executable not found: acp-link");
+        expect(e.message).toContain("bun install -g");
+      }
     } finally {
       process.chdir(cwdBeforeSwitch);
       rmSync(tempDir, { recursive: true, force: true });

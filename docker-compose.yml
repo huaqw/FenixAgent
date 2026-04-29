@@ -1,47 +1,49 @@
 services:
-  rcs:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mothership-beta
-    restart: unless-stopped
-    ports:
-      - "${RCS_PORT:-3000}:3000"
-    environment:
-      RCS_HOST: 0.0.0.0
-      RCS_PORT: 3000
-      RCS_BASE_URL: ${RCS_BASE_URL:-http://localhost:3000}
-      RCS_API_KEYS: ${RCS_API_KEYS:-change-me}
-      # RCS server database path inside the container.
-      RCS_DB_PATH: /app/data/rcs.db
-      OPENCODE_DISABLE_AUTOUPDATE: "1"
-      OPENCODE_DISABLE_TELEMETRY: "1"
-    volumes:
-      # SQLite database and other RCS runtime data.
-      - rcs-data:/app/data
-      # OpenCode global config. RCS currently reads/writes ~/.config/opencode/opencode.json.
-      - rcs-opencode-config:/root/.config/opencode
-      # Skill directory. RCS currently uses ~/.agents/skills.
-      - rcs-skills:/root/.agents/skills
-      # OpenCode runtime state such as auth/session cache under ~/.local/share/opencode.
-      - rcs-opencode-data:/root/.local/share/opencode
-      # Agent working directories. Environment workspacePath should point to paths under /workspaces.
-      - rcs-workspaces:/workspaces
-    healthcheck:
-      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health').then((r) => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
+    rcs:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: mothership-beta
+        restart: unless-stopped
+        ports:
+            - "3000:3000"
+        environment:
+            RCS_HOST: 0.0.0.0
+            RCS_PORT: 3000
+            RCS_BASE_URL: http://localhost:3000
+            RCS_API_KEYS: 8198625e-f6e0-4402-a278-b1910408c160
+            # RCS server database path inside the container.
+            RCS_DB_PATH: /app/data/rcs.db
+            OPENCODE_DISABLE_AUTOUPDATE: "1"
+            OPENCODE_DISABLE_TELEMETRY: "1"
+        volumes:
+            # SQLite 数据库及其他 RCS 运行时数据
+            - rcs-data:/app/data
+            # OpenCode 全局配置：直接注入宿主机配置文件
+            - ~/.config/opencode/opencode.json:/root/.config/opencode/opencode.json
+            # Skill 技能目录：直接注入宿主机 skills
+            - ~/.agents/skills:/root/.agents/skills
+            # OpenCode 运行时状态，如认证/会话缓存，位于 ~/.local/share/opencode
+            - rcs-opencode-data:/root/.local/share/opencode
+            # Agent 工作目录，环境的 workspacePath 应指向 /workspaces 下的路径
+            - rcs-workspaces:/workspaces
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "bun",
+                    "-e",
+                    "fetch('http://127.0.0.1:3000/health').then((r) => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))",
+                ]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 20s
 
 volumes:
-  # Persistent RCS SQLite data.
-  rcs-data:
-  # Persistent OpenCode global config directory.
-  rcs-opencode-config:
-  # Persistent skill storage used by RCS.
-  rcs-skills:
-  # Persistent OpenCode auth/cache/state.
-  rcs-opencode-data:
-  # Persistent agent workspaces created and used inside the container.
-  rcs-workspaces:
+    # RCS SQLite 持久化数据
+    rcs-data:
+    # OpenCode 认证/缓存/状态持久化
+    rcs-opencode-data:
+    # 容器内 Agent 工作空间持久化
+    rcs-workspaces:

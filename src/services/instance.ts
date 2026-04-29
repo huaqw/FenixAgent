@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import * as net from "node:net";
 import { accessSync, constants, existsSync } from "node:fs";
@@ -41,12 +41,20 @@ function isExecutable(filePath: string): boolean {
 }
 
 function resolveExecutable(command: string): string {
+  // 1. Check project-local node_modules/.bin first
   const localBin = join(process.cwd(), "node_modules", ".bin", command);
   if (isExecutable(localBin)) {
     return localBin;
   }
 
-  throw new Error(`Required executable not found: ${command}. Run npm install in the project root to install it into node_modules/.bin.`);
+  // 2. Fall back to system PATH (e.g. bun install -g)
+  try {
+    const which = process.platform === "win32" ? "where" : "which";
+    const result = execSync(`${which} ${command}`, { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+    if (result) return result.split("\n")[0].trim();
+  } catch {}
+
+  throw new Error(`Required executable not found: ${command}. Install it with: bun install -g ${command}`);
 }
 
 function allocatePort(): number | null {

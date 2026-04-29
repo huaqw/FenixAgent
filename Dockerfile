@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1-slim AS base
 WORKDIR /app
 
 FROM base AS deps
@@ -13,6 +13,9 @@ COPY components.json ./
 RUN bun run build:web
 RUN bun build src/index.ts --outfile=dist/server.js --target=bun
 
+
+############### production image ###############
+
 FROM oven/bun:1-slim AS runtime
 WORKDIR /app
 
@@ -26,14 +29,14 @@ ENV PATH=/root/.bun/bin:${PATH}
 ENV OPENCODE_DISABLE_AUTOUPDATE=1
 ENV OPENCODE_DISABLE_TELEMETRY=1
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates git openssh-client ripgrep \
-  && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update \
+#   && apt-get install -y --no-install-recommends ca-certificates git openssh-client ripgrep \
+#   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
-RUN bun install -g opencode-ai@latest
-
+# RUN bun install --frozen-lockfile --production
+RUN bun install -g opencode-ai@latest --registry=https://registry.npmmirror.com
+RUN bun i -g acp-link
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/web/dist ./web/dist
 
