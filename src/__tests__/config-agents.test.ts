@@ -19,6 +19,10 @@ mock.module("../services/config", () => ({
   getSection: async (section: string) => section === "agent" ? _agentStore : undefined,
   setSection: async (_section: string, data: unknown) => { _agentStore = data as Record<string, unknown>; },
   replaceSection: async (_section: string, data: unknown) => { _agentStore = data as Record<string, unknown>; },
+  modifySection: async (_section: string, modifier: (current: any) => any) => {
+    const current = _section === "agent" ? _agentStore : undefined;
+    _agentStore = modifier(current);
+  },
   setTopLevelField: async (field: string, value: unknown) => { _topLevelFields[field] = value; },
   getConfig: async () => ({ ..._topLevelFields, agent: _agentStore }),
 }));

@@ -73,6 +73,25 @@ export async function replaceSection(section: string, data: unknown): Promise<vo
   }
 }
 
+export async function modifySection<T>(
+  section: string,
+  modifier: (current: T | undefined) => T,
+): Promise<T> {
+  const release = await acquireWriteLock();
+  try {
+    const config = await getConfig();
+    const current = config[section] as T | undefined;
+    const modified = modifier(current);
+    config[section] = modified;
+    const dir = join(CONFIG_PATH, "..");
+    if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
+    return modified;
+  } finally {
+    release();
+  }
+}
+
 export async function deleteSection(section: string): Promise<boolean> {
   const release = await acquireWriteLock();
   try {

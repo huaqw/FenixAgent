@@ -222,23 +222,19 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
 
   // ── 开关型工具变更 ──
   const handleToggleChange = (tool: string, value: string) => {
-    setToggleTools(prev => {
-      const next = { ...prev, [tool]: value as ToggleValue };
-      notifyParent(next, ruleTools, skillPerm, skillValues, globalStrategy);
-      return next;
-    });
+    const next = { ...toggleTools, [tool]: value as ToggleValue };
+    setToggleTools(next);
+    notifyParent(next, ruleTools, skillPerm, skillValues, globalStrategy);
   };
 
   // ── 规则型工具全局策略变更 ──
   const handleRuleGlobalChange = (tool: string, value: string) => {
-    setRuleTools(prev => {
-      const next = {
-        ...prev,
-        [tool]: { ...prev[tool], global: value as ToggleValue },
-      };
-      notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
-      return next;
-    });
+    const next = {
+      ...ruleTools,
+      [tool]: { ...ruleTools[tool], global: value as ToggleValue },
+    };
+    setRuleTools(next);
+    notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
   };
 
   // ── 规则型工具展开/折叠 ──
@@ -253,114 +249,94 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
 
   // ── 规则型工具: 添加规则 ──
   const handleAddRule = (tool: string) => {
-    setRuleTools(prev => {
-      const updated: Record<string, RuleToolState> = {
-        ...prev,
-        [tool]: {
-          ...prev[tool],
-          rules: [...prev[tool].rules, { pattern: "", action: "deny" }],
-        },
-      };
-      notifyParent(toggleTools, updated, skillPerm, skillValues, globalStrategy);
-      return updated;
-    });
+    const updated: Record<string, RuleToolState> = {
+      ...ruleTools,
+      [tool]: {
+        ...ruleTools[tool],
+        rules: [...ruleTools[tool].rules, { pattern: "", action: "deny" }],
+      },
+    };
+    setRuleTools(updated);
+    notifyParent(toggleTools, updated, skillPerm, skillValues, globalStrategy);
     setExpandedTools(prev => new Set(prev).add(tool));
   };
 
   // ── 规则型工具: 更新规则 pattern ──
   const handleRulePatternChange = (tool: string, index: number, pattern: string) => {
-    setRuleTools(prev => {
-      const rules = [...prev[tool].rules];
-      rules[index] = { ...rules[index], pattern };
-      const next = { ...prev, [tool]: { ...prev[tool], rules } };
-      notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
-      return next;
-    });
+    const rules = [...ruleTools[tool].rules];
+    rules[index] = { ...rules[index], pattern };
+    const next = { ...ruleTools, [tool]: { ...ruleTools[tool], rules } };
+    setRuleTools(next);
+    notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
   };
 
   // ── 规则型工具: 更新规则 action ──
   const handleRuleActionChange = (tool: string, index: number, action: string) => {
-    setRuleTools(prev => {
-      const rules = [...prev[tool].rules];
-      rules[index] = { ...rules[index], action: action as PermissionAction };
-      const next = { ...prev, [tool]: { ...prev[tool], rules } };
-      notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
-      return next;
-    });
+    const rules = [...ruleTools[tool].rules];
+    rules[index] = { ...rules[index], action: action as PermissionAction };
+    const next = { ...ruleTools, [tool]: { ...ruleTools[tool], rules } };
+    setRuleTools(next);
+    notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
   };
 
   // ── 规则型工具: 删除规则 ──
   const handleDeleteRule = (tool: string, index: number) => {
-    setRuleTools(prev => {
-      const rules = prev[tool].rules.filter((_, i) => i !== index);
-      const next = { ...prev, [tool]: { ...prev[tool], rules } };
-      notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
-      return next;
-    });
+    const rules = ruleTools[tool].rules.filter((_, i) => i !== index);
+    const next = { ...ruleTools, [tool]: { ...ruleTools[tool], rules } };
+    setRuleTools(next);
+    notifyParent(toggleTools, next, skillPerm, skillValues, globalStrategy);
   };
 
   // ── Skill 精确名称权限变更 ──
   const handleSkillValueChange = (name: string, value: string) => {
-    setSkillValues(prev => {
-      const next = { ...prev, [name]: value as ToggleValue };
-      notifyParent(toggleTools, ruleTools, skillPerm, next, globalStrategy);
-      return next;
-    });
+    const next = { ...skillValues, [name]: value as ToggleValue };
+    setSkillValues(next);
+    notifyParent(toggleTools, ruleTools, skillPerm, next, globalStrategy);
   };
 
   // ── Skill 全局策略变更 ──
   const handleSkillGlobalChange = (value: string) => {
-    setSkillPerm(prev => {
-      const next = { ...prev, global: value as ToggleValue };
-      notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
-      return next;
-    });
+    const next = { ...skillPerm, global: value as ToggleValue };
+    setSkillPerm(next);
+    notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
   };
 
   // ── Skill 自定义规则: 添加 ──
   const handleAddSkillRule = () => {
-    setSkillPerm(prev => {
-      const next: SkillPermState = {
-        ...prev,
-        rules: [...prev.rules, { pattern: "", action: "deny" }],
-      };
-      notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
-      return next;
-    });
+    const next: SkillPermState = {
+      ...skillPerm,
+      rules: [...skillPerm.rules, { pattern: "", action: "deny" }],
+    };
+    setSkillPerm(next);
+    notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
   };
 
   // ── Skill 自定义规则: 更新 pattern ──
   const handleSkillRulePatternChange = (index: number, pattern: string) => {
-    setSkillPerm(prev => {
-      const rules = [...prev.rules];
-      rules[index] = { ...rules[index], pattern };
-      const next = { ...prev, rules };
-      notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
-      return next;
-    });
+    const rules = [...skillPerm.rules];
+    rules[index] = { ...rules[index], pattern };
+    const next = { ...skillPerm, rules };
+    setSkillPerm(next);
+    notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
   };
 
   // ── Skill 自定义规则: 更新 action ──
   const handleSkillRuleActionChange = (index: number, action: string) => {
-    setSkillPerm(prev => {
-      const rules = [...prev.rules];
-      rules[index] = { ...rules[index], action: action as PermissionAction };
-      const next = { ...prev, rules };
-      notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
-      return next;
-    });
+    const rules = [...skillPerm.rules];
+    rules[index] = { ...rules[index], action: action as PermissionAction };
+    const next = { ...skillPerm, rules };
+    setSkillPerm(next);
+    notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
   };
 
   // ── Skill 自定义规则: 删除 ──
   const handleDeleteSkillRule = (index: number) => {
-    setSkillPerm(prev => {
-      const next = {
-        ...prev,
-        rules: prev.rules.filter((_, i) => i !== index),
-      };
-      notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
-      return next;
-    });
+    const next = {
+      ...skillPerm,
+      rules: skillPerm.rules.filter((_, i) => i !== index),
+    };
+    setSkillPerm(next);
+    notifyParent(toggleTools, ruleTools, next, skillValues, globalStrategy);
   };
 
   return (

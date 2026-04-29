@@ -235,7 +235,7 @@ export function AgentsPage() {
                 color: formColor || undefined,
                 hidden: formHidden,
                 disable: formDisable,
-                permission: formPermission ?? undefined,
+                permission: formPermission,
             };
             if (editingAgent) {
                 await apiSetAgent(name, data);

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { sessionAuth } from "../../../auth/middleware";
-import { getSection, setSection, setTopLevelField, getConfig, replaceSection } from "../../../services/config";
+import { getSection, setTopLevelField, getConfig, modifySection } from "../../../services/config";
 
 const BUILT_IN_AGENTS = new Set(["build", "plan", "general", "explore", "title", "summary", "compaction"]);
 
@@ -127,8 +127,6 @@ async function handleGet(name: string) {
 }
 
 async function handleSet(name: string, data: Record<string, unknown>) {
-  const agents = (await getSection<Record<string, Record<string, unknown>>>("agent")) ?? {};
-  if (!agents[name]) return { success: false, error: { code: "NOT_FOUND", message: `Agent '${name}' not found` } };
   const validation = validateAgentData(data);
   if (validation) return { success: false, error: { code: "VALIDATION_ERROR", message: validation } };
 
@@ -139,11 +137,30 @@ async function handleSet(name: string, data: Record<string, unknown>) {
       filtered[key] = value;
     }
   }
-  // 写入时清除 tools 字段，始终用 permission
-  delete agents[name].tools;
 
-  agents[name] = { ...agents[name], ...filtered };
-  await replaceSection("agent", agents);
+  let notFound = false;
+  await modifySection<Record<string, Record<string, unknown>>>("agent", (agents) => {
+    const current = agents ?? {};
+    if (!current[name]) {
+      notFound = true;
+      return current;
+    }
+    const agent = { ...current[name] };
+    // 写入时清除 tools 字段，始终用 permission
+    delete agent.tools;
+    // 逐字段合并：permission 为 null 时删除 key（清除权限），其余正常覆盖
+    for (const [key, value] of Object.entries(filtered)) {
+      if (key === "permission" && value == null) {
+        delete agent.permission;
+      } else {
+        agent[key] = value;
+      }
+    }
+    current[name] = agent;
+    return current;
+  });
+
+  if (notFound) return { success: false, error: { code: "NOT_FOUND", message: `Agent '${name}' not found` } };
   return { success: true, data: { name, ...filtered } };
 }
 
@@ -162,10 +179,17 @@ async function handleCreate(name: string, data: Record<string, unknown>) {
     }
   }
 
-  const agents = (await getSection<Record<string, Record<string, unknown>>>("agent")) ?? {};
-  if (agents[name]) return { success: false, error: { code: "ALREADY_EXISTS", message: `Agent '${name}' already exists` } };
-  agents[name] = filtered;
-  await setSection("agent", agents);
+  let alreadyExists = false;
+  await modifySection<Record<string, Record<string, unknown>>>("agent", (agents) => {
+    const current = agents ?? {};
+    if (current[name]) {
+      alreadyExists = true;
+      return current;
+    }
+    current[name] = filtered;
+    return current;
+  });
+  if (alreadyExists) return { success: false, error: { code: "ALREADY_EXISTS", message: `Agent '${name}' already exists` } };
   return { success: true, data: { name } };
 }
 
@@ -173,10 +197,17 @@ async function handleDelete(name: string) {
   if (BUILT_IN_AGENTS.has(name)) {
     return { success: false, error: { code: "FORBIDDEN", message: `Cannot delete built-in agent '${name}'` } };
   }
-  const agents = (await getSection<Record<string, Record<string, unknown>>>("agent")) ?? {};
-  if (!agents[name]) return { success: false, error: { code: "NOT_FOUND", message: `Agent '${name}' not found` } };
-  delete agents[name];
-  await replaceSection("agent", agents);
+  let notFound = false;
+  await modifySection<Record<string, Record<string, unknown>>>("agent", (agents) => {
+    const current = agents ?? {};
+    if (!current[name]) {
+      notFound = true;
+      return current;
+    }
+    delete current[name];
+    return current;
+  });
+  if (notFound) return { success: false, error: { code: "NOT_FOUND", message: `Agent '${name}' not found` } };
   return { success: true };
 }
 
