@@ -73,3 +73,16 @@
 ### 测试补充
 - 扩展 `config-models.test.ts`：缓存失效测试 + 模型 context/output limit 解析测试（+2 测试）
 - 扩展 `config-providers.test.ts`：replaceSection 保留 key 测试 + add_model 不存在 provider 测试（+2 测试）
+
+## 2026-04-30 (Round 6)
+
+### providers.ts 原子写入改造
+- `handleSet`/`handleDelete`/`handleAddModel`/`handleUpdateModel`/`handleRemoveModel` 从 `getSection+replaceSection` 改为 `modifySection`，整个 read-modify-write 在同一把写锁内完成，消除并发竞态
+
+### mcp.ts 原子写入改造
+- `handleCreate`/`handleUpdate`/`handleDelete`/`handleEnable`/`handleDisable` 从 `getSection+replaceSection` 改为 `modifySection`，路由层补充 try-catch 兜底
+
+### 测试补充
+- 新建 `config-mcp-network.test.ts`：mock inspectRemoteMcpServer 和 db，覆盖 test/test_url/inspect/list_tools 4 个 action（+16 测试）
+- 扩展 `config-providers.test.ts`：handleTest 不存在 provider + 并发 set 不丢数据（+2 测试）
+- 更新 config-mcp.test.ts 和 config-providers.test.ts 的 mock：补充 modifySection 实现

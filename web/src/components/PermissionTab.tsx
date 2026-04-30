@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,65 @@ interface RuleEntry { pattern: string; action: PermissionAction; }
 interface RuleToolState { global: ToggleValue; rules: RuleEntry[]; }
 interface SkillPermState { global: ToggleValue; rules: RuleEntry[]; }
 
+// ── 初始化辅助：从 permission prop 解析内部状态（仅在组件挂载时调用一次） ──
+
+function parsePermission(permission: Record<string, unknown> | null | undefined): {
+  globalStrategy: ToggleValue;
+  toggleTools: Record<string, ToggleValue>;
+  ruleTools: Record<string, RuleToolState>;
+  skillPerm: SkillPermState;
+  skillValues: Record<string, ToggleValue>;
+} {
+  if (!permission || typeof permission === "string") {
+    return {
+      globalStrategy: (permission as unknown as ToggleValue) ?? "",
+      toggleTools: Object.fromEntries(TOGGLE_TOOLS.map(t => [t, ""] as const)) as Record<string, ToggleValue>,
+      ruleTools: Object.fromEntries(RULE_TOOLS.map(t => [t, { global: "" as ToggleValue, rules: [] as RuleEntry[] }])) as Record<string, RuleToolState>,
+      skillPerm: { global: "", rules: [] } as SkillPermState,
+      skillValues: {} as Record<string, ToggleValue>,
+    };
+  }
+  const perm = permission as Record<string, unknown>;
+  const newToggle: Record<string, ToggleValue> = {};
+  for (const tool of TOGGLE_TOOLS) {
+    const val = perm[tool];
+    newToggle[tool] = (val === "ask" || val === "allow" || val === "deny") ? val : "";
+  }
+  const newRule: Record<string, RuleToolState> = {};
+  for (const tool of RULE_TOOLS) {
+    const val = perm[tool];
+    if (val === "ask" || val === "allow" || val === "deny") {
+      newRule[tool] = { global: val, rules: [] };
+    } else if (val && typeof val === "object") {
+      const rules = Object.entries(val as Record<string, unknown>)
+        .filter(([, v]) => v === "ask" || v === "allow" || v === "deny")
+        .map(([pattern, action]) => ({ pattern, action: action as PermissionAction }));
+      newRule[tool] = { global: "", rules };
+    } else {
+      newRule[tool] = { global: "", rules: [] };
+    }
+  }
+  let skillPerm: SkillPermState = { global: "", rules: [] };
+  const skillValues: Record<string, ToggleValue> = {};
+  const skillVal = perm["skill"];
+  if (skillVal === "ask" || skillVal === "allow" || skillVal === "deny") {
+    skillPerm = { global: skillVal, rules: [] };
+  } else if (skillVal && typeof skillVal === "object") {
+    const rules: RuleEntry[] = [];
+    for (const [pattern, action] of Object.entries(skillVal as Record<string, unknown>)) {
+      if (action === "ask" || action === "allow" || action === "deny") {
+        if (pattern.includes("*")) {
+          rules.push({ pattern, action });
+        } else {
+          skillValues[pattern] = action;
+        }
+      }
+    }
+    skillPerm = { global: "", rules };
+  }
+  return { globalStrategy: "" as ToggleValue, toggleTools: newToggle, ruleTools: newRule, skillPerm, skillValues };
+}
+
 // ── Props 接口 ──
 
 interface PermissionTabProps {
@@ -60,83 +119,17 @@ interface PermissionTabProps {
 }
 
 export function PermissionTab({ agentName, permission, onPermissionChange }: PermissionTabProps) {
-  // ── 状态 ──
-  const [globalStrategy, setGlobalStrategy] = useState<ToggleValue>("");
-  const [toggleTools, setToggleTools] = useState<Record<string, ToggleValue>>(() =>
-    Object.fromEntries(TOGGLE_TOOLS.map(t => [t, ""]))
-  );
-  const [ruleTools, setRuleTools] = useState<Record<string, RuleToolState>>(() =>
-    Object.fromEntries(RULE_TOOLS.map(t => [t, { global: "", rules: [] }]))
-  );
-  const [skillPerm, setSkillPerm] = useState<SkillPermState>({ global: "", rules: [] });
+  // ── 状态（仅初始化一次，不再双向同步 prop） ──
+  const [initialParsed] = useState(() => parsePermission(permission));
+  const [globalStrategy, setGlobalStrategy] = useState<ToggleValue>(initialParsed.globalStrategy);
+  const [toggleTools, setToggleTools] = useState<Record<string, ToggleValue>>(initialParsed.toggleTools);
+  const [ruleTools, setRuleTools] = useState<Record<string, RuleToolState>>(initialParsed.ruleTools);
+  const [skillPerm, setSkillPerm] = useState<SkillPermState>(initialParsed.skillPerm);
   const [skillNames, setSkillNames] = useState<string[]>([]);
-  const [skillValues, setSkillValues] = useState<Record<string, ToggleValue>>({});
+  const [skillValues, setSkillValues] = useState<Record<string, ToggleValue>>(initialParsed.skillValues);
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [skillLoading, setSkillLoading] = useState(false);
 
-  // ── 从 permission prop 解析为 UI 状态 ──
-  const lastSentRef = useRef<string>("");
-  useEffect(() => {
-    lastSentRef.current = JSON.stringify(permission);
-  }, [permission]);
-  useEffect(() => {
-    if (!permission || typeof permission === "string") {
-      setGlobalStrategy((permission as unknown as ToggleValue) ?? "");
-      setToggleTools(Object.fromEntries(TOGGLE_TOOLS.map(t => [t, ""])));
-      setRuleTools(Object.fromEntries(RULE_TOOLS.map(t => [t, { global: "", rules: [] }])));
-      setSkillPerm({ global: "", rules: [] });
-      setSkillValues({});
-      return;
-    }
-    setGlobalStrategy("");
-    const perm = permission as Record<string, unknown>;
-    // 开关型工具
-    const newToggle: Record<string, ToggleValue> = {};
-    for (const tool of TOGGLE_TOOLS) {
-      const val = perm[tool];
-      newToggle[tool] = (val === "ask" || val === "allow" || val === "deny") ? val : "";
-    }
-    setToggleTools(prev => ({ ...Object.fromEntries(TOGGLE_TOOLS.map(t => [t, ""])), ...newToggle }));
-    // 规则型工具
-    const newRule: Record<string, RuleToolState> = {};
-    for (const tool of RULE_TOOLS) {
-      const val = perm[tool];
-      if (val === "ask" || val === "allow" || val === "deny") {
-        newRule[tool] = { global: val, rules: [] };
-      } else if (val && typeof val === "object") {
-        const rules = Object.entries(val as Record<string, unknown>)
-          .filter(([, v]) => v === "ask" || v === "allow" || v === "deny")
-          .map(([pattern, action]) => ({ pattern, action: action as PermissionAction }));
-        newRule[tool] = { global: "", rules };
-      } else {
-        newRule[tool] = { global: "", rules: [] };
-      }
-    }
-    setRuleTools(prev => ({ ...Object.fromEntries(RULE_TOOLS.map(t => [t, { global: "", rules: [] }])), ...newRule }));
-    // Skill 权限
-    const skillVal = perm["skill"];
-    if (skillVal === "ask" || skillVal === "allow" || skillVal === "deny") {
-      setSkillPerm({ global: skillVal, rules: [] });
-      setSkillValues({});
-    } else if (skillVal && typeof skillVal === "object") {
-      const rules: RuleEntry[] = [];
-      const values: Record<string, ToggleValue> = {};
-      for (const [pattern, action] of Object.entries(skillVal as Record<string, unknown>)) {
-        if (action === "ask" || action === "allow" || action === "deny") {
-          if (pattern.includes("*")) {
-            rules.push({ pattern, action });
-          } else {
-            values[pattern] = action;
-          }
-        }
-      }
-      setSkillPerm({ global: "", rules });
-      setSkillValues(values);
-    } else {
-      setSkillPerm({ global: "", rules: [] });
-      setSkillValues({});
-    }
-  }, [permission]);
 
   // ── 加载 skill 列表 ──
   useEffect(() => {
@@ -173,13 +166,8 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
     nextSkillValues: typeof skillValues,
     nextGlobal: typeof globalStrategy,
   ) => {
-    // Build permission inline to use latest values
     if (nextGlobal) {
-      const serialized = JSON.stringify(nextGlobal as unknown as Record<string, unknown>);
-      if (serialized !== lastSentRef.current) {
-        lastSentRef.current = serialized;
-        onPermissionChange(nextGlobal as unknown as Record<string, unknown>);
-      }
+      onPermissionChange(nextGlobal as unknown as Record<string, unknown>);
       return;
     }
     const result: Record<string, unknown> = {};
@@ -212,12 +200,7 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
     } else if (Object.keys(skillEntries).length > 0) {
       result["skill"] = skillEntries;
     }
-    const perm = Object.keys(result).length > 0 ? result : null;
-    const serialized = JSON.stringify(perm);
-    if (serialized !== lastSentRef.current) {
-      lastSentRef.current = serialized;
-      onPermissionChange(perm);
-    }
+    onPermissionChange(Object.keys(result).length > 0 ? result : null);
   }, [skillNames, onPermissionChange]);
 
   // ── 开关型工具变更 ──

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { sessionAuth } from "../../../auth/middleware";
-import { getSection, replaceSection } from "../../../services/config";
+import { getSection, modifySection } from "../../../services/config";
 import { inspectRemoteMcpServer } from "../../../services/mcp-inspector";
 import { db } from "../../../db";
 import { mcpTool } from "../../../db/schema";
@@ -136,10 +136,17 @@ async function handleCreate(name: string, config: McpServerConfig) {
   const validation = validateMcpConfig(config);
   if (validation) return { success: false, error: { code: "VALIDATION_ERROR", message: validation } };
 
-  const mcp = (await getSection<McpRecord>("mcp")) ?? {};
-  if (mcp[name]) return { success: false, error: { code: "ALREADY_EXISTS", message: `MCP server '${name}' already exists` } };
-  mcp[name] = config;
-  await replaceSection("mcp", mcp);
+  let alreadyExists = false;
+  await modifySection<McpRecord>("mcp", (mcp) => {
+    const current = mcp ?? {};
+    if (current[name]) {
+      alreadyExists = true;
+      return current;
+    }
+    current[name] = config;
+    return current;
+  });
+  if (alreadyExists) return { success: false, error: { code: "ALREADY_EXISTS", message: `MCP server '${name}' already exists` } };
   return { success: true, data: { name } };
 }
 
@@ -147,18 +154,32 @@ async function handleUpdate(name: string, config: McpServerConfig) {
   const validation = validateMcpConfig(config);
   if (validation) return { success: false, error: { code: "VALIDATION_ERROR", message: validation } };
 
-  const mcp = (await getSection<McpRecord>("mcp")) ?? {};
-  if (!mcp[name]) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
-  mcp[name] = config;
-  await replaceSection("mcp", mcp);
+  let notFound = false;
+  await modifySection<McpRecord>("mcp", (mcp) => {
+    const current = mcp ?? {};
+    if (!current[name]) {
+      notFound = true;
+      return current;
+    }
+    current[name] = config;
+    return current;
+  });
+  if (notFound) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
   return { success: true, data: { name } };
 }
 
 async function handleDelete(name: string) {
-  const mcp = (await getSection<McpRecord>("mcp")) ?? {};
-  if (!mcp[name]) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
-  delete mcp[name];
-  await replaceSection("mcp", mcp);
+  let notFound = false;
+  await modifySection<McpRecord>("mcp", (mcp) => {
+    const current = mcp ?? {};
+    if (!current[name]) {
+      notFound = true;
+      return current;
+    }
+    delete current[name];
+    return current;
+  });
+  if (notFound) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
   // 同时删除该服务器的 tools 缓存
   try {
@@ -171,27 +192,41 @@ async function handleDelete(name: string) {
 }
 
 async function handleEnable(name: string) {
-  const mcp = (await getSection<McpRecord>("mcp")) ?? {};
-  const config = mcp[name];
-  if (!config) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
-
-  // 如果当前是禁用变体 { enabled: false }，无法启用（缺少原始配置信息）
-  if ("enabled" in config && config.enabled === false && !("type" in config)) {
-    return { success: false, error: { code: "VALIDATION_ERROR", message: `Cannot enable '${name}': original config lost, please recreate` } };
-  }
-  (config as Record<string, unknown>).enabled = true;
-  mcp[name] = config;
-  await replaceSection("mcp", mcp);
+  let result: "ok" | "not_found" | "no_original_config" = "ok" as typeof result;
+  await modifySection<McpRecord>("mcp", (mcp) => {
+    const current = mcp ?? {};
+    const config = current[name];
+    if (!config) {
+      result = "not_found";
+      return current;
+    }
+    if ("enabled" in config && config.enabled === false && !("type" in config)) {
+      result = "no_original_config";
+      return current;
+    }
+    (config as Record<string, unknown>).enabled = true;
+    current[name] = config;
+    return current;
+  });
+  if (result === "not_found") return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
+  if (result === "no_original_config") return { success: false, error: { code: "VALIDATION_ERROR", message: `Cannot enable '${name}': original config lost, please recreate` } };
   return { success: true, data: { name, enabled: true } };
 }
 
 async function handleDisable(name: string) {
-  const mcp = (await getSection<McpRecord>("mcp")) ?? {};
-  const config = mcp[name];
-  if (!config) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
-  (config as Record<string, unknown>).enabled = false;
-  mcp[name] = config;
-  await replaceSection("mcp", mcp);
+  let notFound = false;
+  await modifySection<McpRecord>("mcp", (mcp) => {
+    const current = mcp ?? {};
+    const config = current[name];
+    if (!config) {
+      notFound = true;
+      return current;
+    }
+    (config as Record<string, unknown>).enabled = false;
+    current[name] = config;
+    return current;
+  });
+  if (notFound) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
   return { success: true, data: { name, enabled: false } };
 }
 
@@ -346,19 +381,24 @@ app.post("/config/mcp", sessionAuth, async (c) => {
     .catch((): { action: string; name?: string; config?: unknown; url?: string; headers?: Record<string, string>; timeout?: number } => ({ action: "" }));
   const { action, name, config, url, headers, timeout } = body;
 
-  switch (action) {
-    case "list":       return c.json(await handleList());
-    case "get":        return c.json(await handleGet(name!));
-    case "create":     return c.json(await handleCreate(name!, config as McpServerConfig));
-    case "update":     return c.json(await handleUpdate(name!, config as McpServerConfig));
-    case "delete":     return c.json(await handleDelete(name!));
-    case "enable":     return c.json(await handleEnable(name!));
-    case "disable":    return c.json(await handleDisable(name!));
-    case "test":       return c.json(await handleTest(name!));
-    case "test_url":   return c.json(await handleTestUrl(url!, headers, timeout));
-    case "inspect":    return c.json(await handleInspect(name!));
-    case "list_tools": return c.json(await handleListTools(name!));
-    default: return c.json({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } }, 400);
+  try {
+    switch (action) {
+      case "list":       return c.json(await handleList());
+      case "get":        return c.json(await handleGet(name!));
+      case "create":     return c.json(await handleCreate(name!, config as McpServerConfig));
+      case "update":     return c.json(await handleUpdate(name!, config as McpServerConfig));
+      case "delete":     return c.json(await handleDelete(name!));
+      case "enable":     return c.json(await handleEnable(name!));
+      case "disable":    return c.json(await handleDisable(name!));
+      case "test":       return c.json(await handleTest(name!));
+      case "test_url":   return c.json(await handleTestUrl(url!, headers, timeout));
+      case "inspect":    return c.json(await handleInspect(name!));
+      case "list_tools": return c.json(await handleListTools(name!));
+      default: return c.json({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } }, 400);
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return c.json({ success: false, error: { code: "CONFIG_READ_ERROR", message } }, 500);
   }
 });
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { sessionAuth } from "../../../auth/middleware";
-import { getSection, replaceSection } from "../../../services/config";
+import { getSection, modifySection } from "../../../services/config";
 
 type ProviderConfig = {
   npm?: string;
@@ -79,31 +79,31 @@ async function handleGet(name: string) {
 async function handleSet(name: string, data: Record<string, unknown>) {
   if (!name || typeof name !== "string") return err("VALIDATION_ERROR", "Provider name is required");
 
-  // 构造 opencode 标准嵌套结构
-  const provider = (await getSection<Record<string, ProviderConfig>>("provider")) ?? {};
-  const existing = provider[name] ?? {};
+  let keyHint: string | null = null;
+  await modifySection<Record<string, ProviderConfig>>("provider", (provider) => {
+    const current = provider ?? {};
+    const existing = current[name] ?? {};
 
-  // 将扁平的 data 映射到嵌套结构
-  const updated: ProviderConfig = {
-    ...existing,
-    npm: (data.npm as string) ?? existing.npm ?? "@ai-sdk/openai-compatible",
-    name: (data.name as string) ?? existing.name,
-    options: {
-      ...(existing.options ?? {}),
-      ...(data.baseURL !== undefined ? { baseURL: data.baseURL as string } : {}),
-      ...(data.apiKey !== undefined ? { apiKey: data.apiKey as string } : {}),
-    },
-  };
-  // 保留已有 models
-  if (existing.models) updated.models = existing.models;
-  // 如果 data 中包含 models，更新
-  if (data.models && typeof data.models === "object") {
-    updated.models = data.models as Record<string, Record<string, unknown>>;
-  }
+    const updated: ProviderConfig = {
+      ...existing,
+      npm: (data.npm as string) ?? existing.npm ?? "@ai-sdk/openai-compatible",
+      name: (data.name as string) ?? existing.name,
+      options: {
+        ...(existing.options ?? {}),
+        ...(data.baseURL !== undefined ? { baseURL: data.baseURL as string } : {}),
+        ...(data.apiKey !== undefined ? { apiKey: data.apiKey as string } : {}),
+      },
+    };
+    if (existing.models) updated.models = existing.models;
+    if (data.models && typeof data.models === "object") {
+      updated.models = data.models as Record<string, Record<string, unknown>>;
+    }
 
-  provider[name] = updated;
-  await replaceSection("provider", provider);
-  return ok({ id: name, keyHint: toKeyHint(updated.options?.apiKey as string | undefined) });
+    current[name] = updated;
+    keyHint = toKeyHint(updated.options?.apiKey as string | undefined);
+    return current;
+  });
+  return ok({ id: name, keyHint });
 }
 
 async function handleTest(name: string) {
@@ -144,10 +144,17 @@ async function handleTest(name: string) {
 }
 
 async function handleDelete(name: string) {
-  const provider = (await getSection<Record<string, ProviderConfig>>("provider")) ?? {};
-  if (!provider[name]) return err("NOT_FOUND", `Provider '${name}' not found`);
-  delete provider[name];
-  await replaceSection("provider", provider);
+  let notFound = false;
+  await modifySection<Record<string, ProviderConfig>>("provider", (provider) => {
+    const current = provider ?? {};
+    if (!current[name]) {
+      notFound = true;
+      return current;
+    }
+    delete current[name];
+    return current;
+  });
+  if (notFound) return err("NOT_FOUND", `Provider '${name}' not found`);
   return ok(null);
 }
 
@@ -155,51 +162,84 @@ async function handleAddModel(providerName: string, data: Record<string, unknown
   const modelId = data.modelId as string;
   if (!modelId) return err("VALIDATION_ERROR", "modelId is required");
 
-  const provider = (await getSection<Record<string, ProviderConfig>>("provider")) ?? {};
-  const cfg = provider[providerName];
-  if (!cfg) return err("NOT_FOUND", `Provider '${providerName}' not found`);
-
-  if (!cfg.models) cfg.models = {};
-  if (cfg.models[modelId]) return err("VALIDATION_ERROR", `Model '${modelId}' already exists`);
-
-  cfg.models[modelId] = buildModelData(data);
-  await replaceSection("provider", provider);
+  let result: "ok" | "provider_not_found" | "already_exists" = "ok" as typeof result;
+  await modifySection<Record<string, ProviderConfig>>("provider", (provider) => {
+    const current = provider ?? {};
+    const cfg = current[providerName];
+    if (!cfg) {
+      result = "provider_not_found";
+      return current;
+    }
+    if (!cfg.models) cfg.models = {};
+    if (cfg.models[modelId]) {
+      result = "already_exists";
+      return current;
+    }
+    cfg.models[modelId] = buildModelData(data);
+    current[providerName] = cfg;
+    return current;
+  });
+  if (result === "provider_not_found") return err("NOT_FOUND", `Provider '${providerName}' not found`);
+  if (result === "already_exists") return err("VALIDATION_ERROR", `Model '${modelId}' already exists`);
   return ok({ modelId });
 }
 
 async function handleUpdateModel(providerName: string, modelId: string, data: Record<string, unknown>) {
   if (!modelId) return err("VALIDATION_ERROR", "modelId is required");
 
-  const provider = (await getSection<Record<string, ProviderConfig>>("provider")) ?? {};
-  const cfg = provider[providerName];
-  if (!cfg) return err("NOT_FOUND", `Provider '${providerName}' not found`);
-  if (!cfg.models || !cfg.models[modelId]) return err("NOT_FOUND", `Model '${modelId}' not found`);
-
-  const existing = cfg.models[modelId] as Record<string, unknown>;
-  const incoming = buildModelData(data);
-  const merged: Record<string, unknown> = { ...existing };
-  for (const [k, v] of Object.entries(incoming)) {
-    if (v && typeof v === "object" && !Array.isArray(v) && existing[k] && typeof existing[k] === "object" && !Array.isArray(existing[k])) {
-      merged[k] = { ...(existing[k] as Record<string, unknown>), ...(v as Record<string, unknown>) };
-    } else {
-      merged[k] = v;
+  let result: "ok" | "provider_not_found" | "model_not_found" = "ok" as typeof result;
+  await modifySection<Record<string, ProviderConfig>>("provider", (provider) => {
+    const current = provider ?? {};
+    const cfg = current[providerName];
+    if (!cfg) {
+      result = "provider_not_found";
+      return current;
     }
-  }
-  cfg.models[modelId] = merged;
-  await replaceSection("provider", provider);
+    if (!cfg.models || !cfg.models[modelId]) {
+      result = "model_not_found";
+      return current;
+    }
+
+    const existing = cfg.models[modelId] as Record<string, unknown>;
+    const incoming = buildModelData(data);
+    const merged: Record<string, unknown> = { ...existing };
+    for (const [k, v] of Object.entries(incoming)) {
+      if (v && typeof v === "object" && !Array.isArray(v) && existing[k] && typeof existing[k] === "object" && !Array.isArray(existing[k])) {
+        merged[k] = { ...(existing[k] as Record<string, unknown>), ...(v as Record<string, unknown>) };
+      } else {
+        merged[k] = v;
+      }
+    }
+    cfg.models[modelId] = merged;
+    current[providerName] = cfg;
+    return current;
+  });
+  if (result === "provider_not_found") return err("NOT_FOUND", `Provider '${providerName}' not found`);
+  if (result === "model_not_found") return err("NOT_FOUND", `Model '${modelId}' not found`);
   return ok({ modelId });
 }
 
 async function handleRemoveModel(providerName: string, modelId: string) {
   if (!modelId) return err("VALIDATION_ERROR", "modelId is required");
 
-  const provider = (await getSection<Record<string, ProviderConfig>>("provider")) ?? {};
-  const cfg = provider[providerName];
-  if (!cfg) return err("NOT_FOUND", `Provider '${providerName}' not found`);
-  if (!cfg.models || !cfg.models[modelId]) return err("NOT_FOUND", `Model '${modelId}' not found`);
-
-  delete cfg.models[modelId];
-  await replaceSection("provider", provider);
+  let result: "ok" | "provider_not_found" | "model_not_found" = "ok" as typeof result;
+  await modifySection<Record<string, ProviderConfig>>("provider", (provider) => {
+    const current = provider ?? {};
+    const cfg = current[providerName];
+    if (!cfg) {
+      result = "provider_not_found";
+      return current;
+    }
+    if (!cfg.models || !cfg.models[modelId]) {
+      result = "model_not_found";
+      return current;
+    }
+    delete cfg.models[modelId];
+    current[providerName] = cfg;
+    return current;
+  });
+  if (result === "provider_not_found") return err("NOT_FOUND", `Provider '${providerName}' not found`);
+  if (result === "model_not_found") return err("NOT_FOUND", `Model '${modelId}' not found`);
   return ok(null);
 }
 

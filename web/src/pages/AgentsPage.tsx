@@ -563,6 +563,7 @@ export function AgentsPage() {
                 {activeTab === "permission" && (
                     <div className="max-h-[55vh] overflow-y-auto">
                         <PermissionTab
+                            key={editingAgent?.name ?? "__new__"}
                             agentName={formName}
                             permission={formPermission}
                             onPermissionChange={setFormPermission}

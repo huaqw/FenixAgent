@@ -19,6 +19,10 @@ mock.module("../services/config", () => ({
   getSection: async (_section: string) => _section === "provider" ? _providerStore : undefined,
   setSection: async (_section: string, data: unknown) => { _providerStore = data as Record<string, unknown>; },
   replaceSection: async (_section: string, data: unknown) => { _providerStore = data as Record<string, unknown>; },
+  modifySection: async (_section: string, modifier: (current: any) => any) => {
+    const current = _section === "provider" ? _providerStore : undefined;
+    _providerStore = modifier(current);
+  },
   deleteSection: async () => false,
   setTopLevelField: async () => {},
   getConfig: async () => ({ provider: _providerStore }),
@@ -449,5 +453,54 @@ describe("Providers Config Route", () => {
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("Provider Test action - edge cases", () => {
+  test("test non-existent provider returns NOT_FOUND", async () => {
+    _providerStore = {}; // 空 provider
+    const res = await providersRoute.request(new Request("http://localhost/config/providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "test", name: "nonexistent" }),
+    }));
+    const json = await res.json();
+    expect(json.success).toBe(false);
+    expect(json.error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("Provider atomic write", () => {
+  test("concurrent set operations don't lose data", async () => {
+    _providerStore = {
+      "provider-a": { name: "A", options: { apiKey: "key-a", baseURL: "http://a" } },
+      "provider-b": { name: "B", options: { apiKey: "key-b", baseURL: "http://b" } },
+    };
+
+    // 同时更新两个 provider
+    const [res1, res2] = await Promise.all([
+      providersRoute.request(new Request("http://localhost/config/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "provider-a", data: { apiKey: "new-key-a" } }),
+      })),
+      providersRoute.request(new Request("http://localhost/config/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "provider-b", data: { apiKey: "new-key-b" } }),
+      })),
+    ]);
+
+    const json1 = await res1.json();
+    const json2 = await res2.json();
+    expect(json1.success).toBe(true);
+    expect(json2.success).toBe(true);
+
+    // 两个 provider 都应该存在且正确更新
+    expect(_providerStore["provider-a"].options.apiKey).toBe("new-key-a");
+    expect(_providerStore["provider-b"].options.apiKey).toBe("new-key-b");
+    // 其他字段保留
+    expect(_providerStore["provider-a"].name).toBe("A");
+    expect(_providerStore["provider-b"].name).toBe("B");
   });
 });

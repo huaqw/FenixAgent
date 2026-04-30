@@ -17,6 +17,10 @@ mock.module("../auth/better-auth", () => ({
 mock.module("../services/config", () => ({
   getSection: async (section: string) => section === "mcp" ? _mcpStore : undefined,
   replaceSection: async (_section: string, data: unknown) => { _mcpStore = data as Record<string, unknown>; },
+  modifySection: async (_section: string, modifier: (current: any) => any) => {
+    const current = _section === "mcp" ? _mcpStore : undefined;
+    _mcpStore = modifier(current);
+  },
 }));
 
 const mcpRoute = (await import("../routes/web/config/mcp")).default;
