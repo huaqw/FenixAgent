@@ -170,15 +170,15 @@
 **现状**: `web/src/pages/AgentsPage.tsx` — 表格列表
 **目标**: 响应式卡片网格 (`auto-fill, minmax(260px, 1fr)`)
 
-- [ ] 卡片结构:
+- [x] 卡片结构:
   - 顶栏: 状态图标(带背景色) + 名称 + 模型名 + 状态 pill
   - 主体: 2 列统计格 (会话数、Events 数)
   - 底栏: 最后活跃时间 + 操作按钮
-- [ ] 状态色: 运行中=绿, 空闲=靛蓝, 警告=琥珀, 错误=红
-- [ ] hover 提升 + 阴影 + 微上移
-- [ ] 错误状态卡片显示 "重试" 按钮 (danger-ghost)
+- [x] 状态色: 运行中=绿, 空闲=靛蓝, 警告=琥珀, 错误=红
+- [x] hover 提升 + 阴影 + 微上移
+- [x] 错误状态卡片显示 "重试" 按钮 (danger-ghost)
 
-**影响文件**: `web/src/pages/AgentsPage.tsx`, 新建 `AgentCard.tsx`
+**影响文件**: `web/src/pages/EnvironmentsPage.tsx`
 
 ---
 
@@ -186,11 +186,11 @@
 **现状**: 无
 **目标**: 表格/卡片视图切换
 
-- [ ] 添加 view toggle 组件 (表格图标 / 卡片图标)
-- [ ] 保留现有 DataTable 视图
-- [ ] 新增卡片网格视图
+- [x] 添加 view toggle 组件 (表格图标 / 卡片图标)
+- [x] 保留现有 DataTable 视图
+- [x] 新增卡片网格视图
 
-**影响文件**: `AgentsPage.tsx`
+**影响文件**: `EnvironmentsPage.tsx`
 
 ---
 

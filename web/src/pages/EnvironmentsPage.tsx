@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Bot, Plus, Pencil, Trash2, Loader2, Power, ChevronDown, RotateCw } from "lucide-react";
+import { Bot, Plus, Pencil, Trash2, Loader2, Power, ChevronDown, RotateCw, LayoutGrid, List, ArrowRight, RefreshCw } from "lucide-react";
 
 interface EnvironmentsPageProps {
   onNavigateToSession?: (sessionId: string, options?: { cwd?: string }) => void;
@@ -35,6 +35,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
   const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
   const [stopTarget, setStopTarget] = useState<{ instanceId: string; envName: string } | null>(null);
   const [refreshingEnvId, setRefreshingEnvId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "card">("card");
 
   const loadEnvs = useCallback(async () => {
     try {
@@ -280,97 +281,74 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
               return (
                 <div
                   key={env.id}
-                  className="group flex flex-col rounded-xl border border-border bg-surface-1 p-4 transition-shadow hover:shadow-md"
+                  className="group flex flex-col rounded-xl border border-border bg-surface-1 p-0 transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5 hover:border-border-default overflow-hidden"
                 >
-                  {/* Header: name + status dot */}
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${online ? "bg-green-500" : "bg-gray-400"}`} />
-                      <span className="truncate text-sm font-medium text-text-primary">{env.name}</span>
-                      {env.auto_start && (
-                        <span className="rounded bg-brand/10 px-1 py-0.5 text-[10px] font-medium text-brand">自启</span>
-                      )}
-                      {env.instances_count !== undefined && env.instances_count > 1 && (
-                        <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] font-medium text-emerald-600">
-                          实例 x{env.instances_count}
-                        </span>
-                      )}
+                  {/* Header: icon + name + status pill */}
+                  <div className="flex items-start justify-between p-4 pb-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] ${online ? "bg-emerald-500/10 text-emerald-600" : "bg-brand/10 text-brand"}`}>
+                        <Bot className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-text-bright">{env.name}</div>
+                        {env.agent_name && (
+                          <div className="font-mono text-[11px] text-text-dim">{env.agent_name}</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => openEditDialog(env)}
-                        title="编辑"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleViewSecret(env.id)}
-                        title="查看 Secret"
-                      >
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                      </Button>
-                      {env.instance_id && online && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-brand hover:text-brand/80"
-                          disabled={refreshingEnvId === env.id}
-                          onClick={() => handleRefresh(env)}
-                          title="重启实例"
-                        >
-                          <RotateCw className={`h-3.5 w-3.5 ${refreshingEnvId === env.id ? "animate-spin" : ""}`} />
-                        </Button>
-                      )}
-                      {env.instance_id && online && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
-                          onClick={() => {
-                            const instances = instancesMap[env.id] ?? [];
-                            const active = instances.find(i => i.status === "running" || i.status === "starting");
-                            const targetId = active ? active.id : env.instance_id!;
-                            setStopTarget({ instanceId: targetId, envName: env.name });
-                            setStopConfirmOpen(true);
-                          }}
-                          title="停止实例"
-                        >
-                          <Power className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
-                        onClick={() => { setDeleteTarget(env.id); setConfirmOpen(true); }}
-                        title="删除"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${online ? "bg-emerald-500/12 text-emerald-600" : "bg-gray-400/12 text-gray-500"}`}>
+                      {online ? "运行中" : "离线"}
+                    </span>
                   </div>
 
-                  {/* Info */}
-                  <div className="mb-4 flex-1 space-y-1">
+                  {/* Info + tags */}
+                  <div className="px-4 pt-3 pb-2 flex-1 space-y-1">
+                    {env.auto_start && (
+                      <span className="mr-1 rounded bg-brand/10 px-1 py-0.5 text-[10px] font-medium text-brand">自启</span>
+                    )}
+                    {env.instances_count !== undefined && env.instances_count > 1 && (
+                      <span className="mr-1 rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] font-medium text-emerald-600">
+                        实例 x{env.instances_count}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1.5 text-xs text-text-muted">
                       <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                       <span className="truncate">{env.workspace_path}</span>
                     </div>
-                    {env.agent_name && (
-                      <div className="flex items-center gap-1.5 text-xs text-text-muted">
-                        <Bot className="h-3 w-3 shrink-0" />
-                        <span>{env.agent_name}</span>
-                      </div>
-                    )}
                     {env.description && (
                       <p className="text-xs text-text-muted line-clamp-2">{env.description}</p>
                     )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 px-4 pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditDialog(env)} title="编辑">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleViewSecret(env.id)} title="查看 Secret">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </Button>
+                    {env.instance_id && online && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-brand hover:text-brand/80" disabled={refreshingEnvId === env.id} onClick={() => handleRefresh(env)} title="重启实例">
+                        <RotateCw className={`h-3.5 w-3.5 ${refreshingEnvId === env.id ? "animate-spin" : ""}`} />
+                      </Button>
+                    )}
+                    {env.instance_id && online && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => {
+                          const instances = instancesMap[env.id] ?? [];
+                          const active = instances.find(i => i.status === "running" || i.status === "starting");
+                          const targetId = active ? active.id : env.instance_id!;
+                          setStopTarget({ instanceId: targetId, envName: env.name });
+                          setStopConfirmOpen(true);
+                        }} title="停止实例">
+                        <Power className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                      onClick={() => { setDeleteTarget(env.id); setConfirmOpen(true); }} title="删除">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
 
                   {/* Enter button — Split Button for multi-instance */}
