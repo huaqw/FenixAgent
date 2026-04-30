@@ -278,3 +278,115 @@
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ============================================================
+   Dashboard — 概览页专用样式
+   ============================================================ */
+
+.dashboard-page {
+    background:
+        radial-gradient(ellipse 80% 60% at 50% -20%, oklch(0.55 0.18 250 / 0.04), transparent),
+        radial-gradient(ellipse 50% 40% at 80% 80%, oklch(0.7 0.18 150 / 0.03), transparent);
+}
+
+/* --- KPI 卡片 --- */
+.dashboard-kpi-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg, 12px);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-1);
+    padding: 16px 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: default;
+}
+
+.dashboard-kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    border-color: var(--color-brand);
+}
+
+.dashboard-kpi-glow {
+    position: absolute;
+    top: -32px;
+    right: -32px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    opacity: 0.06;
+    filter: blur(30px);
+}
+
+.dashboard-kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dashboard-kpi-value {
+    font-family: var(--font-mono);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+/* --- KPI Sparkline --- */
+.kpi-sparkline {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+/* --- Stagger animation --- */
+.stagger-animate > * {
+    animation: fadeUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+.stagger-animate > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-animate > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-animate > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-animate > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-animate > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-animate > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-animate > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger-animate > *:nth-child(8) { animation-delay: 0.4s; }
+
+/* --- Timeline --- */
+.dashboard-timeline-item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.dashboard-timeline-item:hover {
+    background: var(--color-surface-2);
+}
+
+.dashboard-timeline-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* --- Glow breathe for topology nodes --- */
+@keyframes glowBreathe {
+    0%, 100% {
+        box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15), 0 0 0 4px rgba(16, 185, 129, 0.05);
+    }
+    50% {
+        box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3), 0 0 0 8px rgba(16, 185, 129, 0.1);
+    }
+}
