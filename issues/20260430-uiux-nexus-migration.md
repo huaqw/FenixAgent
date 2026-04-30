@@ -125,9 +125,9 @@
 ---
 
 ### TODO-3.2 系统健康度（Health Rings）
-- [ ] 3 个 SVG 环形进度: Agents 在线率、会话活跃率、配置启用率
-- [ ] 每个环: 底环 + 进度环 + 中心图标 + 底部标签 + 子标签(分数)
-- [ ] 进入动画: `stroke-dashoffset` transition
+- [x] 3 个 SVG 环形进度: Agents 在线率、会话活跃率、配置启用率
+- [x] 每个环: 底环 + 进度环 + 中心图标 + 底部标签 + 子标签(分数)
+- [x] 进入动画: `stroke-dashoffset` transition
 
 **影响文件**: `Dashboard.tsx`, 可抽 `HealthRing.tsx`
 
@@ -137,28 +137,28 @@
 **现状**: 无拓扑可视化
 **目标**: SVG 拓扑图，展示 RCS Hub → 各 Agent 的连接关系
 
-- [ ] SVG 组件: RCS Hub 中心节点 + Agent 子节点
-- [ ] 连线: 渐变色 + 数据粒子流动动画 (`<animate>`)
-- [ ] Agent 节点: 运行中(绿光) / 空闲(靛蓝) / 离线(灰虚线)
-- [ ] Hub 脉冲动画
-- [ ] "实时监控中" 脉冲指示器
+- [x] SVG 组件: RCS Hub 中心节点 + Agent 子节点
+- [x] 连线: 渐变色 + 数据粒子流动动画 (`<animate>`)
+- [x] Agent 节点: 运行中(绿光) / 空闲(靛蓝) / 离线(灰虚线)
+- [x] Hub 脉冲动画
+- [x] "实时监控中" 脉冲指示器
 
 **影响文件**: `Dashboard.tsx`, 新建 `AgentTopology.tsx`
 
 ---
 
 ### TODO-3.4 最近活动 Feed
-- [ ] 活动项列表: 彩色圆点 + 描述文字 + 时间戳
-- [ ] 颜色按类型区分: green=成功, amber=权限, cyan=工具调用, violet=定时任务
-- [ ] hover 背景高亮
+- [x] 活动项列表: 彩色圆点 + 描述文字 + 时间戳
+- [x] 颜色按类型区分: green=成功, amber=权限, cyan=工具调用, violet=定时任务
+- [x] hover 背景高亮
 
 **影响文件**: `Dashboard.tsx`, 可抽 `ActivityFeed.tsx`
 
 ---
 
 ### TODO-3.5 快速统计面板
-- [ ] 标签-值行: Agent 配置、Skills (6/9)、MCP 服务器 (4/6)、会话归档、定时任务、消息渠道
-- [ ] 活跃数字用绿色高亮
+- [x] 标签-值行: Agent 配置、Skills (6/9)、MCP 服务器 (4/6)、会话归档、定时任务、消息渠道
+- [x] 活跃数字用绿色高亮
 
 **影响文件**: `Dashboard.tsx`
 
