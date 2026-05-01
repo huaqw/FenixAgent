@@ -45,8 +45,8 @@ export const CodeBlock = ({
         {...props}
       >
         {/* Header: language label + copy button */}
-        <div className="code-block-header flex items-center justify-between px-3 py-1.5 border-b border-border-subtle bg-surface-3/50">
-          <span className="text-[11px] font-mono font-medium text-text-dim uppercase tracking-wide select-none">
+        <div className="code-block-header">
+          <span className="font-mono">
             {language || "text"}
           </span>
           {children ? (
@@ -58,26 +58,11 @@ export const CodeBlock = ({
           )}
         </div>
 
-        {/* Code area */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <tbody>
-              {lines.map((line, i) => (
-                <tr key={i} className="border-0">
-                  {showLineNumbers && (
-                    <td className="w-10 select-none pr-4 text-right align-top text-text-dim text-xs font-mono">
-                      {i + 1}
-                    </td>
-                  )}
-                  <td className="p-0">
-                    <pre className="m-0 px-3 py-0.5 text-xs whitespace-pre-wrap break-words font-mono leading-5">
-                      <code className="text-xs">{line || "\u00A0"}</code>
-                    </pre>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Code area — font-mono 12px pre-wrap */}
+        <div className="overflow-x-auto p-3">
+          <pre className="m-0 text-[12px] whitespace-pre-wrap break-words font-mono leading-[1.6]">
+            <code className="text-[12px]">{code}</code>
+          </pre>
         </div>
       </div>
     </CodeBlockContext.Provider>
@@ -123,9 +108,7 @@ export const CodeBlockCopyButton = ({
       onClick={copyToClipboard}
       className={cn(
         "code-block-copy-btn inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition-all duration-200 cursor-pointer",
-        isCopied
-          ? "bg-emerald-500/15 text-emerald-600"
-          : "text-text-dim hover:text-text-primary hover:bg-surface-hover",
+        isCopied && "copied",
         className
       )}
       {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}

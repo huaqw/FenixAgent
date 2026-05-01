@@ -370,20 +370,20 @@
 **现状**: 已有暗色模式支持 (theme-toggle)
 **目标**: 所有新设计 Token 的暗色版本
 
-- [ ] 暗色 Surface: `void: #0F172A`, `base: #1E293B`, `elevated: #1E293B`
-- [ ] 暗色文字: `bright: #F8FAFC`, `primary: #E2E8F0`, `secondary: #94A3B8`, `dim: #64748B`
-- [ ] 暗色边框: `subtle: rgba(255,255,255,0.06)`, `default: rgba(255,255,255,0.10)`
-- [ ] 暗色背景装饰调整
+- [x] 暗色 Surface: `void: #0F172A`, `base: #1E293B`, `elevated: #1E293B`
+- [x] 暗色文字: `bright: #F8FAFC`, `primary: #E2E8F0`, `secondary: #94A3B8`, `dim: #64748B`
+- [x] 暗色边框: `subtle: rgba(255,255,255,0.06)`, `default: rgba(255,255,255,0.10)`
+- [x] 暗色背景装饰调整
 
 **影响文件**: `web/src/index.css`, `web/src/lib/theme.ts`
 
 ---
 
 ### TODO-8.2 响应式断点
-- [ ] `sidebar` 在小屏自动折叠
-- [ ] KPI strip: `5列 → 3列 → 2列 → 1列` 响应
-- [ ] Agent 卡片网格自适应
-- [ ] Session 布局: `2列 → 1列` (面板堆叠)
+- [x] `sidebar` 在小屏自动折叠
+- [x] KPI strip: `5列 → 3列 → 2列 → 1列` 响应
+- [x] Agent 卡片网格自适应
+- [x] Session 布局: `2列 → 1列` (面板堆叠)
 
 **影响文件**: 各页面组件, `AppShell.tsx`
 
