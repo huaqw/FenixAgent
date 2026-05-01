@@ -249,8 +249,9 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-text-muted">加载中...</div>
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        <div className="h-8 w-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+        <p className="text-sm text-text-muted">加载智能体列表...</p>
       </div>
     );
   }

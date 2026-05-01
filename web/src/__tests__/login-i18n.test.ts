@@ -111,4 +111,22 @@ describe("LoginPage.tsx i18n Chinese translations", () => {
   test('source contains "没有账户？"', () => {
     expect(src).toContain("没有账户？");
   });
+
+  // UX feature checks
+  test('source contains password visibility toggle (Eye/EyeOff)', () => {
+    expect(src).toContain("EyeOff");
+    expect(src).toContain("Eye");
+  });
+
+  test('source contains showPassword state', () => {
+    expect(src).toContain("showPassword");
+  });
+
+  test('password field has dynamic type based on showPassword', () => {
+    expect(src).toContain('showPassword ? "text" : "password"');
+  });
+
+  test('password placeholder mentions character requirement', () => {
+    expect(src).toContain("至少 8 个字符");
+  });
 });
