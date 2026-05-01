@@ -96,3 +96,6 @@
 - App.tsx 初始加载添加品牌 spinner（替代纯文字"加载中..."），Suspense fallback 同步改进
 - ApiKeyManager 复制按钮添加"已复制!"绿色反馈状态，创建框改为绿色成功样式（替代黄色警告样式）
 - SessionDetail 加载失败页添加"重试"按钮（通过 retryKey 触发 useEffect 重新加载），中文化返回链接
+
+### Round 7.2 — EnvironmentsPage UX 修复
+- EnvironmentsPage 所有 7 处 alert() 弹窗替换为 toast.error()，消除阻塞式浏览器原生弹窗体验。表单验证改为 Dialog 内红色内联错误文字。Secret 对话框添加"已复制!"反馈和加粗黄色警告。Topbar 搜索框标记"功能开发中"降透明度防误点。
