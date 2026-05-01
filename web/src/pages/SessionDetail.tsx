@@ -72,6 +72,7 @@ export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
   }, [adapter]);
 
   // Load session data and initialize adapter
+  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
     let cancelled = false;
 
@@ -100,7 +101,7 @@ export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, adapter]);
+  }, [sessionId, adapter, retryKey]);
 
   const closed = isClosedSessionStatus(sessionStatus);
 
@@ -248,11 +249,19 @@ export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
   if (error) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <p className="text-status-error">{error}</p>
-          <a href="/ctrl/" className="mt-4 inline-block text-brand hover:underline">
-            &larr; Back to Dashboard
-          </a>
+        <div className="text-center max-w-sm">
+          <p className="text-status-error text-sm">{error}</p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90 transition-colors"
+            >
+              重试
+            </button>
+            <a href="/ctrl/" className="text-sm text-text-muted hover:text-brand transition-colors">
+              &larr; 返回仪表盘
+            </a>
+          </div>
         </div>
       </div>
     );

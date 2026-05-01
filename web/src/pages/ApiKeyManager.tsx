@@ -18,6 +18,7 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
   const [loading, setLoading] = useState(true);
   const [newLabel, setNewLabel] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [error, setError] = useState("");
@@ -93,8 +94,8 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
         )}
 
         {createdKey && (
-          <div className="mb-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-4 py-3">
-            <p className="text-sm font-medium text-text-primary">API Key 已创建</p>
+          <div className="mb-4 rounded-md border border-status-active/30 bg-status-active/5 px-4 py-3">
+            <p className="text-sm font-medium text-status-active">API Key 已创建</p>
             <p className="mt-1 text-xs text-text-muted">
               请立即复制此 Key，之后将无法再查看。
             </p>
@@ -105,14 +106,19 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(createdKey);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
                 }}
-                className="shrink-0 rounded-md bg-surface-2 px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-3"
+                className={copied
+                  ? "shrink-0 rounded-md bg-status-active/15 px-3 py-2 text-xs font-medium text-status-active"
+                  : "shrink-0 rounded-md bg-surface-2 px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-3"
+                }
               >
-                复制
+                {copied ? "已复制!" : "复制"}
               </button>
             </div>
             <button
-              onClick={() => setCreatedKey(null)}
+              onClick={() => { setCreatedKey(null); setCopied(false); }}
               className="mt-2 text-xs text-text-muted hover:text-text-primary"
             >
               关闭

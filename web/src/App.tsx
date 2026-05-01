@@ -172,8 +172,9 @@ export default function App() {
 
     if (isPending) {
         return (
-            <div className="flex h-screen items-center justify-center text-text-muted">
-                加载中...
+            <div className="flex h-screen flex-col items-center justify-center gap-4">
+                <div className="h-10 w-10 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                <p className="text-sm text-text-muted">正在连接控制面板...</p>
             </div>
         );
     }
@@ -193,8 +194,9 @@ export default function App() {
                 onNavigate={handleNavigate}>
                 <Suspense
                     fallback={
-                        <div className="flex h-full items-center justify-center text-text-muted">
-                            加载中...
+                        <div className="flex h-full flex-col items-center justify-center gap-3">
+                            <div className="h-8 w-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                            <p className="text-sm text-text-muted">加载中...</p>
                         </div>
                     }>
                     {showApiKeys ? (
