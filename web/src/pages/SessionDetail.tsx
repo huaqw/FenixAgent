@@ -10,6 +10,7 @@ import { ArrowLeft, Info, Cpu, Hash, Wrench, Clock } from "lucide-react";
 import { RCSChatAdapter } from "../lib/rcs-chat-adapter";
 import type { ThreadEntry, PendingPermission } from "../lib/types";
 import { TaskPanel } from "../components/TaskPanel";
+import { ContextPanel } from "../components/ContextPanel";
 import {
   PermissionPromptView,
   AskUserPanelView,
@@ -40,6 +41,7 @@ export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
   const [entries, setEntries] = useState<ThreadEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingPermissions, setPendingPermissions] = useState<PendingPermission[]>([]);
+  const [contextPanelOpen, setContextPanelOpen] = useState(true);
   const adapterRef = useRef<RCSChatAdapter | null>(null);
 
   // Create RCSChatAdapter
@@ -384,41 +386,55 @@ export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
           </div>
         </div>
 
-        {/* Chat messages — unified ChatView */}
-        <ChatView
-          entries={entries}
-          isLoading={isLoading}
-          emptyTitle="开始对话"
-          emptyDescription="输入消息开始聊天"
-        />
+        {/* Chat + Context Panel row */}
+        <div className="flex flex-1 min-h-0 relative">
+          <div className="flex flex-1 flex-col min-w-0">
+            {/* Chat messages — unified ChatView */}
+            <ChatView
+              entries={entries}
+              isLoading={isLoading}
+              emptyTitle="开始对话"
+              emptyDescription="输入消息开始聊天"
+            />
 
-        {/* Unified Permission Panel — above input */}
-        {pendingPermissions.length > 0 && (
-          <div className="border-t bg-surface-1 px-4 py-3">
-            <div className="mx-auto max-w-3xl space-y-3">
-              {pendingPermissions.map((req) => (
-                <PermissionEventView
-                  key={req.requestId}
-                  request={req}
-                  onApprove={() => handleApprovePermission(req.requestId)}
-                  onReject={() => handleRejectPermission(req.requestId)}
-                  onSubmitAnswers={handleSubmitAnswers}
-                  onSubmitPlan={handleSubmitPlanResponse}
-                />
-              ))}
-            </div>
+            {/* Unified Permission Panel — above input */}
+            {pendingPermissions.length > 0 && (
+              <div className="border-t bg-surface-1 px-4 py-3">
+                <div className="mx-auto max-w-3xl space-y-3">
+                  {pendingPermissions.map((req) => (
+                    <PermissionEventView
+                      key={req.requestId}
+                      request={req}
+                      onApprove={() => handleApprovePermission(req.requestId)}
+                      onReject={() => handleRejectPermission(req.requestId)}
+                      onSubmitAnswers={handleSubmitAnswers}
+                      onSubmitPlan={handleSubmitPlanResponse}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Unified ChatInput — claude.ai style */}
+            <ChatInput
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              onInterrupt={handleInterrupt}
+              disabled={closed || !!error || !session}
+              placeholder={error ? "会话加载失败" : closed ? "会话已关闭" : "输入消息..."}
+              sessionId={sessionId}
+            />
           </div>
-        )}
 
-        {/* Unified ChatInput — claude.ai style */}
-        <ChatInput
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          onInterrupt={handleInterrupt}
-          disabled={closed || !!error || !session}
-          placeholder={error ? "会话加载失败" : closed ? "会话已关闭" : "输入消息..."}
-          sessionId={sessionId}
-        />
+          {/* Context Panel */}
+          <ContextPanel
+            entries={entries}
+            agentName={session.agent_name}
+            duration={stats.durationStr}
+            collapsed={!contextPanelOpen}
+            onToggle={() => setContextPanelOpen(!contextPanelOpen)}
+          />
+        </div>
 
         {/* Task Panel */}
         {taskPanelOpen && <TaskPanel onClose={() => setTaskPanelOpen(false)} />}

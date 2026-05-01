@@ -257,12 +257,12 @@
 **现状**: 无独立侧面板
 **目标**: 可折叠右侧面板 (320px)
 
-- [ ] Agent 信息区: 模型、温度、时长
-- [ ] Token 消耗环: SVG 圆环进度 + 百分比 + 明细 (输入/输出/总量)
-- [ ] 工具使用统计: 水平进度条 (bash/edit/grep/read)
-- [ ] 权限请求队列: 琥珀圆点 + 请求描述 + pending 标签
-- [ ] 折叠按钮: 圆形浮动按钮，点击折叠/展开
-- [ ] 折叠态: `width: 0, opacity: 0` 过渡
+- [x] Agent 信息区: 模型、温度、时长
+- [x] Token 消耗环: SVG 圆环进度 + 百分比 + 明细 (输入/输出/总量)
+- [x] 工具使用统计: 水平进度条 (bash/edit/grep/read)
+- [x] 权限请求队列: 琥珀圆点 + 请求描述 + pending 标签
+- [x] 折叠按钮: 圆形浮动按钮，点击折叠/展开
+- [x] 折叠态: `width: 0, opacity: 0` 过渡
 
 **影响文件**: 会话详情页, 新建 `ContextPanel.tsx`, `TokenRing.tsx`, `ToolUsageBar.tsx`
 

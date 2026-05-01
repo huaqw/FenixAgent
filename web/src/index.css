@@ -724,3 +724,279 @@
     background: var(--color-surface-2);
     border-radius: 12px 12px 12px 4px;
 }
+
+/* ============================================================
+   Tool Call 可视化 (Phase 5.4)
+   ============================================================ */
+
+/* --- Tool Status Pill --- */
+.tool-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.tool-status-pill-running {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+}
+.tool-status-pill-complete {
+    background: var(--color-brand-subtle);
+    color: var(--color-brand);
+}
+.tool-status-pill-error {
+    background: rgba(239, 68, 68, 0.10);
+    color: #EF4444;
+}
+.tool-status-pill-pending {
+    background: rgba(245, 158, 11, 0.12);
+    color: #F59E0B;
+}
+
+/* --- Tool Call Row --- */
+.tool-call-row {
+    transition: background-color 0.15s ease;
+}
+.tool-call-row:hover {
+    background-color: var(--color-surface-hover);
+}
+
+/* --- Chevron rotation --- */
+.tool-call-chevron {
+    transition: transform 0.2s ease;
+}
+.tool-call-chevron-open {
+    transform: rotate(90deg);
+}
+
+/* --- Detail expand/collapse --- */
+.tool-call-detail-wrapper {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+/* --- Detail code block --- */
+.tool-call-detail-code {
+    tab-size: 2;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ============================================================
+   Context Panel (Phase 5.5)
+   ============================================================ */
+
+/* --- Context panel container --- */
+.context-panel {
+    width: 320px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--color-border);
+    background: var(--color-surface-1);
+    transition: width 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+}
+.context-panel.context-panel-collapsed {
+    width: 0;
+    opacity: 0;
+    border-left-width: 0;
+}
+
+/* --- Context section --- */
+.context-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border-light);
+}
+.context-section:last-child {
+    border-bottom: none;
+}
+.context-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+}
+
+/* --- Context info row --- */
+.context-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+}
+.context-info-label {
+    color: var(--color-text-secondary);
+}
+.context-info-value {
+    color: var(--color-text-primary);
+    font-weight: 500;
+    font-family: var(--font-mono);
+}
+
+/* --- Token ring (SVG circle progress) --- */
+.token-ring-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.token-ring-svg {
+    transform: rotate(-90deg);
+    flex-shrink: 0;
+}
+.token-ring-track {
+    fill: none;
+    stroke: var(--color-surface-3);
+    stroke-width: 5;
+}
+.token-ring-progress {
+    fill: none;
+    stroke: var(--color-brand);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease;
+}
+.token-ring-center {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    fill: var(--color-text-primary);
+}
+.token-ring-label {
+    font-size: 8px;
+    fill: var(--color-text-muted);
+}
+
+/* --- Token breakdown --- */
+.token-breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 11px;
+}
+.token-breakdown-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-secondary);
+}
+.token-breakdown-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.token-breakdown-value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+/* --- Tool usage bar --- */
+.tool-usage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.tool-usage-row:last-child {
+    margin-bottom: 0;
+}
+.tool-usage-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--color-text-secondary);
+    width: 56px;
+    flex-shrink: 0;
+}
+.tool-usage-bar-bg {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-surface-3);
+    overflow: hidden;
+}
+.tool-usage-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.tool-usage-count {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--color-text-muted);
+    width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* --- Permission queue item --- */
+.permission-queue-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--color-surface-2);
+    margin-bottom: 6px;
+}
+.permission-queue-item:last-child {
+    margin-bottom: 0;
+}
+.permission-queue-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #F59E0B;
+    flex-shrink: 0;
+    margin-top: 2px;
+    animation: status-active-pulse 2s ease-in-out infinite;
+}
+.permission-queue-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.permission-queue-pending {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #F59E0B;
+    flex-shrink: 0;
+}
+
+/* --- Toggle button (floating) --- */
+.context-panel-toggle {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 24px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px 0 0 8px;
+    border: 1px solid var(--color-border);
+    border-right: none;
+    background: var(--color-surface-1);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.context-panel-toggle:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
+}
