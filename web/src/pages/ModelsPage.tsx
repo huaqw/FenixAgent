@@ -242,12 +242,12 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">模型 ID</label>
+              <label className="text-sm font-medium text-text-primary">模型 ID</label>
               <Input value={mfId} onChange={(e) => setMfId(e.target.value)}
                 disabled={!isNewModel} placeholder="例如 qwen3.6-plus" className="mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium">显示名称</label>
+              <label className="text-sm font-medium text-text-primary">显示名称</label>
               <Input value={mfName} onChange={(e) => setMfName(e.target.value)}
                 placeholder="例如 Qwen3.6 Plus" className="mt-1" />
             </div>
@@ -267,7 +267,7 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">输入模态</label>
+            <label className="text-sm font-medium text-text-primary">输入模态</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {INPUT_MODALITY_OPTIONS.map((m) => (
                 <button
@@ -286,7 +286,7 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">输出模态</label>
+            <label className="text-sm font-medium text-text-primary">输出模态</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {OUTPUT_MODALITY_OPTIONS.map((m) => (
                 <button
@@ -312,24 +312,24 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
           {showAdvanced && (
             <div className="space-y-3 border-t pt-3">
               <div className="flex items-center gap-3">
-                <label className="text-sm font-medium">启用思考模式</label>
+                <label className="text-sm font-medium text-text-primary">启用思考模式</label>
                 <Switch checked={mfThinkingEnabled} onCheckedChange={setMfThinkingEnabled} />
               </div>
               {mfThinkingEnabled && (
                 <div>
-                  <label className="text-sm font-medium">思考预算 (tokens)</label>
+                  <label className="text-sm font-medium text-text-primary">思考预算 (tokens)</label>
                   <Input type="number" value={mfThinkingBudget} onChange={(e) => setMfThinkingBudget(e.target.value)}
                     placeholder="例如 10000" className="mt-1" />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium">输入费用 ($/百万 tokens)</label>
+                  <label className="text-sm font-medium text-text-primary">输入费用 ($/百万 tokens)</label>
                   <Input type="number" step="0.01" value={mfCostInput} onChange={(e) => setMfCostInput(e.target.value)}
                     placeholder="例如 2.5" className="mt-1" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">输出费用 ($/百万 tokens)</label>
+                  <label className="text-sm font-medium text-text-primary">输出费用 ($/百万 tokens)</label>
                   <Input type="number" step="0.01" value={mfCostOutput} onChange={(e) => setMfCostOutput(e.target.value)}
                     placeholder="例如 10" className="mt-1" />
                 </div>
@@ -648,10 +648,10 @@ export function ModelsPage() {
         </div>
       </FormDialog>
       <ConfirmDialog open={confirmOpen} onOpenChange={setConfirmOpen}
-        title="确认删除" description={`确定要删除服务商 "${deleteTarget}" 吗？`}
+        title="确认删除" description={`此操作不可逆。确定要删除服务商 "${deleteTarget}" 吗？`}
         variant="destructive" onConfirm={confirmDelete} />
       <ConfirmDialog open={batchConfirmOpen} onOpenChange={setBatchConfirmOpen}
-        title="批量删除确认" description={`确定要删除选中的 ${selected.length} 个服务商吗？`}
+        title="批量删除确认" description={`此操作不可逆。确定要删除选中的 ${selected.length} 个服务商吗？`}
         variant="destructive" onConfirm={confirmBatchDelete} />
       <Dialog open={!!testResult} onOpenChange={() => setTestResult(null)}>
         <DialogContent>

@@ -317,7 +317,7 @@ export function SkillsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton className="h-7 w-32" />
           <Skeleton className="h-9 w-24" />
@@ -333,7 +333,7 @@ export function SkillsPage() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-text-bright">技能管理</h2>
@@ -348,6 +348,7 @@ export function SkillsPage() {
         searchPlaceholder="搜索技能..."
         selectable
         onSelectionChange={setSelected}
+        rowKey={(row) => row.name}
         actions={(row) => (
           <div className="flex gap-1.5">
             <Button size="xs" variant="outline" onClick={() => handleToggle(row)}>
