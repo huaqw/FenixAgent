@@ -60,17 +60,17 @@ export function Topbar({ currentPage }: TopbarProps) {
 
       {/* ---- Right: Search + Theme + Avatar ---- */}
       <div className="flex items-center gap-3">
-        {/* Search box (visual only) */}
+        {/* Search box (visual placeholder — not yet functional) */}
         <button
           type="button"
+          title="全局搜索功能开发中"
           className={[
             "flex items-center gap-2",
             "min-w-[200px] px-3 py-1.5",
             "rounded-[var(--radius)]",
             "border border-border-subtle bg-surface-elevated",
             "text-text-dim text-[13px]",
-            "cursor-pointer transition-all duration-150",
-            "hover:border-border-default hover:bg-surface-overlay",
+            "cursor-default opacity-60",
           ].join(" ")}
         >
           <Search className="w-3.5 h-3.5 flex-shrink-0" />

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bot, Plus, Pencil, Trash2, Loader2, Power, ChevronDown, RotateCw, LayoutGrid, List, ArrowRight, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface EnvironmentsPageProps {
   onNavigateToSession?: (sessionId: string, options?: { cwd?: string }) => void;
@@ -27,8 +28,10 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
   const [formWorkspacePath, setFormWorkspacePath] = useState("");
   const [formAgentName, setFormAgentName] = useState("");
   const [formAutoStart, setFormAutoStart] = useState(false);
+  const [formError, setFormError] = useState("");
   const [secretDialogOpen, setSecretDialogOpen] = useState(false);
   const [currentSecret, setCurrentSecret] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
   const [agentOptions, setAgentOptions] = useState<string[]>([]);
   const [enteringEnvId, setEnteringEnvId] = useState<string | null>(null);
   const [instancesMap, setInstancesMap] = useState<Record<string, EnvironmentInstance[]>>({});
@@ -81,6 +84,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
     setFormWorkspacePath("");
     setFormAgentName("");
     setFormAutoStart(false);
+    setFormError("");
     setDialogOpen(true);
   }, []);
 
@@ -91,18 +95,20 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
     setFormWorkspacePath(env.workspace_path);
     setFormAgentName(env.agent_name || "");
     setFormAutoStart(env.auto_start ?? false);
+    setFormError("");
     setDialogOpen(true);
   }, []);
 
   const handleFormSubmit = useCallback(async () => {
     if (!formName || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(formName)) {
-      alert("名称必须为 kebab-case 格式（小写字母、数字、连字符）");
+      setFormError("名称必须为 kebab-case 格式（小写字母、数字、连字符）");
       return;
     }
     if (!formWorkspacePath.startsWith("/")) {
-      alert("workspace 路径必须是绝对路径");
+      setFormError("workspace 路径必须是绝对路径");
       return;
     }
+    setFormError("");
 
     setFormSaving(true);
     try {
@@ -129,7 +135,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       await loadEnvs();
     } catch (err) {
       console.error("Failed to save environment:", err);
-      alert((err as Error).message);
+      toast.error("操作失败: " + (err as Error).message);
     } finally {
       setFormSaving(false);
     }
@@ -143,7 +149,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       await new Promise((r) => setTimeout(r, 500));
       onNavigateToSession(result.session_id, { cwd: env.workspace_path });
     } catch (err) {
-      alert((err as Error).message);
+      toast.error("进入智能体失败: " + (err as Error).message);
     } finally {
       setEnteringEnvId(null);
     }
@@ -157,7 +163,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       await new Promise((r) => setTimeout(r, 500));
       onNavigateToSession(result.session_id, { cwd: env.workspace_path });
     } catch (err) {
-      alert((err as Error).message);
+      toast.error("进入实例失败: " + (err as Error).message);
     } finally {
       setEnteringEnvId(null);
     }
@@ -172,7 +178,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       onNavigateToSession(spawnResult.session_id ?? "", { cwd: env.workspace_path });
       await loadEnvs();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error("创建实例失败: " + (err as Error).message);
     } finally {
       setEnteringEnvId(null);
     }
@@ -184,7 +190,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       await new Promise((r) => setTimeout(r, 500));
       await loadEnvs();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error("停止实例失败: " + (err as Error).message);
     }
   }, [loadEnvs]);
 
@@ -195,7 +201,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       await new Promise((r) => setTimeout(r, 500));
       await loadEnvs();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error("停止实例失败: " + (err as Error).message);
     } finally {
       setStopConfirmOpen(false);
       setStopTarget(null);
@@ -213,7 +219,7 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
       await new Promise((r) => setTimeout(r, 500));
       await handleEnterAgent(env);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error("刷新智能体失败: " + (err as Error).message);
     } finally {
       setRefreshingEnvId(null);
     }
@@ -630,6 +636,9 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
                 <span className="text-sm text-text-primary cursor-pointer">服务器启动时自动运行</span>
               </button>
             </div>
+            {formError && (
+              <p className="text-sm text-status-error px-1">{formError}</p>
+            )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
               <Button onClick={handleFormSubmit} disabled={formSaving}>
@@ -646,17 +655,22 @@ export function EnvironmentsPage({ onNavigateToSession }: EnvironmentsPageProps)
               <DialogTitle>智能体 Secret</DialogTitle>
             </DialogHeader>
             <div className="py-4">
-              <p className="mb-2 text-sm text-text-muted">请立即保存此 Secret，之后将无法再通过列表查看</p>
+              <p className="mb-2 text-sm text-amber-600 font-medium">请立即保存此 Secret，关闭后将无法再次查看</p>
               <div className="flex items-center gap-2 rounded-md bg-gray-100 p-3 font-mono text-sm break-all dark:bg-gray-800">
                 <span className="flex-1">{currentSecret}</span>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (currentSecret) navigator.clipboard.writeText(currentSecret);
+                    if (currentSecret) {
+                      navigator.clipboard.writeText(currentSecret);
+                      setSecretCopied(true);
+                      setTimeout(() => setSecretCopied(false), 2000);
+                    }
                   }}
+                  className={secretCopied ? "border-status-active/30 text-status-active" : ""}
                 >
-                  复制
+                  {secretCopied ? "已复制!" : "复制"}
                 </Button>
               </div>
             </div>
