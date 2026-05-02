@@ -342,6 +342,7 @@ export type ConnectionState =
   | "disconnected"
   | "connecting"
   | "connected"
+  | "reconnecting"
   | "error";
 
 // PromptCapabilities from ACP protocol

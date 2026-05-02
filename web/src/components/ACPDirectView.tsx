@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ACPClient, DisconnectRequestedError } from "../acp/client";
 import type { ConnectionState } from "../acp/types";
 import { ACPMain } from "../../components/ACPMain";
+import { toast } from "sonner";
 
 interface ACPDirectViewProps {
   url: string;
@@ -23,6 +24,11 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
       setError(err || null);
     });
 
+    acpClient.setAuthFailureHandler(() => {
+      toast.error("登录已过期，请重新登录");
+      window.location.href = "/ctrl/login";
+    });
+
     clientRef.current = acpClient;
     setClient(acpClient);
 
@@ -40,9 +46,20 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
     };
   }, [url, token]);
 
+  const showChat = client && (connectionState === "connected" || connectionState === "reconnecting");
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {error && connectionState === "error" && (
+      {/* Reconnecting bubble */}
+      {connectionState === "reconnecting" && (
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 text-sm">
+          <span className="inline-block h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <span>{error || "正在重连..."}</span>
+        </div>
+      )}
+
+      {/* Error bubble (not during reconnecting) */}
+      {error && connectionState === "error" && !client && (
         <div className="px-4 py-2 bg-status-error/10 text-status-error text-sm border-b">
           {error}
           <button
@@ -54,7 +71,8 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
         </div>
       )}
 
-      {connectionState === "connecting" && (
+      {/* Initial connecting state */}
+      {connectionState === "connecting" && !client && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin h-8 w-8 border-2 border-brand border-t-transparent rounded-full mx-auto mb-3" />
@@ -63,6 +81,7 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
         </div>
       )}
 
+      {/* Error state (no client) */}
       {connectionState === "error" && !client && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -78,7 +97,8 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
         </div>
       )}
 
-      {client && connectionState === "connected" && (
+      {/* Chat view (connected or reconnecting with existing client) */}
+      {showChat && (
         <ACPMain client={client} />
       )}
     </div>

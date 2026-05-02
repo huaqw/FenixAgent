@@ -24,8 +24,10 @@ import { TooltipProvider } from "../../components/ui/tooltip";
 
 // ACP chat components
 import { ACPClient, DisconnectRequestedError } from "../acp/client";
+import type { ConnectionState } from "../acp/types";
 import { createRelayClient } from "../acp/relay-client";
 import { ACPMain } from "../../components/ACPMain";
+import { toast } from "sonner";
 
 interface SessionDetailProps {
   sessionId: string;
@@ -559,7 +561,7 @@ function PermissionEventView({
 
 function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: string; agentId: string; initialCwd?: string }) {
   const [client, setClient] = useState<ACPClient | null>(null);
-  const [connectionState, setConnectionState] = useState<"disconnected" | "connecting" | "connected" | "error">("disconnected");
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [error, setError] = useState<string | null>(null);
   const clientRef = useRef<ACPClient | null>(null);
 
@@ -569,6 +571,11 @@ function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: strin
     relayClient.setConnectionStateHandler((state, err) => {
       setConnectionState(state);
       setError(err || null);
+    });
+
+    relayClient.setAuthFailureHandler(() => {
+      toast.error("登录已过期，请重新登录");
+      window.location.href = "/ctrl/login";
     });
 
     clientRef.current = relayClient;
@@ -588,10 +595,21 @@ function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: strin
     };
   }, [agentId]);
 
+  const showChat = client && (connectionState === "connected" || connectionState === "reconnecting");
+
   return (
     <TooltipProvider>
       <div className="flex flex-1 flex-col overflow-hidden">
-        {connectionState === "connecting" && (
+        {/* Reconnecting bubble */}
+        {connectionState === "reconnecting" && (
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 text-sm">
+            <span className="inline-block h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            <span>{error || "正在重连..."}</span>
+          </div>
+        )}
+
+        {/* Initial connecting state */}
+        {connectionState === "connecting" && !showChat && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin h-8 w-8 border-2 border-brand border-t-transparent rounded-full mx-auto mb-3" />
@@ -600,13 +618,15 @@ function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: strin
           </div>
         )}
 
-        {connectionState === "connected" && client && (
+        {/* Chat view (connected or reconnecting with existing client) */}
+        {showChat && (
           <div className="flex-1 min-h-0">
             <ACPMain client={client} agentId={agentId} initialCwd={initialCwd} rcsSessionId={sessionId} />
           </div>
         )}
 
-        {(connectionState === "error" || connectionState === "disconnected") && connectionState !== "connecting" && (
+        {/* Error / disconnected state */}
+        {(connectionState === "error" || connectionState === "disconnected") && !showChat && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-md">
               <p className="font-medium mb-2">Agent 未连接</p>
