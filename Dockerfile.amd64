@@ -38,12 +38,6 @@ RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.li
        curl git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the glibc variant of opencode binary (Debian uses glibc, not musl)
-RUN --mount=type=bind,from=opencode-build,target=/tmp/opencode-build \
-    cp "$(find /tmp/opencode-build/root/.bun/install/global/node_modules/ \
-      -path '*/opencode-linux-*/bin/opencode' ! -path '*-musl*' | head -1)" \
-      /usr/local/bin/opencode
-
 RUN bun install -g acp-link --registry=https://registry.npmmirror.com
 RUN bun install -g acpx --registry=https://registry.npmmirror.com
 RUN bun install -g peri-cli --registry=https://registry.npmmirror.com
