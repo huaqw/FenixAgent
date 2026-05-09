@@ -99,9 +99,9 @@ export class ACPClient {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
   private missedPongs = 0;
-  private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
-  private static readonly PONG_TIMEOUT_MS = 10_000;
-  private static readonly MAX_MISSED_PONGS = 2;
+  private static readonly HEARTBEAT_INTERVAL_MS = 60_000;
+  private static readonly PONG_TIMEOUT_MS = 60_000;
+  private static readonly MAX_MISSED_PONGS = 3;
 
   // Reconnection state
   private reconnectAttempts = 0;
