@@ -286,6 +286,14 @@ export function handleRelayMessage(ws: WSContext, relayWsId: string, data: strin
 
   // Instance mode: forward directly to acp-link's local WS
   if (entry.localWs) {
+    // Intercept frontend ping — reply pong directly (acp-link's pong is filtered by forwardFilteredLines)
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type === "ping") {
+        sendToRelayWs(ws, { type: "pong" });
+        return;
+      }
+    } catch {}
     if (entry.localWs.readyState === 1) { // WebSocket.OPEN
       entry.localWs.send(data);
     } else {

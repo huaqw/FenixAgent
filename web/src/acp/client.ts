@@ -103,28 +103,8 @@ export class ACPClient {
   private static readonly PONG_TIMEOUT_MS = 60_000;
   private static readonly MAX_MISSED_PONGS = 3;
 
-  // Reconnection state
-  private reconnectAttempts = 0;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private isManualDisconnect = false;
-  private static readonly MAX_RECONNECT_ATTEMPTS = 5;
-  private static readonly INITIAL_RECONNECT_DELAY_MS = 1_000;
-
   // Auth failure handler
   private onAuthFailure: (() => void) | null = null;
-
-  // Network status handler (bound for addEventListener/removeEventListener)
-  private handleOnline = (): void => {
-    if (this.connectionState === "reconnecting" || this.connectionState === "error") {
-      console.log("[ACPClient] Network restored, attempting immediate reconnect");
-      this.cleanupReconnect();
-      this.reconnectAttempts = 0;
-      this.connect().catch((e) => {
-        if (e instanceof DisconnectRequestedError) return;
-        console.error("[ACPClient] Reconnect after network restore failed:", e);
-      });
-    }
-  };
 
   constructor(settings: ACPSettings) {
     this.settings = settings;
@@ -301,17 +281,6 @@ export class ACPClient {
       this.connectReject = null;
     }
 
-    // Clean up reconnect timer
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    // Register network status listener
-    if (typeof window !== "undefined") {
-      window.addEventListener("online", this.handleOnline);
-    }
-
     this.setState("connecting");
 
     return new Promise((resolve, reject) => {
@@ -368,10 +337,9 @@ export class ACPClient {
           if (this.ws !== ws) return;
           console.log("[ACPClient] WebSocket closed", event.code, event.reason);
 
-          // Auth failure: don't reconnect, notify UI
+          // Auth failure: notify UI
           if (event.code === 4001) {
             this.stopHeartbeat();
-            this.cleanupReconnect();
             this.ws = null;
             this.sessionId = null;
             this.setState("error", "登录已过期");
@@ -379,27 +347,21 @@ export class ACPClient {
             return;
           }
 
-          // User-initiated disconnect or normal close: don't reconnect
-          if (this.isManualDisconnect || event.code === 1000) {
-            this.cleanupReconnect();
-            this.ws = null;
-            this.sessionId = null;
-            return;
-          }
-
           this.stopHeartbeat();
           this.ws = null;
           this.sessionId = null;
 
-          // During initial connect phase, reject the promise and attempt reconnect
+          // During initial connect phase, reject the promise
           if (this.connectReject) {
             this.connectReject(new Error(event.reason || `Connection closed (code: ${event.code})`));
             this.connectResolve = null;
             this.connectReject = null;
           }
 
-          // Abnormal close: attempt reconnect
-          this.scheduleReconnect();
+          // Connection lost — set error state
+          if (event.code !== 1000) {
+            this.setState("error", "连接已断开，请刷新页面重试");
+          }
         };
       } catch (error) {
         this.setState("error", (error as Error).message);
@@ -416,7 +378,6 @@ export class ACPClient {
         if (response.payload.connected) {
           // Reference: Zed stores full agentCapabilities from status message
           this._agentCapabilities = response.payload.capabilities ?? null;
-          this.resetReconnectState();
           this.setState("connected");
           this.startHeartbeat();
           this.connectResolve?.();
@@ -799,66 +760,10 @@ export class ACPClient {
     });
   }
 
-  // ============================================================================
-  // Reconnection
-  // ============================================================================
-
-  private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= ACPClient.MAX_RECONNECT_ATTEMPTS) {
-      console.error(`[ACPClient] Max reconnect attempts (${ACPClient.MAX_RECONNECT_ATTEMPTS}) reached`);
-      this.setState("error", "连接已断开，请刷新页面重试");
-      return;
-    }
-
-    const nextAttempt = this.reconnectAttempts + 1;
-    const delay = ACPClient.INITIAL_RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts);
-    console.log(`[ACPClient] Scheduling reconnect attempt ${nextAttempt}/${ACPClient.MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
-
-    this.setState("reconnecting", `正在重连... (${nextAttempt}/${ACPClient.MAX_RECONNECT_ATTEMPTS})`);
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.reconnectAttempts = nextAttempt;
-
-      this.connect().catch((e) => {
-        if (e instanceof DisconnectRequestedError) return;
-        // connect() failed, onclose will have fired and called scheduleReconnect() again
-        console.error(`[ACPClient] Reconnect attempt ${nextAttempt} failed:`, e);
-      });
-    }, delay);
-  }
-
-  private resetReconnectState(): void {
-    if (this.reconnectAttempts > 0) {
-      console.log("[ACPClient] Reconnection successful, resetting reconnect state");
-    }
-    this.reconnectAttempts = 0;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-  }
-
-  private cleanupReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    this.reconnectAttempts = 0;
-  }
-
   disconnect(): void {
-    this.isManualDisconnect = true;
     this.stopHeartbeat();
-    this.cleanupReconnect();
-
-    // Remove network status listener
-    if (typeof window !== "undefined") {
-      window.removeEventListener("online", this.handleOnline);
-    }
 
     // Reject any pending connect promise with a distinguishable error
-    // This ensures the promise settles and callers can catch/ignore it
     if (this.connectReject) {
       this.connectReject(new DisconnectRequestedError());
     }
@@ -902,7 +807,5 @@ export class ACPClient {
       this.pendingSessionResume.reject(disconnectError);
       this.pendingSessionResume = null;
     }
-
-    this.isManualDisconnect = false;
   }
 }

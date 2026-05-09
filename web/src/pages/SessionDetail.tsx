@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   apiFetchSession,
   apiSendControl,
-  apiInterrupt,
 } from "../api/client";
-import type { Session, SessionEvent } from "../types";
-import { isClosedSessionStatus, formatTime, cn } from "../lib/utils";
+import type { Session } from "../types";
+import { isClosedSessionStatus, cn } from "../lib/utils";
 import { ArrowLeft, Info, Cpu, Hash, Wrench, Clock } from "lucide-react";
 import { RCSChatAdapter } from "../lib/rcs-chat-adapter";
 import type { ThreadEntry, PendingPermission } from "../lib/types";
@@ -442,7 +441,7 @@ export function SessionDetail({ sessionId, initialCwd }: SessionDetailProps) {
           {/* Context Panel */}
           <ContextPanel
             entries={entries}
-            agentName={session.agent_name}
+            agentName={session.agent_name ?? undefined}
             duration={stats.durationStr}
             collapsed={!contextPanelOpen}
             onToggle={() => setContextPanelOpen(!contextPanelOpen)}
@@ -595,19 +594,11 @@ function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: strin
     };
   }, [agentId]);
 
-  const showChat = client && (connectionState === "connected" || connectionState === "reconnecting");
+  const showChat = client && connectionState === "connected";
 
   return (
     <TooltipProvider>
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Reconnecting bubble */}
-        {connectionState === "reconnecting" && (
-          <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 text-sm">
-            <span className="inline-block h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <span>{error || "正在重连..."}</span>
-          </div>
-        )}
-
         {/* Initial connecting state */}
         {connectionState === "connecting" && !showChat && (
           <div className="flex-1 flex items-center justify-center">
@@ -618,7 +609,7 @@ function ACPSessionDetail({ sessionId, agentId, initialCwd }: { sessionId: strin
           </div>
         )}
 
-        {/* Chat view (connected or reconnecting with existing client) */}
+        {/* Chat view */}
         {showChat && (
           <div className="flex-1 min-h-0">
             <ACPMain client={client} agentId={agentId} initialCwd={initialCwd} rcsSessionId={sessionId} />

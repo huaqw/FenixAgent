@@ -46,19 +46,11 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
     };
   }, [url, token]);
 
-  const showChat = client && (connectionState === "connected" || connectionState === "reconnecting");
+  const showChat = client && connectionState === "connected";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Reconnecting bubble */}
-      {connectionState === "reconnecting" && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 text-sm">
-          <span className="inline-block h-3.5 w-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <span>{error || "正在重连..."}</span>
-        </div>
-      )}
-
-      {/* Error bubble (not during reconnecting) */}
+      {/* Error bubble */}
       {error && connectionState === "error" && !client && (
         <div className="px-4 py-2 bg-status-error/10 text-status-error text-sm border-b">
           {error}
@@ -97,7 +89,7 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
         </div>
       )}
 
-      {/* Chat view (connected or reconnecting with existing client) */}
+      {/* Chat view */}
       {showChat && (
         <ACPMain client={client} />
       )}
