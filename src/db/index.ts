@@ -276,6 +276,24 @@ export function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_channel_binding_platform ON channel_binding(platform);
     CREATE INDEX IF NOT EXISTS idx_channel_binding_agent_id ON channel_binding(agent_id);
+
+    CREATE TABLE IF NOT EXISTS agent_session (
+      id TEXT PRIMARY KEY,
+      environment_id TEXT REFERENCES environment(id) ON DELETE SET NULL,
+      title TEXT,
+      status TEXT NOT NULL,
+      source TEXT NOT NULL,
+      permission_mode TEXT,
+      worker_epoch INTEGER NOT NULL DEFAULT 0,
+      username TEXT,
+      user_id TEXT,
+      cwd TEXT,
+      share_mode TEXT NOT NULL DEFAULT 'none',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_session_env ON agent_session(environment_id);
   `);
 }
 

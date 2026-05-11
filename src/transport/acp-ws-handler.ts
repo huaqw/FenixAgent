@@ -140,6 +140,7 @@ function handleRegister(wsId: string, msg: Record<string, unknown>): void {
         title: agentName || "ACP Agent",
         source: "acp",
         userId: entry.userId,
+        cwd: storeGetEnvironment(entry.boundEnvId)?.workspacePath ?? null,
       });
     }
 
@@ -170,6 +171,7 @@ function handleRegister(wsId: string, msg: Record<string, unknown>): void {
       title: agentName || "ACP Agent",
       source: "acp",
       userId: entry.userId,
+      cwd: directory || null,
     });
   }
 

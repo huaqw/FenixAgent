@@ -19,9 +19,12 @@ import {
   storeListAcpAgentsByUserId,
   storeListOnlineAcpAgents,
   storeListSessionsForAgentByCwd,
+  storeLoadSessionsFromDB,
+  storeCreateShareLink,
+  storeRefreshSessionShareMode,
 } from "../store";
 import { db } from "../db";
-import { user } from "../db/schema";
+import { user, agentSession } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 function ensureUser(userId: string) {
@@ -264,12 +267,15 @@ describe("store", () => {
   // ---------- ACP Agent ----------
 
   describe("ACP agent lifecycle", () => {
-    test("deletes agent and associated sessions", () => {
+    test("deletes agent and disassociates sessions (SET NULL)", () => {
       const env = storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "agent1" });
-      storeCreateSession({ environmentId: env.id, title: "test session", userId: "u1" });
+      const session = storeCreateSession({ environmentId: env.id, title: "test session", userId: "u1" });
       expect(storeDeleteEnvironment(env.id)).toBe(true);
       expect(storeGetEnvironment(env.id)).toBeUndefined();
-      expect(storeListSessionsByEnvironment(env.id)).toHaveLength(0);
+      // Session should still exist but with null environmentId
+      const updatedSession = storeGetSession(session.id);
+      expect(updatedSession).toBeDefined();
+      expect(updatedSession!.environmentId).toBeNull();
     });
 
     test("lists ACP agents", () => {
@@ -457,5 +463,95 @@ describe("store", () => {
       const all = storeListAllEnvironments();
       expect(all.length - before).toBe(2);
     });
+  });
+
+  // ---------- Session cwd field ----------
+
+  describe("Session cwd field", () => {
+    test("storeCreateSession defaults cwd to null", () => {
+      const session = storeCreateSession({ title: "test" });
+      expect(session.cwd).toBeNull();
+    });
+
+    test("storeCreateSession passes cwd through", () => {
+      const session = storeCreateSession({ cwd: "/home/user/project" });
+      expect(session.cwd).toBe("/home/user/project");
+    });
+
+    test("storeCreateSession with explicit null cwd", () => {
+      const session = storeCreateSession({ cwd: null });
+      expect(session.cwd).toBeNull();
+    });
+  });
+});
+
+// ---------- Write-through dual write ----------
+
+describe("Write-through dual write", () => {
+  beforeEach(() => {
+    storeReset();
+  });
+
+  test("storeCreateSession writes to DB", () => {
+    const session = storeCreateSession({ title: "db test", cwd: "/home/test" });
+    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+    expect(row.length).toBe(1);
+    expect(row[0].title).toBe("db test");
+    expect(row[0].cwd).toBe("/home/test");
+    expect(row[0].status).toBe("idle");
+    expect(row[0].shareMode).toBe("none");
+  });
+
+  test("storeUpdateSession writes to DB", () => {
+    const session = storeCreateSession({ title: "original" });
+    storeUpdateSession(session.id, { title: "updated", status: "running" });
+    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+    expect(row.length).toBe(1);
+    expect(row[0].title).toBe("updated");
+    expect(row[0].status).toBe("running");
+  });
+
+  test("storeDeleteSession removes from DB", () => {
+    const session = storeCreateSession({ title: "to delete" });
+    storeDeleteSession(session.id);
+    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+    expect(row.length).toBe(0);
+  });
+
+  test("storeLoadSessionsFromDB restores sessions", () => {
+    // Clear DB agent_session table to avoid interference from other tests
+    db.delete(agentSession).run();
+    storeCreateSession({ title: "persist 1" });
+    storeCreateSession({ title: "persist 2" });
+    // Simulate restart: clear memory, reload from DB
+    storeReset();
+    expect(storeListSessions().length).toBe(0);
+    storeLoadSessionsFromDB();
+    expect(storeListSessions().length).toBe(2);
+    const restored = storeGetSession(storeListSessions()[0].id);
+    expect(restored).toBeDefined();
+    expect(restored!.title).toBeDefined();
+  });
+
+  test("storeDeleteEnvironment preserves sessions with null environmentId", () => {
+    const env = storeCreateEnvironment({ userId: "u1" });
+    const session = storeCreateSession({ environmentId: env.id, title: "env session" });
+    storeDeleteEnvironment(env.id);
+    // Session should still exist in DB with null environmentId
+    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+    expect(row.length).toBe(1);
+    expect(row[0].environmentId).toBeNull();
+  });
+
+  test("storeRefreshSessionShareMode writes to DB", () => {
+    const env = storeCreateEnvironment({ userId: "u1" });
+    const session = storeCreateSession({ environmentId: env.id });
+    // Ensure share_link table exists (storeRefreshSessionShareMode queries it)
+    const { sqlite: rawSqlite } = require("../db/index");
+    rawSqlite.exec(`CREATE TABLE IF NOT EXISTS share_link (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, environment_id TEXT NOT NULL, token TEXT NOT NULL UNIQUE, mode TEXT NOT NULL, expires_at INTEGER, created_by TEXT NOT NULL, access_count INTEGER NOT NULL DEFAULT 0, last_accessed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`);
+    storeRefreshSessionShareMode(session.id);
+    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+    expect(row.length).toBe(1);
+    expect(row[0].shareMode).toBe("none");
   });
 });

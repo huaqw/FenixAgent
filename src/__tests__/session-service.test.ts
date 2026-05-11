@@ -14,6 +14,7 @@ import {
   toWebSessionId,
   toWebSessionResponse,
   createSession,
+  createCodeSession,
   getSession,
   isSessionClosedStatus,
   resolveExistingSessionId,
@@ -225,6 +226,29 @@ describe("Session Service - Extended Tests", () => {
       createSession({});
       const all = listSessions();
       expect(all).toHaveLength(2);
+    });
+  });
+
+  describe("cwd passthrough", () => {
+    test("createSession passes cwd to store", () => {
+      const session = createSession({ cwd: "/home/user/project" });
+      const record = storeGetSession(session.id);
+      expect(record).toBeDefined();
+      expect(record!.cwd).toBe("/home/user/project");
+    });
+
+    test("createSession without cwd defaults to null", () => {
+      const session = createSession({});
+      const record = storeGetSession(session.id);
+      expect(record).toBeDefined();
+      expect(record!.cwd).toBeNull();
+    });
+
+    test("createCodeSession passes cwd to store", () => {
+      const session = createCodeSession({ cwd: "/tmp/workspace" });
+      const record = storeGetSession(session.id);
+      expect(record).toBeDefined();
+      expect(record!.cwd).toBe("/tmp/workspace");
     });
   });
 });

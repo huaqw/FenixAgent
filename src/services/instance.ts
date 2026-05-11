@@ -7,7 +7,7 @@ import { createApiKey } from "../auth/api-key-service";
 import { getBaseUrl } from "../config";
 import { log } from "../logger";
 import { listAgentKnowledgeBindings } from "./agent-knowledge";
-import { storeGetEnvironment, storeCreateSession } from "../store";
+import { storeGetEnvironment, storeCreateSession, storeListSessionsByEnvironment } from "../store";
 import { closeInstanceLocalWs } from "../transport/acp-relay-handler";
 import { resolveExecutable } from "../utils/executable";
 
@@ -198,12 +198,17 @@ export async function spawnInstanceFromEnvironment(userId: string, environmentId
   if (!env) throw new Error("Environment not found");
   if (env.userId !== userId) throw new Error("Not your environment");
 
-  const session = storeCreateSession({
-    environmentId,
-    title: env.agentName || env.name,
-    source: "acp",
-    userId,
-  });
+  // Reuse existing session if one was restored from DB, otherwise create new
+  let session = storeListSessionsByEnvironment(environmentId)[0];
+  if (!session) {
+    session = storeCreateSession({
+      environmentId,
+      title: env.agentName || env.name,
+      source: "acp",
+      userId,
+      cwd: env.workspacePath || env.directory || null,
+    });
+  }
   const sessionId = session.id;
 
   const cwd = env.workspacePath || env.directory;

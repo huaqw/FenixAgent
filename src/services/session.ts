@@ -61,6 +61,7 @@ export function createSession(req: CreateSessionRequest & { username?: string })
     source: req.source,
     permissionMode: req.permission_mode,
     username: req.username,
+    cwd: req.cwd,
   });
   return toResponse(record);
 }
@@ -71,6 +72,7 @@ export function createCodeSession(req: CreateCodeSessionRequest): SessionRespons
     title: req.title,
     source: req.source,
     permissionMode: req.permission_mode,
+    cwd: req.cwd,
   });
   return toResponse(record);
 }

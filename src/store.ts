@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, sqlite } from "./db";
-import { environment, user, shareLink, shareEventSnapshot } from "./db/schema";
+import { environment, user, shareLink, shareEventSnapshot, agentSession } from "./db/schema";
 import { eq, and, isNull, gt, or, sql } from "drizzle-orm";
 
 // ---------- Types ----------
@@ -38,6 +38,7 @@ export interface SessionRecord {
   workerEpoch: number;
   username: string | null;
   userId: string | null;
+  cwd: string | null;
   shareMode: "none" | "readonly" | "writable";
   createdAt: Date;
   updatedAt: Date;
@@ -188,6 +189,7 @@ export function storeCreateSession(req: {
   idPrefix?: string;
   username?: string | null;
   userId?: string | null;
+  cwd?: string | null;
 }): SessionRecord {
   const id = `${req.idPrefix || "session_"}${uuid().replace(/-/g, "")}`;
   const now = new Date();
@@ -201,11 +203,27 @@ export function storeCreateSession(req: {
     workerEpoch: 0,
     username: req.username ?? null,
     userId: req.userId ?? null,
+    cwd: req.cwd ?? null,
     shareMode: "none" as const,
     createdAt: now,
     updatedAt: now,
   };
   sessions.set(id, record);
+  db.insert(agentSession).values({
+    id,
+    environmentId: record.environmentId,
+    title: record.title,
+    status: record.status,
+    source: record.source,
+    permissionMode: record.permissionMode,
+    workerEpoch: record.workerEpoch,
+    username: record.username,
+    userId: record.userId,
+    cwd: record.cwd,
+    shareMode: record.shareMode,
+    createdAt: now,
+    updatedAt: now,
+  }).run();
   return record;
 }
 
@@ -217,6 +235,11 @@ export function storeUpdateSession(id: string, patch: Partial<Pick<SessionRecord
   const rec = sessions.get(id);
   if (!rec) return false;
   Object.assign(rec, patch, { updatedAt: new Date() });
+  const dbSet: Record<string, unknown> = { updatedAt: new Date() };
+  if (patch.title !== undefined) dbSet.title = patch.title;
+  if (patch.status !== undefined) dbSet.status = patch.status;
+  if (patch.workerEpoch !== undefined) dbSet.workerEpoch = patch.workerEpoch;
+  db.update(agentSession).set(dbSet).where(eq(agentSession.id, id)).run();
   return true;
 }
 
@@ -246,7 +269,30 @@ export function storeListSessionsForAgentByCwd(agentId: string, cwd?: string): S
 }
 
 export function storeDeleteSession(id: string): boolean {
+  db.delete(agentSession).where(eq(agentSession.id, id)).run();
   return sessions.delete(id);
+}
+
+/** Load all sessions from SQLite into the in-memory sessions Map (called at startup) */
+export function storeLoadSessionsFromDB(): void {
+  const rows = db.select().from(agentSession).all();
+  for (const row of rows) {
+    sessions.set(row.id, {
+      id: row.id,
+      environmentId: row.environmentId,
+      title: row.title,
+      status: row.status,
+      source: row.source,
+      permissionMode: row.permissionMode,
+      workerEpoch: row.workerEpoch,
+      username: row.username,
+      userId: row.userId,
+      cwd: row.cwd,
+      shareMode: (row.shareMode as "none" | "readonly" | "writable") ?? "none",
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    });
+  }
 }
 
 // ---------- Share Link ----------
@@ -318,6 +364,7 @@ export function storeRefreshSessionShareMode(sessionId: string): void {
   }
   const rec = sessions.get(sessionId);
   if (rec) rec.shareMode = mode;
+  db.update(agentSession).set({ shareMode: mode, updatedAt: new Date() }).where(eq(agentSession.id, sessionId)).run();
 }
 
 // ---------- Share Event Snapshot ----------
@@ -428,11 +475,13 @@ export function storeUpdateWorkItem(id: string, patch: Partial<Pick<WorkItemReco
   return true;
 }
 
-/** Delete an environment and its associated sessions */
+/** Delete an environment and disassociate its sessions */
 export function storeDeleteEnvironment(id: string): boolean {
-  // Delete associated in-memory sessions first
-  for (const [sid, s] of sessions) {
-    if (s.environmentId === id) sessions.delete(sid);
+  for (const s of sessions.values()) {
+    if (s.environmentId === id) {
+      s.environmentId = null;
+      db.update(agentSession).set({ environmentId: null, updatedAt: new Date() }).where(eq(agentSession.id, s.id)).run();
+    }
   }
   db.delete(environment).where(eq(environment.id, id)).run();
   const changes = (sqlite.query("SELECT changes() as c").get() as { c: number }).c;

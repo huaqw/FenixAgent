@@ -232,3 +232,23 @@ export const channelBinding = sqliteTable("channel_binding", {
   platformIdx: index("idx_channel_binding_platform").on(table.platform),
   agentIdx: index("idx_channel_binding_agent_id").on(table.agentId),
 }));
+
+// Agent Session 持久化表
+export const agentSession = sqliteTable("agent_session", {
+  id: text("id").primaryKey(),
+  environmentId: text("environment_id")
+    .references(() => environment.id, { onDelete: "set null" }),
+  title: text("title"),
+  status: text("status").notNull(),
+  source: text("source").notNull(),
+  permissionMode: text("permission_mode"),
+  workerEpoch: integer("worker_epoch").notNull().default(0),
+  username: text("username"),
+  userId: text("user_id"),
+  cwd: text("cwd"),
+  shareMode: text("share_mode").notNull().default("none"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+}, (table) => ({
+  envIdx: index("idx_agent_session_env").on(table.environmentId),
+}));

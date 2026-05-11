@@ -24,7 +24,7 @@ import fileRoutes from "./routes/web/files";
 import { workflowStaticApp } from "./routes/web/workflow-proxy";
 import knowledgeMcpRoutes from "./routes/mcp/knowledge";
 import { stopAllInstances, spawnInstanceFromEnvironment, findRunningInstanceByEnvironment } from "./services/instance";
-import { storeListAllEnvironments } from "./store";
+import { storeListAllEnvironments, storeLoadSessionsFromDB } from "./store";
 import { migrateSkillsDir } from "./services/skill";
 import { startScheduler, stopScheduler } from "./services/scheduler";
 import { initHermesClient, getHermesClient } from "./services/hermes-client";
@@ -34,6 +34,8 @@ console.log("[RCS] Database initialized (SQLite + better-auth)");
 
 await migrateSkillsDir();
 await startScheduler();
+storeLoadSessionsFromDB();
+console.log("[RCS] Sessions restored from database");
 
 // Initialize Hermes client if configured
 const hermesUrl = process.env.HERMES_URL ?? (config as any).channels?.hermesUrl;

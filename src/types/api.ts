@@ -65,6 +65,7 @@ export interface CreateSessionRequest {
   source?: string;
   permission_mode?: string;
   username?: string;
+  cwd?: string;
 }
 
 export interface CreateCodeSessionRequest {
@@ -72,6 +73,7 @@ export interface CreateCodeSessionRequest {
   source?: string;
   username?: string;
   permission_mode?: string;
+  cwd?: string;
 }
 
 export interface WorkResponse {
