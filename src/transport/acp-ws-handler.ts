@@ -1,4 +1,4 @@
-import type { WSContext } from "hono/ws";
+import type { WsConnection } from "./ws-types";
 import { v4 as uuid } from "uuid";
 import { getAcpEventBus } from "./event-bus";
 import type { SessionEvent } from "./event-bus";
@@ -20,7 +20,7 @@ interface AcpConnectionEntry {
   userId: string;
   unsub: (() => void) | null;
   keepalive: ReturnType<typeof setInterval> | null;
-  ws: WSContext;
+  ws: WsConnection;
   openTime: number;
   lastClientActivity: number;
   capabilities: Record<string, unknown> | null;
@@ -32,7 +32,7 @@ const SERVER_KEEPALIVE_INTERVAL_MS = config.wsKeepaliveInterval * 1000;
 const CLIENT_ACTIVITY_TIMEOUT_MS = SERVER_KEEPALIVE_INTERVAL_MS * 3;
 
 /** Send a JSON message to a WS connection (NDJSON format) */
-function sendToWs(ws: WSContext, msg: object): void {
+function sendToWs(ws: WsConnection, msg: object): void {
   if (ws.readyState !== 1) return;
   try {
     ws.send(JSON.stringify(msg) + "\n");
@@ -42,7 +42,7 @@ function sendToWs(ws: WSContext, msg: object): void {
 }
 
 /** Called from onOpen — initializes connection tracking */
-export function handleAcpWsOpen(ws: WSContext, wsId: string, userId: string, boundEnvId?: string | null): void {
+export function handleAcpWsOpen(ws: WsConnection, wsId: string, userId: string, boundEnvId?: string | null): void {
   log(`[ACP-WS] Connection opened: wsId=${wsId} userId=${userId}${boundEnvId ? ` boundEnvId=${boundEnvId}` : ""}`);
 
   // If bound to a persistent environment, mark it active immediately
@@ -275,7 +275,7 @@ function handleIdentify(wsId: string, msg: Record<string, unknown>): void {
 }
 
 /** Called from onMessage — processes NDJSON lines */
-export function handleAcpWsMessage(ws: WSContext, wsId: string, data: string): void {
+export function handleAcpWsMessage(ws: WsConnection, wsId: string, data: string): void {
   const entry = connections.get(wsId);
   if (!entry) return;
 
@@ -333,7 +333,7 @@ export function handleAcpWsMessage(ws: WSContext, wsId: string, data: string): v
 }
 
 /** Called from onClose — marks agent offline and cleans up */
-export function handleAcpWsClose(ws: WSContext, wsId: string, code?: number, reason?: string): void {
+export function handleAcpWsClose(ws: WsConnection, wsId: string, code?: number, reason?: string): void {
   const entry = connections.get(wsId);
   if (!entry) return;
 

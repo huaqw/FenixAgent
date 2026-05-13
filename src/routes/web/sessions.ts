@@ -1,6 +1,5 @@
-import { Hono } from "hono";
-import type { Next } from "hono";
-import { sessionAuth, uuidAuth, getUuidFromRequest } from "../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import {
   storeGetSession,
   storeGetEnvironment,
@@ -9,7 +8,8 @@ import {
 import { getEventBus } from "../../transport/event-bus";
 import { resolveExistingWebSessionId, resolveOwnedWebSessionId } from "../../services/session";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-sessions", prefix: "/web" })
+  .use(authGuardPlugin);
 
 function toSessionResponse(row: { id: string; environmentId: string | null; title: string | null; status: string; source: string; permissionMode: string | null; workerEpoch: number; username: string | null; createdAt: Date; updatedAt: Date }) {
   const env = row.environmentId ? storeGetEnvironment(row.environmentId) : null;
@@ -39,49 +39,42 @@ function toSessionSummary(row: { id: string; title: string | null; status: strin
 }
 
 /** GET /web/sessions — List sessions owned by the current user */
-app.get("/sessions", sessionAuth, async (c) => {
-  const user = c.get("user")!;
+app.get("/sessions", ({ store }) => {
+  const user = store.user!;
   const sessions = storeListSessionsByUserId(user.id).map(toSessionResponse);
-  return c.json(sessions, 200);
-});
+  return sessions;
+}, { sessionAuth: true });
 
 /** GET /web/sessions/all — List session summaries owned by the current user */
-app.get("/sessions/all", sessionAuth, async (c) => {
-  const user = c.get("user")!;
+app.get("/sessions/all", ({ store }) => {
+  const user = store.user!;
   const sessions = storeListSessionsByUserId(user.id).map(toSessionSummary);
-  return c.json(sessions, 200);
-});
+  return sessions;
+}, { sessionAuth: true });
 
 /** GET /web/sessions/:id — Session detail */
-app.get("/sessions/:id", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const sessionId = c.req.param("id")!;
+app.get("/sessions/:id", ({ store, params, error }) => {
+  const user = store.user!;
+  const sessionId = params.id;
   const session = storeGetSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
   if (session.userId && session.userId !== user.id) {
-    return c.json({ error: { type: "forbidden", message: "Not your session" } }, 403);
+    return error(403, { error: { type: "forbidden", message: "Not your session" } });
   }
-  return c.json(toSessionResponse(session), 200);
-});
+  return toSessionResponse(session);
+}, { sessionAuth: true });
 
 /** GET /web/sessions/:id/history — Session event history
  *  Supports both sessionAuth (cookie) and uuidAuth (?uuid=) */
-app.get("/sessions/:id/history", async (c, next: Next) => {
-  // Try sessionAuth first, fall back to uuidAuth
-  const uuid = getUuidFromRequest(c);
-  if (uuid) {
-    return uuidAuth(c, next);
-  }
-  return sessionAuth(c, next);
-}, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.get("/sessions/:id/history", async ({ store, params, request, error }) => {
+  const sessionId = params.id;
+  const url = new URL(request.url);
+  const uuid = url.searchParams.get("uuid");
 
-  // Resolve via uuid ownership or session ownership
   let resolvedId: string | null = null;
-  const uuid = c.get("uuid");
-  const user = c.get("user");
+  const user = store.user;
 
   if (uuid) {
     resolvedId = resolveOwnedWebSessionId(sessionId, uuid);
@@ -97,12 +90,12 @@ app.get("/sessions/:id/history", async (c, next: Next) => {
   }
 
   if (!resolvedId) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   const bus = getEventBus(resolvedId);
   const events = bus.getEventsSince(0);
-  return c.json({ events }, 200);
-});
+  return { events };
+}, { sessionAuth: true });
 
 export default app;

@@ -1,19 +1,20 @@
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import { log, error as logError } from "../../logger";
-import { Hono } from "hono";
-import { uuidAuth } from "../../auth/middleware";
 import { getSession, isSessionClosedStatus, resolveOwnedWebSessionId, updateSessionStatus } from "../../services/session";
 import { publishSessionEvent } from "../../services/transport";
 import { getEventBus } from "../../transport/event-bus";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-control", prefix: "/web" })
+  .use(authGuardPlugin);
 
 type OwnershipCheckResult =
   | { error: true }
   | { error: true; reason: string }
   | { error: false; session: NonNullable<ReturnType<typeof getSession>>; sessionId: string };
 
-function checkOwnership(c: { get: (key: string) => string | undefined }, sessionId: string): OwnershipCheckResult {
-  const uuid = c.get("uuid")!;
+function checkOwnership(uuid: string | null, sessionId: string): OwnershipCheckResult {
+  if (!uuid) return { error: true };
   const resolvedSessionId = resolveOwnedWebSessionId(sessionId, uuid);
   if (!resolvedSessionId) {
     return { error: true };
@@ -33,57 +34,57 @@ function closedSessionResponse(message: string) {
 }
 
 /** POST /web/sessions/:id/events — Send user message to session */
-app.post("/sessions/:id/events", uuidAuth, async (c) => {
-  const requestedSessionId = c.req.param("id")!;
-  const ownership = checkOwnership(c, requestedSessionId);
+app.post("/sessions/:id/events", async ({ store, params, body, error }) => {
+  const requestedSessionId = params.id;
+  const uuid = store.uuid;
+  const ownership = checkOwnership(uuid, requestedSessionId);
   if (ownership.error) {
     const message = "reason" in ownership ? ownership.reason : "Not your session";
     const status = "reason" in ownership ? 409 : 403;
-    return c.json("reason" in ownership ? closedSessionResponse(message) : { error: { type: "forbidden", message } }, status);
+    return error(status, "reason" in ownership ? closedSessionResponse(message) : { error: { type: "forbidden", message } });
   }
-  if (!("sessionId" in ownership)) return c.json({ error: { type: "forbidden", message: "Not your session" } }, 403);
   const { sessionId } = ownership;
 
-  const body = await c.req.json();
-  const eventType = body.type || "user";
-  log(`[RC-DEBUG] web -> server: POST /web/sessions/${sessionId}/events type=${eventType} content=${JSON.stringify(body).slice(0, 200)}`);
-  const event = publishSessionEvent(sessionId, eventType, body, "outbound");
+  const b = (body as any) ?? {};
+  const eventType = b.type || "user";
+  log(`[RC-DEBUG] web -> server: POST /web/sessions/${sessionId}/events type=${eventType} content=${JSON.stringify(b).slice(0, 200)}`);
+  const event = publishSessionEvent(sessionId, eventType, b, "outbound");
   log(`[RC-DEBUG] web -> server: published outbound event id=${event.id} type=${event.type} direction=${event.direction} subscribers=${getEventBus(sessionId).subscriberCount()}`);
-  return c.json({ status: "ok", event }, 200);
-});
+  return { status: "ok", event };
+}, { uuidAuth: true });
 
 /** POST /web/sessions/:id/control — Send control request (permission approval etc) */
-app.post("/sessions/:id/control", uuidAuth, async (c) => {
-  const requestedSessionId = c.req.param("id")!;
-  const ownership = checkOwnership(c, requestedSessionId);
+app.post("/sessions/:id/control", async ({ store, params, body, error }) => {
+  const requestedSessionId = params.id;
+  const uuid = store.uuid;
+  const ownership = checkOwnership(uuid, requestedSessionId);
   if (ownership.error) {
     const message = "reason" in ownership ? ownership.reason : "Not your session";
     const status = "reason" in ownership ? 409 : 403;
-    return c.json("reason" in ownership ? closedSessionResponse(message) : { error: { type: "forbidden", message } }, status);
+    return error(status, "reason" in ownership ? closedSessionResponse(message) : { error: { type: "forbidden", message } });
   }
-  if (!("sessionId" in ownership)) return c.json({ error: { type: "forbidden", message: "Not your session" } }, 403);
   const { sessionId } = ownership;
 
-  const body = await c.req.json();
-  const event = publishSessionEvent(sessionId, body.type || "control_request", body, "outbound");
-  return c.json({ status: "ok", event }, 200);
-});
+  const b = (body as any) ?? {};
+  const event = publishSessionEvent(sessionId, b.type || "control_request", b, "outbound");
+  return { status: "ok", event };
+}, { uuidAuth: true });
 
 /** POST /web/sessions/:id/interrupt — Interrupt session */
-app.post("/sessions/:id/interrupt", uuidAuth, async (c) => {
-  const requestedSessionId = c.req.param("id")!;
-  const ownership = checkOwnership(c, requestedSessionId);
+app.post("/sessions/:id/interrupt", async ({ store, params, error }) => {
+  const requestedSessionId = params.id;
+  const uuid = store.uuid;
+  const ownership = checkOwnership(uuid, requestedSessionId);
   if (ownership.error) {
     const message = "reason" in ownership ? ownership.reason : "Not your session";
     const status = "reason" in ownership ? 409 : 403;
-    return c.json("reason" in ownership ? closedSessionResponse(message) : { error: { type: "forbidden", message } }, status);
+    return error(status, "reason" in ownership ? closedSessionResponse(message) : { error: { type: "forbidden", message } });
   }
-  if (!("sessionId" in ownership)) return c.json({ error: { type: "forbidden", message: "Not your session" } }, 403);
   const { sessionId } = ownership;
 
   publishSessionEvent(sessionId, "interrupt", { action: "interrupt" }, "outbound");
   updateSessionStatus(sessionId, "idle");
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { uuidAuth: true });
 
 export default app;

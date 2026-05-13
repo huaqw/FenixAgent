@@ -1,6 +1,4 @@
-import { Hono } from "hono";
-import { upgradeWebSocket } from "hono/bun";
-import { sessionAuth } from "../../auth/middleware";
+import Elysia from "elysia";
 import { validateApiKeyAndGetUser } from "../../auth/api-key-service";
 import { auth } from "../../auth/better-auth";
 import { config } from "../../config";
@@ -22,11 +20,21 @@ import {
   storeGetEnvironment,
 } from "../../store";
 import { log, error as logError } from "../../logger";
-
-const app = new Hono();
+import { authGuardPlugin } from "../../plugins/auth";
+import type { WsConnection } from "../../transport/ws-types";
+import { v4 as uuid } from "uuid";
 
 /** Maximum WebSocket message size: 10 MB */
 const MAX_WS_MESSAGE_SIZE = 10 * 1024 * 1024;
+
+/** Adapt Elysia WS to WsConnection interface */
+function adaptWs(ws: any): WsConnection {
+  return {
+    send: (data: string) => ws.send(data),
+    close: (code?: number, reason?: string) => ws.close(code, reason),
+    get readyState() { return ws.readyState; },
+  };
+}
 
 /** Response shape for an ACP agent */
 function toAcpAgentResponse(env: NonNullable<ReturnType<typeof storeGetEnvironment>>) {
@@ -42,7 +50,7 @@ function toAcpAgentResponse(env: NonNullable<ReturnType<typeof storeGetEnvironme
 
 /**
  * Find or create the system user for legacy global API key fallback.
- * Mirrors the logic in auth/middleware.ts ensureSystemUser.
+ * Mirrors the logic in plugins/auth.ts ensureSystemUser.
  */
 async function ensureSystemUser(): Promise<{ id: string; email: string; name: string } | null> {
   const rows = await db.select().from(user).where(eq(user.email, "system@rcs.local")).limit(1);
@@ -73,164 +81,149 @@ async function ensureSystemUser(): Promise<{ id: string; email: string; name: st
   return null;
 }
 
-/** GET /acp/agents — List current user's ACP agents */
-app.get("/agents", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const agents = storeListAcpAgentsByUserId(user.id);
-  return c.json(agents.map((a) => toAcpAgentResponse(a)));
-});
+/** Resolve userId from token (three-level auth) */
+async function resolveTokenAuth(token: string | undefined): Promise<{ userId: string; envId?: string } | null> {
+  if (!token) return null;
 
-/** WS /acp/ws — WebSocket endpoint for acp-link connections */
-app.get(
-  "/ws",
-  upgradeWebSocket(async (c) => {
-    // Authenticate via API key
-    const authHeader = c.req.header("Authorization");
-    const queryToken = c.req.query("token");
-    const token = authHeader?.replace("Bearer ", "") || queryToken;
-
-    if (!token) {
-      log("[ACP-WS] Upgrade rejected: missing token");
-      return {
-        onOpen(_evt: any, ws: any) {
-          ws.close(4003, "unauthorized");
-        },
-      };
+  // 0. Environment secret match
+  const { storeGetEnvironmentBySecret } = await import("../../store");
+  const envRecord = storeGetEnvironmentBySecret(token);
+  if (envRecord) {
+    if (envRecord.userId) {
+      return { userId: envRecord.userId, envId: envRecord.id };
     }
+  }
 
-    let userId: string | undefined;
-    let envId: string | undefined;
-
-    // 0. Try environment.secret match (highest priority)
-    const { storeGetEnvironmentBySecret } = await import("../../store");
-    const envRecord = storeGetEnvironmentBySecret(token);
-    if (envRecord) {
-      userId = envRecord.userId ?? undefined;
-      envId = envRecord.id;
+  // 1. Per-user API Key
+  const keyInfo = await validateApiKeyAndGetUser(token);
+  if (keyInfo) {
+    const [userRow] = await db.select().from(user).where(eq(user.id, keyInfo.userId)).limit(1);
+    if (userRow) {
+      return { userId: userRow.id };
     }
+  }
 
-    // 1. Try per-user API Key (SQLite)
-    if (!userId) {
-      const keyInfo = await validateApiKeyAndGetUser(token);
-      if (keyInfo) {
-        const [userRow] = await db.select().from(user).where(eq(user.id, keyInfo.userId)).limit(1);
-        if (userRow) {
-          userId = userRow.id;
-        }
+  // 2. Legacy global API Key
+  if (config.apiKeys.length > 0 && config.apiKeys.includes(token)) {
+    const systemUser = await ensureSystemUser();
+    if (systemUser) {
+      return { userId: systemUser.id };
+    }
+  }
+
+  return null;
+}
+
+const app = new Elysia({ name: "acp", prefix: "/acp" })
+  .use(authGuardPlugin)
+
+  /** GET /acp/agents — List current user's ACP agents */
+  .get("/agents", ({ store }) => {
+    const currentUser = store.user!;
+    const agents = storeListAcpAgentsByUserId(currentUser.id);
+    return agents.map((a) => toAcpAgentResponse(a));
+  }, { sessionAuth: true })
+
+  /** WS /acp/ws — WebSocket endpoint for acp-link connections */
+  .ws("/ws", {
+    async open(ws) {
+      // Authenticate via API key
+      const url = new URL(ws.data.request.url);
+      const authHeader = ws.data.request.headers.get("Authorization");
+      const queryToken = url.searchParams.get("token");
+      const token = authHeader?.replace("Bearer ", "") || queryToken || undefined;
+
+      const conn = adaptWs(ws);
+
+      if (!token) {
+        log("[ACP-WS] Upgrade rejected: missing token");
+        conn.close(4003, "unauthorized");
+        return;
       }
-    }
 
-    // 2. Fallback: legacy global API Key (RCS_API_KEYS env var)
-    if (!userId && config.apiKeys.length > 0 && config.apiKeys.includes(token)) {
-      const systemUser = await ensureSystemUser();
-      if (systemUser) {
-        userId = systemUser.id;
+      const authResult = await resolveTokenAuth(token);
+      if (!authResult) {
+        log("[ACP-WS] Upgrade rejected: invalid API key");
+        conn.close(4003, "unauthorized");
+        return;
       }
-    }
 
-    if (!userId) {
-      log("[ACP-WS] Upgrade rejected: invalid API key");
-      return {
-        onOpen(_evt: any, ws: any) {
-          ws.close(4003, "unauthorized");
-        },
-      };
-    }
+      const wsId = `acp_ws_${uuid().replace(/-/g, "")}`;
+      (ws as any).__acpWsId = wsId;
+      log(`[ACP-WS] Upgrade accepted: wsId=${wsId} userId=${authResult.userId}`);
+      handleAcpWsOpen(conn, wsId, authResult.userId, authResult.envId);
+    },
+    message(ws, data) {
+      const text = typeof data === "string" ? data : new TextDecoder().decode(data as ArrayBuffer);
+      if (text.length > MAX_WS_MESSAGE_SIZE) {
+        logError(`[ACP-WS] Message too large: ${text.length} bytes`);
+        adaptWs(ws).close(1009, "message too large");
+        return;
+      }
+      // Use ws.data for wsId — we need to track it. For now, pass the raw ws.
+      // The handler tracks by wsId, but we don't have it here.
+      // We need a way to pass wsId from open to message/close.
+      // Store wsId in ws.data via store or metadata.
+      const wsId = (ws as any).__acpWsId as string | undefined;
+      if (wsId) {
+        handleAcpWsMessage(adaptWs(ws), wsId, text);
+      }
+    },
+    close(ws, code, reason) {
+      const wsId = (ws as any).__acpWsId as string | undefined;
+      if (wsId) {
+        handleAcpWsClose(adaptWs(ws), wsId, code, reason);
+      }
+    },
+  })
 
-    // Generate unique wsId for this connection
-    const { v4: uuid } = await import("uuid");
-    const wsId = `acp_ws_${uuid().replace(/-/g, "")}`;
+  /** WS /acp/relay/:agentId — WebSocket relay for frontend to interact with an agent */
+  .ws("/relay/:agentId", {
+    async open(ws) {
+      // Authenticate via better-auth session
+      const session = await auth.api.getSession({ headers: ws.data.request.headers });
+      if (!session?.user) {
+        log("[ACP-Relay] Upgrade rejected: not authenticated");
+        adaptWs(ws).close(4003, "unauthorized");
+        return;
+      }
 
-    log(`[ACP-WS] Upgrade accepted: wsId=${wsId} userId=${userId}`);
-    return {
-      onOpen(_evt: any, ws: any) {
-        handleAcpWsOpen(ws, wsId, userId, envId);
-      },
-      onMessage(evt: any, ws: any) {
-        const data =
-          typeof evt.data === "string"
-            ? evt.data
-            : new TextDecoder().decode(evt.data as ArrayBuffer);
-        if (data.length > MAX_WS_MESSAGE_SIZE) {
-          logError(`[ACP-WS] Message too large on wsId=${wsId}: ${data.length} bytes`);
-          ws.close(1009, "message too large");
-          return;
-        }
-        handleAcpWsMessage(ws, wsId, data);
-      },
-      onClose(evt: any, ws: any) {
-        const closeEvt = evt as unknown as CloseEvent;
-        handleAcpWsClose(ws, wsId, closeEvt?.code, closeEvt?.reason);
-      },
-      onError(evt: any, ws: any) {
-        logError(`[ACP-WS] Error on wsId=${wsId}:`, evt);
-        handleAcpWsClose(ws, wsId, 1006, "websocket error");
-      },
-    };
-  }),
-);
+      const userId = session.user.id;
+      const agentId = ws.data.params.agentId;
+      const sessionId = ws.data.query?.sessionId as string | undefined;
 
-/** WS /acp/relay/:agentId — WebSocket relay for frontend to interact with an agent */
-app.get(
-  "/relay/:agentId",
-  upgradeWebSocket(async (c) => {
-    // Authenticate via better-auth session (cookie-based)
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      // Verify agent belongs to this user
+      const env = storeGetEnvironment(agentId);
+      if (!env || env.userId !== userId) {
+        log(`[ACP-Relay] Upgrade rejected: agent ${agentId} not found or not owned by user ${userId}`);
+        adaptWs(ws).close(4003, "unauthorized");
+        return;
+      }
 
-    if (!session?.user) {
-      log("[ACP-Relay] Upgrade rejected: not authenticated");
-      return {
-        onOpen(_evt: any, ws: any) {
-          ws.close(4003, "unauthorized");
-        },
-      };
-    }
+      const relayWsId = `relay_${uuid().replace(/-/g, "")}`;
+      (ws as any).__relayWsId = relayWsId;
 
-    const userId = session.user.id;
-    const agentId = c.req.param("agentId")!;
-    const sessionId = c.req.query("sessionId");
-
-    // Verify agent belongs to this user
-    const env = storeGetEnvironment(agentId);
-    if (!env || env.userId !== userId) {
-      log(`[ACP-Relay] Upgrade rejected: agent ${agentId} not found or not owned by user ${userId}`);
-      return {
-        onOpen(_evt: any, ws: any) {
-          ws.close(4003, "unauthorized");
-        },
-      };
-    }
-
-    const { v4: uuid } = await import("uuid");
-    const relayWsId = `relay_${uuid().replace(/-/g, "")}`;
-
-    log(`[ACP-Relay] Upgrade accepted: relayWsId=${relayWsId} agentId=${agentId}`);
-    return {
-      onOpen(_evt: any, ws: any) {
-        handleRelayOpen(ws, relayWsId, agentId, userId, sessionId);
-      },
-      onMessage(evt: any, ws: any) {
-        const data =
-          typeof evt.data === "string"
-            ? evt.data
-            : new TextDecoder().decode(evt.data as ArrayBuffer);
-        if (data.length > MAX_WS_MESSAGE_SIZE) {
-          logError(`[ACP-Relay] Message too large on relayWsId=${relayWsId}: ${data.length} bytes`);
-          ws.close(1009, "message too large");
-          return;
-        }
-        handleRelayMessage(ws, relayWsId, data);
-      },
-      onClose(evt: any, ws: any) {
-        const closeEvt = evt as unknown as CloseEvent;
-        handleRelayClose(ws, relayWsId, closeEvt?.code, closeEvt?.reason);
-      },
-      onError(evt: any, ws: any) {
-        logError(`[ACP-Relay] Error on relayWsId=${relayWsId}:`, evt);
-        handleRelayClose(ws, relayWsId, 1006, "websocket error");
-      },
-    };
-  }),
-);
+      log(`[ACP-Relay] Upgrade accepted: relayWsId=${relayWsId} agentId=${agentId}`);
+      handleRelayOpen(adaptWs(ws), relayWsId, agentId, userId, sessionId);
+    },
+    message(ws, data) {
+      const text = typeof data === "string" ? data : new TextDecoder().decode(data as ArrayBuffer);
+      if (text.length > MAX_WS_MESSAGE_SIZE) {
+        logError(`[ACP-Relay] Message too large: ${text.length} bytes`);
+        adaptWs(ws).close(1009, "message too large");
+        return;
+      }
+      const relayWsId = (ws as any).__relayWsId as string | undefined;
+      if (relayWsId) {
+        handleRelayMessage(adaptWs(ws), relayWsId, text);
+      }
+    },
+    close(ws, code, reason) {
+      const relayWsId = (ws as any).__relayWsId as string | undefined;
+      if (relayWsId) {
+        handleRelayClose(adaptWs(ws), relayWsId, code, reason);
+      }
+    },
+  });
 
 export default app;

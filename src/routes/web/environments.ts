@@ -1,5 +1,5 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import {
     storeCreateEnvironment,
     storeGetEnvironment,
@@ -71,14 +71,14 @@ function sanitizeResponse(row: EnvironmentRecord) {
     };
 }
 
-const app = new Hono();
+const app = new Elysia({ name: "web-environments", prefix: "/web" })
+  .use(authGuardPlugin);
 
 /** GET /web/environments — List environments for the current user */
-app.get("/environments", sessionAuth, async (c) => {
-    const user = c.get("user")!;
+app.get("/environments", ({ store }) => {
+    const user = store.user!;
     const envs = storeListEnvironmentsByUserId(user.id);
-    return c.json(envs.map((env) => {
-      // Ensure a session exists for each environment
+    return envs.map((env) => {
       let sessions = storeListSessionsByEnvironment(env.id);
       if (sessions.length === 0) {
         const session = storeCreateSession({
@@ -89,7 +89,6 @@ app.get("/environments", sessionAuth, async (c) => {
         });
         sessions = [session];
       }
-      // Get active instances for this environment
       const activeInstances = listInstancesByEnvironment(env.id);
       const firstInstance = activeInstances[0];
       return {
@@ -107,61 +106,48 @@ app.get("/environments", sessionAuth, async (c) => {
         })),
         instances_count: activeInstances.length,
       };
-    }), 200);
-});
+    });
+}, { sessionAuth: true });
 
 /** POST /web/environments — Register a new environment */
-app.post("/environments", sessionAuth, async (c) => {
-    const user = c.get("user")!;
-    const body = await c.req.json();
-    const { name, description, agentName, autoStart } = body;
-    let { workspacePath } = body;
+app.post("/environments", async ({ store, body, error }) => {
+    const user = store.user!;
+    const b = (body as any) ?? {};
+    const { name, description, agentName, autoStart } = b;
+    let { workspacePath } = b;
 
     if (!name || !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
-        return c.json(
-            {
-                error: {
-                    type: "VALIDATION_ERROR",
-                    message:
-                        "name 必须为 kebab-case 格式（小写字母、数字、连字符）",
-                },
+        return error(400, {
+            error: {
+                type: "VALIDATION_ERROR",
+                message: "name 必须为 kebab-case 格式（小写字母、数字、连字符）",
             },
-            400,
-        );
+        });
     }
 
     if (!workspacePath) {
-        return c.json(
-            {
-                error: {
-                    type: "VALIDATION_ERROR",
-                    message: "workspacePath 为必填字段",
-                },
+        return error(400, {
+            error: {
+                type: "VALIDATION_ERROR",
+                message: "workspacePath 为必填字段",
             },
-            400,
-        );
+        });
     }
     const pathError = validateWorkspacePath(workspacePath);
     if (pathError) {
-        return c.json(
-            { error: { type: "VALIDATION_ERROR", message: pathError } },
-            400,
-        );
+        return error(400, { error: { type: "VALIDATION_ERROR", message: pathError } });
     }
 
     if (agentName) {
         const agents =
             (await getSection<Record<string, unknown>>("agent")) ?? {};
         if (!(agentName in agents)) {
-            return c.json(
-                {
-                    error: {
-                        type: "VALIDATION_ERROR",
-                        message: `Agent '${agentName}' 不存在`,
-                    },
+            return error(400, {
+                error: {
+                    type: "VALIDATION_ERROR",
+                    message: `Agent '${agentName}' 不存在`,
                 },
-                400,
-            );
+            });
         }
     }
 
@@ -169,15 +155,12 @@ app.post("/environments", sessionAuth, async (c) => {
         mkdirSync(workspacePath, { recursive: true });
         workspacePath = realpathSync(workspacePath);
     } catch (err: any) {
-        return c.json(
-            {
-                error: {
-                    type: "CONFIG_WRITE_ERROR",
-                    message: `无法创建目录: ${err.message}`,
-                },
+        return error(500, {
+            error: {
+                type: "CONFIG_WRITE_ERROR",
+                message: `无法创建目录: ${err.message}`,
             },
-            500,
-        );
+        });
     }
 
     const secret = generateEnvSecret();
@@ -195,149 +178,112 @@ app.post("/environments", sessionAuth, async (c) => {
         });
     } catch (err: any) {
         if (err.message?.includes("UNIQUE constraint failed")) {
-            return c.json(
-                {
-                    error: {
-                        type: "VALIDATION_ERROR",
-                        message: `环境名称 '${name}' 已存在`,
-                    },
+            return error(409, {
+                error: {
+                    type: "VALIDATION_ERROR",
+                    message: `环境名称 '${name}' 已存在`,
                 },
-                409,
-            );
+            });
         }
         throw err;
     }
 
-    // Auto-start instance in background if requested
     if (autoStart && record.userId) {
         spawnInstanceFromEnvironment(record.userId, record.id)
             .then(() => console.log(`[RCS] Auto-started instance for new environment: ${record.name}`))
             .catch((err: any) => console.error(`[RCS] Failed to auto-start instance for ${record.name}: ${err.message}`));
     }
 
-    return c.json(
-        {
-            ...sanitizeResponse(record),
-            secret: record.secret,
-        },
-        201,
-    );
-});
+    return {
+        ...sanitizeResponse(record),
+        secret: record.secret,
+    };
+}, { sessionAuth: true });
 
 /** GET /web/environments/:id — Get environment detail (with secret) */
-app.get("/environments/:id", sessionAuth, async (c) => {
-    const user = c.get("user")!;
-    const envId = c.req.param("id")!;
+app.get("/environments/:id", ({ store, params, error }) => {
+    const user = store.user!;
+    const envId = params.id;
     const env = storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
-        return c.json(
-            { error: { type: "NOT_FOUND", message: "环境不存在" } },
-            404,
-        );
+        return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
-    return c.json({ ...sanitizeResponse(env), secret: env.secret }, 200);
-});
+    return { ...sanitizeResponse(env), secret: env.secret };
+}, { sessionAuth: true });
 
 /** PUT /web/environments/:id — Update environment metadata */
-app.put("/environments/:id", sessionAuth, async (c) => {
-    const user = c.get("user")!;
-    const envId = c.req.param("id")!;
+app.put("/environments/:id", async ({ store, params, body, error }) => {
+    const user = store.user!;
+    const envId = params.id;
     const env = storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
-        return c.json(
-            { error: { type: "NOT_FOUND", message: "环境不存在" } },
-            404,
-        );
+        return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
 
-    const body = await c.req.json();
+    const b = (body as any) ?? {};
     const patch: Partial<Pick<EnvironmentRecord, "name" | "description" | "workspacePath" | "agentName" | "autoStart">> = {};
 
-    if (body.name !== undefined) {
-        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(body.name)) {
-            return c.json(
-                {
-                    error: {
-                        type: "VALIDATION_ERROR",
-                        message: "name 必须为 kebab-case 格式",
-                    },
-                },
-                400,
-            );
+    if (b.name !== undefined) {
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(b.name)) {
+            return error(400, {
+                error: { type: "VALIDATION_ERROR", message: "name 必须为 kebab-case 格式" },
+            });
         }
-        patch.name = body.name;
+        patch.name = b.name;
     }
-    if (body.workspacePath !== undefined) {
-        const pathError = validateWorkspacePath(body.workspacePath);
+    if (b.workspacePath !== undefined) {
+        const pathError = validateWorkspacePath(b.workspacePath);
         if (pathError) {
-            return c.json(
-                { error: { type: "VALIDATION_ERROR", message: pathError } },
-                400,
-            );
+            return error(400, { error: { type: "VALIDATION_ERROR", message: pathError } });
         }
-        mkdirSync(body.workspacePath, { recursive: true });
-        patch.workspacePath = realpathSync(body.workspacePath);
+        mkdirSync(b.workspacePath, { recursive: true });
+        patch.workspacePath = realpathSync(b.workspacePath);
     }
-    if (body.agentName !== undefined) {
-        if (body.agentName) {
+    if (b.agentName !== undefined) {
+        if (b.agentName) {
             const agents =
                 (await getSection<Record<string, unknown>>("agent")) ?? {};
-            if (!(body.agentName in agents)) {
-                return c.json(
-                    {
-                        error: {
-                            type: "VALIDATION_ERROR",
-                            message: `Agent '${body.agentName}' 不存在`,
-                        },
-                    },
-                    400,
-                );
+            if (!(b.agentName in agents)) {
+                return error(400, {
+                    error: { type: "VALIDATION_ERROR", message: `Agent '${b.agentName}' 不存在` },
+                });
             }
         }
-        patch.agentName = body.agentName || null;
+        patch.agentName = b.agentName || null;
     }
-    if (body.description !== undefined) {
-        patch.description = body.description;
+    if (b.description !== undefined) {
+        patch.description = b.description;
     }
-    if (body.autoStart !== undefined) {
-        patch.autoStart = !!body.autoStart;
+    if (b.autoStart !== undefined) {
+        patch.autoStart = !!b.autoStart;
     }
 
     storeUpdateEnvironment(envId, patch);
     const updated = storeGetEnvironment(envId);
-    return c.json(sanitizeResponse(updated!), 200);
-});
+    return sanitizeResponse(updated!);
+}, { sessionAuth: true });
 
 /** POST /web/environments/:id/enter — Enter an environment (auto-spawn instance if needed) */
-app.post("/environments/:id/enter", sessionAuth, async (c) => {
-    const user = c.get("user")!;
-    const envId = c.req.param("id")!;
+app.post("/environments/:id/enter", async ({ store, params, body, error }) => {
+    const user = store.user!;
+    const envId = params.id;
     const env = storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
-        return c.json(
-            { error: { type: "NOT_FOUND", message: "环境不存在" } },
-            404,
-        );
+        return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
 
-    let body: any = {};
-    try { body = await c.req.json(); } catch { /* empty body is ok */ }
-    const instanceNumber = body.instance_number as number | undefined;
+    const b = (body as any) ?? {};
+    const instanceNumber = b.instance_number as number | undefined;
 
     let inst: import("../../services/instance").SpawnedInstance | undefined;
 
     if (instanceNumber !== undefined) {
-      // Find instance by number
       const runningInstances = getRunningInstancesByEnvironment(envId);
       inst = runningInstances.find((i) => i.instanceNumber === instanceNumber);
       if (!inst) {
-        return c.json(
-          { error: { type: "NOT_FOUND", message: `实例 ${instanceNumber} 不存在或未运行` } },
-          404,
-        );
+        return error(404, { error: { type: "NOT_FOUND", message: `实例 ${instanceNumber} 不存在或未运行` } });
       }
     } else {
-      // Default: find or spawn first running instance
       const runningInstances = getRunningInstancesByEnvironment(envId);
       if (runningInstances.length > 0) {
         inst = runningInstances[0];
@@ -345,22 +291,15 @@ app.post("/environments/:id/enter", sessionAuth, async (c) => {
         try {
           inst = await spawnInstanceFromEnvironment(user.id, envId);
         } catch (err: any) {
-          return c.json(
-            { error: { type: "CONFIG_WRITE_ERROR", message: err.message } },
-            500,
-          );
+          return error(500, { error: { type: "CONFIG_WRITE_ERROR", message: err.message } });
         }
       }
     }
 
     if (!inst) {
-        return c.json(
-            { error: { type: "CONFIG_WRITE_ERROR", message: "无法创建实例" } },
-            500,
-        );
+        return error(500, { error: { type: "CONFIG_WRITE_ERROR", message: "无法创建实例" } });
     }
 
-    // Ensure session exists
     let sessionId = inst.sessionId;
     if (!sessionId) {
         const sessions = storeListSessionsByEnvironment(envId);
@@ -376,29 +315,26 @@ app.post("/environments/:id/enter", sessionAuth, async (c) => {
         sessionId = session.id;
     }
 
-    return c.json({
+    return {
         session_id: sessionId,
         instance_id: inst.id,
         instance_number: inst.instanceNumber,
         instance_status: inst.status,
         environment_id: envId,
-    }, 200);
-});
+    };
+}, { sessionAuth: true });
 
 /** GET /web/environments/:id/instances — List active instances for an environment */
-app.get("/environments/:id/instances", sessionAuth, async (c) => {
-    const user = c.get("user")!;
-    const envId = c.req.param("id")!;
+app.get("/environments/:id/instances", ({ store, params, error }) => {
+    const user = store.user!;
+    const envId = params.id;
     const env = storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
-        return c.json(
-            { error: { type: "NOT_FOUND", message: "环境不存在" } },
-            404,
-        );
+        return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
 
     const activeInstances = listInstancesByEnvironment(envId);
-    return c.json({
+    return {
         environment_id: envId,
         instances: activeInstances.map((inst) => ({
           id: inst.id,
@@ -408,22 +344,19 @@ app.get("/environments/:id/instances", sessionAuth, async (c) => {
           port: inst.port,
           created_at: Math.floor(inst.createdAt.getTime() / 1000),
         })),
-    }, 200);
-});
+    };
+}, { sessionAuth: true });
 
 /** DELETE /web/environments/:id — Delete environment */
-app.delete("/environments/:id", sessionAuth, async (c) => {
-    const user = c.get("user")!;
-    const envId = c.req.param("id")!;
+app.delete("/environments/:id", ({ store, params, error }) => {
+    const user = store.user!;
+    const envId = params.id;
     const env = storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
-        return c.json(
-            { error: { type: "NOT_FOUND", message: "环境不存在" } },
-            404,
-        );
+        return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
     storeDeleteEnvironment(envId);
-    return c.json({ ok: true }, 200);
-});
+    return { ok: true };
+}, { sessionAuth: true });
 
 export default app;

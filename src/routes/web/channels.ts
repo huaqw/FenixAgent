@@ -1,89 +1,84 @@
-import { Hono } from "hono";
-
-import { sessionAuth } from "../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import { getChannelProvider, listChannelProviders } from "../../services/channel-provider";
 import { getHermesClient } from "../../services/hermes-client";
 import { listBindings, createBinding, deleteBinding, updateBinding } from "../../services/channel-binding";
 import { storeGetEnvironment } from "../../store";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-channels", prefix: "/web" })
+  .use(authGuardPlugin);
 
-app.get("/channels/providers", sessionAuth, (c) => {
-  return c.json(listChannelProviders(), 200);
-});
+app.get("/channels/providers", () => {
+  return listChannelProviders();
+}, { sessionAuth: true });
 
-app.get("/channels", sessionAuth, (c) => {
-  return c.json([], 200);
-});
+app.get("/channels", () => {
+  return [];
+}, { sessionAuth: true });
 
-app.post("/channels", sessionAuth, async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const provider = typeof body?.type === "string" ? getChannelProvider(body.type) : undefined;
+app.post("/channels", async ({ body, error }) => {
+  const b = (body as any) ?? {};
+  const provider = typeof b?.type === "string" ? getChannelProvider(b.type) : undefined;
   const status = provider ? 409 : 400;
-  return c.json(
-    { error: { type: "FORBIDDEN", message: "当前平台暂未开放" } },
-    status,
-  );
-});
+  return error(status, { error: { type: "FORBIDDEN", message: "当前平台暂未开放" } });
+}, { sessionAuth: true });
 
 // --- Hermes Status ---
 
-app.get("/channels/hermes/status", sessionAuth, (c) => {
+app.get("/channels/hermes/status", () => {
   const client = getHermesClient();
   if (!client) {
-    return c.json({
+    return {
       connected: false,
       url: "",
       platforms: [],
       reconnecting: false,
       lastConnectedAt: null,
-    }, 200);
+    };
   }
-  return c.json(client.getStatus(), 200);
-});
+  return client.getStatus();
+}, { sessionAuth: true });
 
 // --- Bindings CRUD ---
 
-app.get("/channels/bindings", sessionAuth, async (c) => {
+app.get("/channels/bindings", async () => {
   const bindings = await listBindings();
   const enriched = bindings.map((b) => {
     const env = storeGetEnvironment(b.agentId);
     return { ...b, agentName: env?.name ?? null };
   });
-  return c.json(enriched, 200);
-});
+  return enriched;
+}, { sessionAuth: true });
 
-app.post("/channels/bindings", sessionAuth, async (c) => {
-  const body = await c.req.json();
-  const { platform, chatId, agentId, enabled } = body;
+app.post("/channels/bindings", async ({ body, error }) => {
+  const b = (body as any) ?? {};
+  const { platform, chatId, agentId, enabled } = b;
   if (!platform || !agentId) {
-    return c.json({
-      error: { type: "VALIDATION_ERROR", message: "platform 和 agentId 为必填字段" },
-    }, 400);
+    return error(400, { error: { type: "VALIDATION_ERROR", message: "platform 和 agentId 为必填字段" } });
   }
   const binding = await createBinding({ platform, chatId: chatId ?? null, agentId, enabled });
   const env = storeGetEnvironment(binding.agentId);
-  return c.json({ ...binding, agentName: env?.name ?? null }, 201);
-});
+  return { ...binding, agentName: env?.name ?? null };
+}, { sessionAuth: true });
 
-app.delete("/channels/bindings/:id", sessionAuth, async (c) => {
-  const id = c.req.param("id")!;
+app.delete("/channels/bindings/:id", async ({ params, error }) => {
+  const id = params.id;
   const deleted = await deleteBinding(id);
   if (!deleted) {
-    return c.json({ error: { type: "NOT_FOUND", message: "绑定不存在" } }, 404);
+    return error(404, { error: { type: "NOT_FOUND", message: "绑定不存在" } });
   }
-  return c.json({ success: true }, 200);
-});
+  return { success: true };
+}, { sessionAuth: true });
 
-app.patch("/channels/bindings/:id", sessionAuth, async (c) => {
-  const id = c.req.param("id")!;
-  const body = await c.req.json();
-  const updated = await updateBinding(id, body);
+app.patch("/channels/bindings/:id", async ({ params, body, error }) => {
+  const id = params.id;
+  const b = (body as any) ?? {};
+  const updated = await updateBinding(id, b);
   if (!updated) {
-    return c.json({ error: { type: "NOT_FOUND", message: "绑定不存在" } }, 404);
+    return error(404, { error: { type: "NOT_FOUND", message: "绑定不存在" } });
   }
   const env = storeGetEnvironment(updated.agentId);
-  return c.json({ ...updated, agentName: env?.name ?? null }, 200);
-});
+  return { ...updated, agentName: env?.name ?? null };
+}, { sessionAuth: true });
 
 export default app;

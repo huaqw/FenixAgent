@@ -1,36 +1,37 @@
-import { Hono } from "hono";
+import Elysia from "elysia";
 import { createCodeSession, getSession, incrementEpoch } from "../../services/session";
-import { apiKeyAuth, acceptCliHeaders } from "../../auth/middleware";
+import { authGuardPlugin } from "../../plugins/auth";
 import { generateWorkerJwt } from "../../auth/jwt";
 import { getBaseUrl, config } from "../../config";
 
-const app = new Hono();
+const app = new Elysia({ name: "v1-code-sessions", prefix: "/v1/code/sessions" })
+  .use(authGuardPlugin);
 
 /** POST /v1/code/sessions — Create code session (wrapped response for TUI compat) */
-app.post("/", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const body = await c.req.json();
-  const session = createCodeSession(body);
-  return c.json({ session }, 200);
-});
+app.post("/", async ({ body }) => {
+  const b = (body as any) ?? {};
+  const session = createCodeSession(b);
+  return { session };
+}, { apiKeyAuth: true });
 
 /** POST /v1/code/sessions/:id/bridge — Get connection info + worker JWT */
-app.post("/:id/bridge", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.post("/:id/bridge", async ({ params, error }) => {
+  const sessionId = params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   const epoch = incrementEpoch(sessionId);
   const expiresInSeconds = config.jwtExpiresIn;
   const workerJwt = generateWorkerJwt(sessionId, expiresInSeconds);
 
-  return c.json({
+  return {
     api_base_url: getBaseUrl(),
     worker_epoch: epoch,
     worker_jwt: workerJwt,
     expires_in: expiresInSeconds,
-  }, 200);
-});
+  };
+}, { apiKeyAuth: true });
 
 export default app;

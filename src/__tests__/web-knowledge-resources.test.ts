@@ -11,7 +11,7 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
-const { Hono } = await import("hono");
+const { default: Elysia } = await import("elysia");
 const { db } = await import("../db");
 const { eq } = await import("drizzle-orm");
 const { knowledgeBase, knowledgeResource, user } = await import("../db/schema");
@@ -19,8 +19,11 @@ const webKnowledgeBases = (await import("../routes/web/knowledge-bases")).defaul
 const { setKnowledgeProviderForTesting } = await import("../services/knowledge-base");
 const { setKnowledgeUploadProviderForTesting } = await import("../services/knowledge-upload");
 
-const testApp = new Hono();
-testApp.route("/web", webKnowledgeBases);
+const testApp = new Elysia().use(webKnowledgeBases);
+
+function request(path: string, init?: RequestInit) {
+  return testApp.handle(new Request(`http://localhost${path}`, init));
+}
 
 const fakeProvider = {
   async createKnowledgeBase() {
@@ -107,7 +110,7 @@ describe("Knowledge resource routes", () => {
     const form = new FormData();
     form.append("files", new File(["# Guide"], "guide.md", { type: "text/markdown" }));
 
-    const response = await testApp.request("/web/knowledge-bases/kb_upload/resources/upload", {
+    const response = await request("/web/knowledge-bases/kb_upload/resources/upload", {
       method: "POST",
       body: form,
     });
@@ -120,7 +123,7 @@ describe("Knowledge resource routes", () => {
   });
 
   test("URL import failure writes lastError and marks knowledge base error", async () => {
-    const response = await testApp.request("/web/knowledge-bases/kb_upload/resources/url", {
+    const response = await request("/web/knowledge-bases/kb_upload/resources/url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -168,7 +171,7 @@ describe("Knowledge resource routes", () => {
       },
     ]);
 
-    const response = await testApp.request("/web/knowledge-bases/kb_upload/resources");
+    const response = await request("/web/knowledge-bases/kb_upload/resources");
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.map((item: any) => item.id)).toEqual(["res_new", "res_old"]);
@@ -196,7 +199,7 @@ describe("Knowledge resource routes", () => {
       updatedAt: now,
     });
 
-    const response = await testApp.request("/web/knowledge-bases/kb_upload/resources/res_delete", {
+    const response = await request("/web/knowledge-bases/kb_upload/resources/res_delete", {
       method: "DELETE",
     });
 
@@ -233,7 +236,7 @@ describe("Knowledge resource routes", () => {
     const form = new FormData();
     form.append("files", new File(["# Retry"], "retry.md", { type: "text/markdown" }));
 
-    const response = await testApp.request("/web/knowledge-bases/kb_upload/resources/upload", {
+    const response = await request("/web/knowledge-bases/kb_upload/resources/upload", {
       method: "POST",
       body: form,
     });
@@ -270,7 +273,7 @@ describe("Knowledge resource routes", () => {
     form.append("files", new File(["# Retry"], "retry.md", { type: "text/markdown" }));
     form.append("files", new File(["# Stable"], "stable.md", { type: "text/markdown" }));
 
-    const response = await testApp.request("/web/knowledge-bases/kb_upload/resources/upload", {
+    const response = await request("/web/knowledge-bases/kb_upload/resources/upload", {
       method: "POST",
       body: form,
     });
@@ -286,7 +289,7 @@ describe("Knowledge resource routes", () => {
   test("re-uploading the same file reuses the existing resource row instead of creating duplicates", async () => {
     const form = new FormData();
     form.append("files", new File(["# Guide v1"], "guide.md", { type: "text/markdown" }));
-    const firstResponse = await testApp.request("/web/knowledge-bases/kb_upload/resources/upload", {
+    const firstResponse = await request("/web/knowledge-bases/kb_upload/resources/upload", {
       method: "POST",
       body: form,
     });
@@ -296,7 +299,7 @@ describe("Knowledge resource routes", () => {
 
     const secondForm = new FormData();
     secondForm.append("files", new File(["# Guide v2"], "guide.md", { type: "text/markdown" }));
-    const secondResponse = await testApp.request("/web/knowledge-bases/kb_upload/resources/upload", {
+    const secondResponse = await request("/web/knowledge-bases/kb_upload/resources/upload", {
       method: "POST",
       body: secondForm,
     });

@@ -1,5 +1,4 @@
 import { log, error as logError } from "../logger";
-import type { Context } from "hono";
 import type { SessionEvent } from "./event-bus";
 import { getEventBus } from "./event-bus";
 import { toClientPayload } from "./client-payload";
@@ -9,24 +8,24 @@ export interface SSEWriter {
   close(): void;
 }
 
-export function createSSEWriter(c: Context): SSEWriter {
+export function createSSEWriter(request: Request): SSEWriter {
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
-      c.req.raw.signal.addEventListener("abort", () => {
+      request.signal.addEventListener("abort", () => {
         controller.close();
       });
 
       // Store encoder and controller for later use
-      (c as any)._sseEncoder = encoder;
-      (c as any)._sseController = controller;
+      (request as any)._sseEncoder = encoder;
+      (request as any)._sseController = controller;
     },
   });
 
   return {
     send(event: SessionEvent) {
-      const encoder = (c as any)._sseEncoder as TextEncoder;
-      const controller = (c as any)._sseController as ReadableStreamDefaultController;
+      const encoder = (request as any)._sseEncoder as TextEncoder;
+      const controller = (request as any)._sseController as ReadableStreamDefaultController;
       if (!encoder || !controller) return;
       const data = JSON.stringify({
         type: event.type,
@@ -38,14 +37,14 @@ export function createSSEWriter(c: Context): SSEWriter {
       controller.enqueue(encoder.encode(msg));
     },
     close() {
-      const controller = (c as any)._sseController as ReadableStreamDefaultController;
+      const controller = (request as any)._sseController as ReadableStreamDefaultController;
       controller?.close();
     },
   };
 }
 
 /** Create SSE response stream for a session */
-export function createSSEStream(c: Context, sessionId: string, fromSeqNum = 0) {
+export function createSSEStream(request: Request, sessionId: string, fromSeqNum = 0) {
   const bus = getEventBus(sessionId);
 
   const stream = new ReadableStream({
@@ -96,7 +95,7 @@ export function createSSEStream(c: Context, sessionId: string, fromSeqNum = 0) {
       }, 15000);
 
       // Cleanup on abort
-      c.req.raw.signal.addEventListener("abort", () => {
+      request.signal.addEventListener("abort", () => {
         unsub();
         clearInterval(keepalive);
         try {
@@ -173,7 +172,7 @@ function toWorkerClientFrame(event: SessionEvent): string {
 }
 
 /** Create CCR worker SSE stream (client_event frames, outbound events only). */
-export function createWorkerEventStream(c: Context, sessionId: string, fromSeqNum = 0) {
+export function createWorkerEventStream(request: Request, sessionId: string, fromSeqNum = 0) {
   const bus = getEventBus(sessionId);
 
   const stream = new ReadableStream({
@@ -211,7 +210,7 @@ export function createWorkerEventStream(c: Context, sessionId: string, fromSeqNu
         }
       }, 15000);
 
-      c.req.raw.signal.addEventListener("abort", () => {
+      request.signal.addEventListener("abort", () => {
         unsub();
         clearInterval(keepalive);
         try {

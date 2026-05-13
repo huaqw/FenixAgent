@@ -41,7 +41,7 @@ describe("Permission 更新流程验证", () => {
   });
 
   test("更新嵌套 permission（含 skill 规则）", async () => {
-    const res = await agentsRoute.request(new Request("http://localhost/config/agents", {
+    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "demo", data: { permission: { bash: "deny", task: "deny", skill: { "find-skills": "deny" } } } }),
@@ -52,12 +52,12 @@ describe("Permission 更新流程验证", () => {
   });
 
   test("GET 返回更新后的 permission", async () => {
-    await agentsRoute.request(new Request("http://localhost/config/agents", {
+    await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "demo", data: { permission: { read: { "*.env": "deny" }, bash: "ask" } } }),
     }));
-    const getRes = await agentsRoute.request(new Request("http://localhost/config/agents", {
+    const getRes = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get", name: "demo" }),
@@ -67,7 +67,7 @@ describe("Permission 更新流程验证", () => {
   });
 
   test("不发送 permission 时旧值保留", async () => {
-    await agentsRoute.request(new Request("http://localhost/config/agents", {
+    await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "demo", data: { model: "gpt-4o" } }),
@@ -76,7 +76,7 @@ describe("Permission 更新流程验证", () => {
   });
 
   test("发送空对象覆盖旧 permission", async () => {
-    await agentsRoute.request(new Request("http://localhost/config/agents", {
+    await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "demo", data: { permission: {} } }),

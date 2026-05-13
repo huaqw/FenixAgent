@@ -1,10 +1,10 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../../plugins/auth";
 import { getSection, modifySection } from "../../../services/config";
 import { inspectRemoteMcpServer } from "../../../services/mcp-inspector";
 import { db } from "../../../db";
 import { mcpTool } from "../../../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 // 内部类型定义（与前端 web/src/types/config.ts 对齐）
@@ -374,32 +374,39 @@ async function handleListTools(name: string) {
 }
 
 // --- 路由注册 ---
-const app = new Hono();
+const app = new Elysia({ name: "web-config-mcp", prefix: "/web" })
+  .use(authGuardPlugin);
 
-app.post("/config/mcp", sessionAuth, async (c) => {
-  const body = await c.req.json<{ action: string; name?: string; config?: unknown; url?: string; headers?: Record<string, string>; timeout?: number }>()
-    .catch((): { action: string; name?: string; config?: unknown; url?: string; headers?: Record<string, string>; timeout?: number } => ({ action: "" }));
-  const { action, name, config, url, headers, timeout } = body;
+app.post("/config/mcp", async ({ body, error }) => {
+  const b = (body as any) ?? {};
+  const { action, name, config, url, headers, timeout } = {
+    action: b.action ?? "",
+    name: b.name as string | undefined,
+    config: b.config as McpServerConfig | undefined,
+    url: b.url as string | undefined,
+    headers: b.headers as Record<string, string> | undefined,
+    timeout: b.timeout as number | undefined,
+  };
 
   try {
     switch (action) {
-      case "list":       return c.json(await handleList());
-      case "get":        return c.json(await handleGet(name!));
-      case "create":     return c.json(await handleCreate(name!, config as McpServerConfig));
-      case "update":     return c.json(await handleUpdate(name!, config as McpServerConfig));
-      case "delete":     return c.json(await handleDelete(name!));
-      case "enable":     return c.json(await handleEnable(name!));
-      case "disable":    return c.json(await handleDisable(name!));
-      case "test":       return c.json(await handleTest(name!));
-      case "test_url":   return c.json(await handleTestUrl(url!, headers, timeout));
-      case "inspect":    return c.json(await handleInspect(name!));
-      case "list_tools": return c.json(await handleListTools(name!));
-      default: return c.json({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } }, 400);
+      case "list":       return await handleList();
+      case "get":        return await handleGet(name!);
+      case "create":     return await handleCreate(name!, config as McpServerConfig);
+      case "update":     return await handleUpdate(name!, config as McpServerConfig);
+      case "delete":     return await handleDelete(name!);
+      case "enable":     return await handleEnable(name!);
+      case "disable":    return await handleDisable(name!);
+      case "test":       return await handleTest(name!);
+      case "test_url":   return await handleTestUrl(url!, headers, timeout);
+      case "inspect":    return await handleInspect(name!);
+      case "list_tools": return await handleListTools(name!);
+      default: return error(400, { success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } });
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
-    return c.json({ success: false, error: { code: "CONFIG_READ_ERROR", message } }, 500);
+    return error(500, { success: false, error: { code: "CONFIG_READ_ERROR", message } });
   }
-});
+}, { sessionAuth: true });
 
 export default app;

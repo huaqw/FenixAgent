@@ -1,4 +1,4 @@
-import type { WSContext } from "hono/ws";
+import type { WsConnection } from "./ws-types";
 import { getEventBus } from "./event-bus";
 import type { SessionEvent } from "./event-bus";
 import { publishSessionEvent } from "../services/transport";
@@ -10,14 +10,14 @@ import { config } from "../config";
 interface CleanupEntry {
   unsub: () => void;
   keepalive: ReturnType<typeof setInterval>;
-  ws: WSContext;
+  ws: WsConnection;
   openTime: number;
   lastClientActivity: number;
 }
 const cleanupBySession = new Map<string, CleanupEntry>();
 
 // Track all active WS connections for graceful shutdown
-const activeConnections = new Set<WSContext>();
+const activeConnections = new Set<WsConnection>();
 
 // Server-side keepalive interval (configurable via RCS_WS_KEEPALIVE_INTERVAL).
 // Sends data frames to keep reverse proxies from closing idle connections.
@@ -37,7 +37,7 @@ function toSDKMessage(event: SessionEvent): string {
 }
 
 /** Called from onOpen — subscribes to event bus, forwards outbound events to bridge WS */
-export function handleWebSocketOpen(ws: WSContext, sessionId: string) {
+export function handleWebSocketOpen(ws: WsConnection, sessionId: string) {
   const openTime = Date.now();
   const lastClientActivity = Date.now();
   log(`[RC-DEBUG] [WS] Open session=${sessionId}`);
@@ -110,7 +110,7 @@ export function handleWebSocketOpen(ws: WSContext, sessionId: string) {
 /**
  * Called from onMessage — bridge sends newline-delimited JSON.
  */
-export function handleWebSocketMessage(ws: WSContext, sessionId: string, data: string) {
+export function handleWebSocketMessage(ws: WsConnection, sessionId: string, data: string) {
   // Track client activity for dead-connection detection
   const entry = cleanupBySession.get(sessionId);
   if (entry) {
@@ -127,7 +127,7 @@ export function handleWebSocketMessage(ws: WSContext, sessionId: string, data: s
 }
 
 /** Called from onClose — unsubscribes from event bus */
-export function handleWebSocketClose(ws: WSContext, sessionId: string, code?: number, reason?: string) {
+export function handleWebSocketClose(ws: WsConnection, sessionId: string, code?: number, reason?: string) {
   activeConnections.delete(ws);
 
   const entry = cleanupBySession.get(sessionId);

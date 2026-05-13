@@ -1,5 +1,5 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../../plugins/auth";
 import { getSection, modifySection } from "../../../services/config";
 import { invalidateAvailableCache } from "./models";
 
@@ -12,7 +12,8 @@ type ProviderConfig = {
 };
 type ProviderBody = { action: string; name?: string; modelId?: string; data?: Record<string, unknown> };
 
-const app = new Hono();
+const app = new Elysia({ name: "web-config-providers", prefix: "/web" })
+  .use(authGuardPlugin);
 
 /** 从 apiKey 字段生成 keyHint：取尾 4 位，前缀 *** */
 function toKeyHint(apiKey: string | undefined): string | null {
@@ -259,24 +260,25 @@ function buildModelData(data: Record<string, unknown>): Record<string, unknown> 
   return model;
 }
 
-app.post("/config/providers", sessionAuth, async (c) => {
-  const body = await c.req.json<ProviderBody>().catch((): ProviderBody => ({ action: "" }));
+app.post("/config/providers", async ({ body, error }) => {
+  const b = (body as any) ?? {};
+  const payload: ProviderBody = { action: b.action ?? "", name: b.name, modelId: b.modelId, data: b.data };
   try {
-    switch (body.action) {
-      case "list": return c.json(await handleList());
-      case "get": return c.json(await handleGet(body.name!));
-      case "set": return c.json(await handleSet(body.name!, body.data!));
-      case "test": return c.json(await handleTest(body.name!));
-      case "delete": return c.json(await handleDelete(body.name!));
-      case "add_model": return c.json(await handleAddModel(body.name!, body.data!));
-      case "update_model": return c.json(await handleUpdateModel(body.name!, body.modelId!, body.data!));
-      case "remove_model": return c.json(await handleRemoveModel(body.name!, body.modelId!));
-      default: return c.json(err("VALIDATION_ERROR", `Unknown action: ${body.action}`), 400);
+    switch (payload.action) {
+      case "list": return await handleList();
+      case "get": return await handleGet(payload.name!);
+      case "set": return await handleSet(payload.name!, payload.data!);
+      case "test": return await handleTest(payload.name!);
+      case "delete": return await handleDelete(payload.name!);
+      case "add_model": return await handleAddModel(payload.name!, payload.data!);
+      case "update_model": return await handleUpdateModel(payload.name!, payload.modelId!, payload.data!);
+      case "remove_model": return await handleRemoveModel(payload.name!, payload.modelId!);
+      default: return error(400, err("VALIDATION_ERROR", `Unknown action: ${payload.action}`));
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
-    return c.json(err("CONFIG_READ_ERROR", message), 500);
+    return error(500, err("CONFIG_READ_ERROR", message));
   }
-});
+}, { sessionAuth: true });
 
 export default app;

@@ -1,4 +1,4 @@
-import type { WSContext } from "hono/ws";
+import type { WsConnection } from "./ws-types";
 import {
   findAcpConnectionByAgentId,
   sendToAgentWs,
@@ -15,7 +15,7 @@ interface RelayConnectionEntry {
   userId: string;
   unsub: (() => void) | null;
   keepalive: ReturnType<typeof setInterval> | null;
-  ws: WSContext;
+  ws: WsConnection;
   openTime: number;
   // Instance mode: direct WS to acp-link's local server
   localWs: WebSocket | null;
@@ -89,7 +89,7 @@ function forwardFilteredLines(text: string, send: (line: string) => void): void 
 }
 
 /** Send a JSON message to relay WS */
-function sendToRelayWs(ws: WSContext, msg: object): void {
+function sendToRelayWs(ws: WsConnection, msg: object): void {
   if (ws.readyState !== 1) return;
   try {
     ws.send(JSON.stringify(msg));
@@ -99,7 +99,7 @@ function sendToRelayWs(ws: WSContext, msg: object): void {
 }
 
 /** Called from onOpen — finds target agent and bridges connection */
-export function handleRelayOpen(ws: WSContext, relayWsId: string, agentId: string, userId: string, sessionId?: string): void {
+export function handleRelayOpen(ws: WsConnection, relayWsId: string, agentId: string, userId: string, sessionId?: string): void {
   log(`[ACP-Relay] Relay connection opened: relayWsId=${relayWsId} agentId=${agentId} userId=${userId} sessionId=${sessionId ?? "(none)"}`);
 
   // Check for spawned instance — prefer instance matching the sessionId
@@ -126,7 +126,7 @@ export function handleRelayOpen(ws: WSContext, relayWsId: string, agentId: strin
 }
 
 /** Instance mode: open direct WS to acp-link's local server */
-function openInstanceRelay(ws: WSContext, relayWsId: string, agentId: string, userId: string, instance: import("../services/instance").SpawnedInstance): void {
+function openInstanceRelay(ws: WsConnection, relayWsId: string, agentId: string, userId: string, instance: import("../services/instance").SpawnedInstance): void {
   const instanceId = instance.id;
   const port = instance.port;
   const token = instance.apiKey;
@@ -244,7 +244,7 @@ function openInstanceRelay(ws: WSContext, relayWsId: string, agentId: string, us
 }
 
 /** EventBus mode: for direct acp-link WS connections */
-function openEventBusRelay(ws: WSContext, relayWsId: string, agentId: string, userId: string): void {
+function openEventBusRelay(ws: WsConnection, relayWsId: string, agentId: string, userId: string): void {
   const keepalive = setInterval(() => {
     const entry = relayConnections.get(relayWsId);
     if (!entry || entry.ws.readyState !== 1) {
@@ -280,7 +280,7 @@ function openEventBusRelay(ws: WSContext, relayWsId: string, agentId: string, us
 }
 
 /** Called from onMessage — forwards frontend messages */
-export function handleRelayMessage(ws: WSContext, relayWsId: string, data: string): void {
+export function handleRelayMessage(ws: WsConnection, relayWsId: string, data: string): void {
   const entry = relayConnections.get(relayWsId);
   if (!entry) return;
 
@@ -339,7 +339,7 @@ export function handleRelayMessage(ws: WSContext, relayWsId: string, data: strin
 }
 
 /** Called from onClose — cleans up relay connection */
-export function handleRelayClose(ws: WSContext, relayWsId: string, code?: number, reason?: string): void {
+export function handleRelayClose(ws: WsConnection, relayWsId: string, code?: number, reason?: string): void {
   const entry = relayConnections.get(relayWsId);
   if (!entry) return;
 

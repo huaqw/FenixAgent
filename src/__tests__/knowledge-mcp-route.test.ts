@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { Hono } from "hono";
+import Elysia from "elysia";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -12,8 +12,8 @@ import {
 import knowledgeMcpRoutes from "../routes/mcp/knowledge";
 import { setKnowledgeRuntimeProviderForTesting } from "../services/knowledge-runtime";
 
-const app = new Hono();
-app.route("/", knowledgeMcpRoutes);
+const app = new Elysia();
+app.use(knowledgeMcpRoutes);
 
 const fakeProvider = {
   async createKnowledgeBase() {
@@ -45,8 +45,8 @@ const fakeProvider = {
   },
 };
 
-async function mcpRequest(secret: string | null, body: Record<string, unknown>) {
-  return app.request("/mcp/knowledge", {
+function mcpRequest(secret: string | null, body: Record<string, unknown>) {
+  return app.handle(new Request("http://localhost/mcp/knowledge", {
     method: "POST",
     headers: {
       Accept: "application/json, text/event-stream",
@@ -55,7 +55,7 @@ async function mcpRequest(secret: string | null, body: Record<string, unknown>) 
       ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
     },
     body: JSON.stringify(body),
-  });
+  }));
 }
 
 describe("knowledge MCP route", () => {

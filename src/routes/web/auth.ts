@@ -1,27 +1,28 @@
-import { Hono } from "hono";
+import Elysia from "elysia";
+import { errorResponse } from "../../plugins/auth";
 import { storeBindSession } from "../../store";
 import { resolveExistingWebSessionId, toWebSessionId } from "../../services/session";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-auth", prefix: "/web" })
+  .decorate({ error: errorResponse });
 
 /** POST /web/bind — Bind a session to a UUID (no-login auth) */
-app.post("/bind", async (c) => {
-  const body = await c.req.json();
-  const sessionId = body.sessionId;
-  // UUID can come from query param (api.js sends it in URL) or body
-  const uuid = c.req.query("uuid") || body.uuid;
+app.post("/bind", async ({ body, query, error }) => {
+  const b = (body as any) ?? {};
+  const sessionId = b.sessionId;
+  const uuid = (query as any)?.uuid || b.uuid;
 
   if (!sessionId || !uuid) {
-    return c.json({ error: "sessionId and uuid are required" }, 400);
+    return error(400, { error: "sessionId and uuid are required" });
   }
 
   const resolvedSessionId = resolveExistingWebSessionId(sessionId);
   if (!resolvedSessionId) {
-    return c.json({ error: "Session not found" }, 404);
+    return error(404, { error: "Session not found" });
   }
 
   storeBindSession(resolvedSessionId, uuid);
-  return c.json({ ok: true, sessionId: toWebSessionId(resolvedSessionId) });
+  return { ok: true, sessionId: toWebSessionId(resolvedSessionId) };
 });
 
 export default app;

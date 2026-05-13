@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import Elysia from "elysia";
+import { errorResponse } from "../../plugins/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import * as z from "zod/v4";
@@ -69,17 +70,18 @@ function createKnowledgeMcpServer(environment: { agentName: string | null; userI
   return server;
 }
 
-const app = new Hono();
+const app = new Elysia({ name: "mcp-knowledge" })
+  .decorate({ error: errorResponse });
 
-app.all("/mcp/knowledge", async (c) => {
-  const token = getBearerToken(c.req.header("Authorization"));
+app.all("/mcp/knowledge", async ({ request, error }) => {
+  const token = getBearerToken(request.headers.get("Authorization") ?? undefined);
   if (!token) {
-    return c.json({ error: { message: "Missing bearer token" } }, 401);
+    return error(401, { error: { message: "Missing bearer token" } });
   }
 
   const environment = storeGetEnvironmentBySecret(token);
   if (!environment) {
-    return c.json({ error: { message: "Invalid bearer token" } }, 401);
+    return error(401, { error: { message: "Invalid bearer token" } });
   }
 
   const transport = new WebStandardStreamableHTTPServerTransport({
@@ -88,7 +90,7 @@ app.all("/mcp/knowledge", async (c) => {
   });
   const server = createKnowledgeMcpServer(environment);
   await server.connect(transport);
-  return transport.handleRequest(c.req.raw);
+  return transport.handleRequest(request);
 });
 
 export default app;

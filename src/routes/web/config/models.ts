@@ -1,8 +1,9 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../../plugins/auth";
 import { getConfig, setTopLevelField } from "../../../services/config";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-config-models", prefix: "/web" })
+  .use(authGuardPlugin);
 
 /** 可用模型缓存：{ models, updatedAt } */
 let cachedAvailable: { models: Array<{ id: string; provider: string; fullId: string; label: string; contextLimit: number | null; outputLimit: number | null }>; updatedAt: number } | null = null;
@@ -85,19 +86,20 @@ async function handleRefresh() {
   return ok({ count: available.length });
 }
 
-app.post("/config/models", sessionAuth, async (c) => {
-  const body = await c.req.json<{ action: string; data?: { model?: string; small_model?: string; permission?: unknown } }>().catch((): { action: string; data?: { model?: string; small_model?: string; permission?: unknown } } => ({ action: "" }));
+app.post("/config/models", async ({ body, error }) => {
+  const b = (body as any) ?? {};
+  const payload = { action: b.action ?? "", data: b.data as { model?: string; small_model?: string; permission?: unknown } | undefined };
   try {
-    switch (body.action) {
-      case "get": return c.json(await handleGet());
-      case "set": return c.json(await handleSet(body.data ?? {}));
-      case "refresh": return c.json(await handleRefresh());
-      default: return c.json(err("VALIDATION_ERROR", `Unknown action: ${body.action}`), 400);
+    switch (payload.action) {
+      case "get": return await handleGet();
+      case "set": return await handleSet(payload.data ?? {});
+      case "refresh": return await handleRefresh();
+      default: return error(400, err("VALIDATION_ERROR", `Unknown action: ${payload.action}`));
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
-    return c.json(err("CONFIG_READ_ERROR", message), 500);
+    return error(500, err("CONFIG_READ_ERROR", message));
   }
-});
+}, { sessionAuth: true });
 
 export default app;

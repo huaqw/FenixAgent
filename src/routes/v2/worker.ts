@@ -1,57 +1,58 @@
-import { Hono } from "hono";
+import Elysia from "elysia";
 import { getSession, incrementEpoch, touchSession, updateSessionStatus } from "../../services/session";
 import {
   automationStatesEqual,
   getAutomationStateEventPayload,
 } from "../../services/automationState";
-import { apiKeyAuth, acceptCliHeaders, sessionIngressAuth } from "../../auth/middleware";
+import { authGuardPlugin } from "../../plugins/auth";
 import { getEventBus } from "../../transport/event-bus";
 import { storeGetSessionWorker, storeUpsertSessionWorker } from "../../store";
 import { v4 as uuid } from "uuid";
 
-const app = new Hono();
+const app = new Elysia({ name: "v1-code-sessions-worker", prefix: "/v1/code/sessions" })
+  .use(authGuardPlugin);
 
 /** GET /v1/code/sessions/:id/worker — Read worker state */
-app.get("/:id/worker", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.get("/:id/worker", async ({ params, error }) => {
+  const sessionId = params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   const worker = storeGetSessionWorker(sessionId);
-  return c.json({
+  return {
     worker: {
       worker_status: worker?.workerStatus ?? session.status,
       external_metadata: worker?.externalMetadata ?? null,
       requires_action_details: worker?.requiresActionDetails ?? null,
       last_heartbeat_at: worker?.lastHeartbeatAt?.toISOString() ?? null,
     },
-  }, 200);
-});
+  };
+}, { sessionIngressAuth: true });
 
 /** PUT /v1/code/sessions/:id/worker — Update worker state */
-app.put("/:id/worker", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.put("/:id/worker", async ({ params, body, error }) => {
+  const sessionId = params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
-  const body = await c.req.json();
+  const b = (body as any) ?? {};
   const prevAutomationState = getAutomationStateEventPayload(
     storeGetSessionWorker(sessionId)?.externalMetadata,
   );
-  if (body.worker_status) {
-    updateSessionStatus(sessionId, body.worker_status);
+  if (b.worker_status) {
+    updateSessionStatus(sessionId, b.worker_status);
   } else {
     touchSession(sessionId);
   }
 
   const worker = storeUpsertSessionWorker(sessionId, {
-    workerStatus: body.worker_status,
-    externalMetadata: body.external_metadata,
-    requiresActionDetails: body.requires_action_details,
+    workerStatus: b.worker_status,
+    externalMetadata: b.external_metadata,
+    requiresActionDetails: b.requires_action_details,
   });
   const nextAutomationState = getAutomationStateEventPayload(worker.externalMetadata);
 
@@ -65,7 +66,7 @@ app.put("/:id/worker", acceptCliHeaders, sessionIngressAuth, async (c) => {
     });
   }
 
-  return c.json({
+  return {
     status: "ok",
     worker: {
       worker_status: worker.workerStatus ?? session.status,
@@ -73,33 +74,33 @@ app.put("/:id/worker", acceptCliHeaders, sessionIngressAuth, async (c) => {
       requires_action_details: worker.requiresActionDetails,
       last_heartbeat_at: worker.lastHeartbeatAt?.toISOString() ?? null,
     },
-  }, 200);
-});
+  };
+}, { sessionIngressAuth: true });
 
 /** POST /v1/code/sessions/:id/worker/heartbeat — Keep worker alive */
-app.post("/:id/worker/heartbeat", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.post("/:id/worker/heartbeat", async ({ params, error }) => {
+  const sessionId = params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   const now = new Date();
   storeUpsertSessionWorker(sessionId, { lastHeartbeatAt: now });
   touchSession(sessionId);
-  return c.json({ status: "ok", last_heartbeat_at: now.toISOString() }, 200);
-});
+  return { status: "ok", last_heartbeat_at: now.toISOString() };
+}, { sessionIngressAuth: true });
 
 /** POST /v1/code/sessions/:id/worker/register — Register worker */
-app.post("/:id/worker/register", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.post("/:id/worker/register", async ({ params, error }) => {
+  const sessionId = params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   const epoch = incrementEpoch(sessionId);
-  return c.json({ worker_epoch: epoch }, 200);
-});
+  return { worker_epoch: epoch };
+}, { apiKeyAuth: true });
 
 export default app;

@@ -47,15 +47,18 @@ mock.module("../store", () => ({
       : undefined,
 }));
 
-const { Hono } = await import("hono");
+const { default: Elysia } = await import("elysia");
 const webChannels = (await import("../routes/web/channels")).default;
 
-const testApp = new Hono();
-testApp.route("/web", webChannels);
+const testApp = new Elysia().use(webChannels);
+
+function request(path: string, init?: RequestInit) {
+  return testApp.handle(new Request(`http://localhost${path}`, init));
+}
 
 describe("channel routes", () => {
   test("GET /web/channels/providers returns disabled providers", async () => {
-    const res = await testApp.request("/web/channels/providers");
+    const res = await request("/web/channels/providers");
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body).toEqual([
@@ -65,7 +68,7 @@ describe("channel routes", () => {
   });
 
   test("GET /web/channels returns empty list", async () => {
-    const res = await testApp.request("/web/channels");
+    const res = await request("/web/channels");
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body).toEqual([]);
@@ -73,7 +76,7 @@ describe("channel routes", () => {
 
   test("POST /web/channels rejects all create attempts", async () => {
     for (const type of ["wechat", "feishu"]) {
-      const res = await testApp.request("/web/channels", {
+      const res = await request("/web/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type }),
@@ -87,7 +90,7 @@ describe("channel routes", () => {
   });
 
   test("GET /web/channels/hermes/status 返回连接状态", async () => {
-    const res = await testApp.request("/web/channels/hermes/status");
+    const res = await request("/web/channels/hermes/status");
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.connected).toBe(true);
@@ -96,7 +99,7 @@ describe("channel routes", () => {
   });
 
   test("GET /web/channels/bindings 返回补全 agentName 的绑定列表", async () => {
-    const res = await testApp.request("/web/channels/bindings");
+    const res = await request("/web/channels/bindings");
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body).toHaveLength(1);
@@ -105,7 +108,7 @@ describe("channel routes", () => {
   });
 
   test("POST /web/channels/bindings 创建绑定成功", async () => {
-    const res = await testApp.request("/web/channels/bindings", {
+    const res = await request("/web/channels/bindings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platform: "telegram", agentId: "env_001" }),
@@ -117,7 +120,7 @@ describe("channel routes", () => {
   });
 
   test("POST /web/channels/bindings 缺少必填字段返回 400", async () => {
-    const res = await testApp.request("/web/channels/bindings", {
+    const res = await request("/web/channels/bindings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platform: "telegram" }),
@@ -128,7 +131,7 @@ describe("channel routes", () => {
   });
 
   test("DELETE /web/channels/bindings/bind_001 删除成功", async () => {
-    const res = await testApp.request("/web/channels/bindings/bind_001", {
+    const res = await request("/web/channels/bindings/bind_001", {
       method: "DELETE",
     });
     expect(res.status).toBe(200);
@@ -137,7 +140,7 @@ describe("channel routes", () => {
   });
 
   test("DELETE /web/channels/bindings/nonexist 返回 404", async () => {
-    const res = await testApp.request("/web/channels/bindings/nonexist", {
+    const res = await request("/web/channels/bindings/nonexist", {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
@@ -146,7 +149,7 @@ describe("channel routes", () => {
   });
 
   test("PATCH /web/channels/bindings/bind_001 更新绑定", async () => {
-    const res = await testApp.request("/web/channels/bindings/bind_001", {
+    const res = await request("/web/channels/bindings/bind_001", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: false }),
@@ -157,7 +160,7 @@ describe("channel routes", () => {
   });
 
   test("PATCH /web/channels/bindings/nonexist 返回 404", async () => {
-    const res = await testApp.request("/web/channels/bindings/nonexist", {
+    const res = await request("/web/channels/bindings/nonexist", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: false }),

@@ -1,5 +1,5 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import {
   listTasks,
   createTask,
@@ -13,93 +13,94 @@ import {
 } from "../../services/task";
 import { scheduleTask, unscheduleTask, rescheduleTask } from "../../services/scheduler";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-tasks", prefix: "/web" })
+  .use(authGuardPlugin);
 
 /** GET /tasks — List current user's scheduled tasks */
-app.get("/tasks", sessionAuth, async (c) => {
-  const user = c.get("user")!;
+app.get("/tasks", async ({ store }) => {
+  const user = store.user!;
   const result = await listTasks(user.id);
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** POST /tasks — Create a new scheduled task */
-app.post("/tasks", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const payload = await c.req.json().catch(() => ({}));
+app.post("/tasks", async ({ store, body, error }) => {
+  const user = store.user!;
+  const payload = (body as any) ?? {};
   const result = await createTask(user.id, payload);
 
   if (!result.success) {
     const err = result.error!;
     const status = err.code === "VALIDATION_ERROR" ? 400 : 500;
-    return c.json({ error: { type: "validation_error", message: err.message } }, status);
+    return error(status, { error: { type: "validation_error", message: err.message } });
   }
 
   const task = result.data!;
   scheduleTask({ id: task.id, cron: task.cron, timezone: task.timezone, enabled: task.enabled });
 
-  return c.json(result, 201);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** GET /tasks/:id — Get task detail */
-app.get("/tasks/:id", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
+app.get("/tasks/:id", async ({ store, params, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
   const result = await getTask(user.id, taskId);
 
   if (!result.success) {
     const err = result.error!;
-    return c.json({ error: { type: "not_found", message: err.message } }, 404);
+    return error(404, { error: { type: "not_found", message: err.message } });
   }
 
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** PUT /tasks/:id — Update task configuration */
-app.put("/tasks/:id", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
-  const payload = await c.req.json().catch(() => ({}));
+app.put("/tasks/:id", async ({ store, params, body, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
+  const payload = (body as any) ?? {};
   const result = await updateTask(user.id, taskId, payload);
 
   if (!result.success) {
     const err = result.error!;
     if (err.code === "NOT_FOUND") {
-      return c.json({ error: { type: "not_found", message: err.message } }, 404);
+      return error(404, { error: { type: "not_found", message: err.message } });
     }
-    return c.json({ error: { type: "validation_error", message: err.message } }, 400);
+    return error(400, { error: { type: "validation_error", message: err.message } });
   }
 
   const task = result.data!;
   rescheduleTask({ id: task.id, cron: task.cron, timezone: task.timezone, enabled: task.enabled });
 
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** DELETE /tasks/:id — Delete a task */
-app.delete("/tasks/:id", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
+app.delete("/tasks/:id", async ({ store, params, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
   const result = await deleteTask(user.id, taskId);
 
   if (!result.success) {
     const err = result.error!;
-    return c.json({ error: { type: "not_found", message: err.message } }, 404);
+    return error(404, { error: { type: "not_found", message: err.message } });
   }
 
   unscheduleTask(taskId);
 
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** POST /tasks/:id/toggle — Toggle task enabled/disabled */
-app.post("/tasks/:id/toggle", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
+app.post("/tasks/:id/toggle", async ({ store, params, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
   const result = await toggleTask(user.id, taskId);
 
   if (!result.success) {
     const err = result.error!;
-    return c.json({ error: { type: "not_found", message: err.message } }, 404);
+    return error(404, { error: { type: "not_found", message: err.message } });
   }
 
   if (result.data!.enabled) {
@@ -112,52 +113,52 @@ app.post("/tasks/:id/toggle", sessionAuth, async (c) => {
     unscheduleTask(taskId);
   }
 
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** POST /tasks/:id/trigger — Manually trigger a task execution */
-app.post("/tasks/:id/trigger", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
+app.post("/tasks/:id/trigger", async ({ store, params, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
   const result = await triggerTask(user.id, taskId);
 
   if (!result.success) {
     const err = result.error!;
-    return c.json({ error: { type: "not_found", message: err.message } }, 404);
+    return error(404, { error: { type: "not_found", message: err.message } });
   }
 
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** GET /tasks/:id/logs — Get execution logs (paginated) */
-app.get("/tasks/:id/logs", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
+app.get("/tasks/:id/logs", async ({ store, params, query, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
 
   const taskResult = await getTask(user.id, taskId);
   if (!taskResult.success) {
-    return c.json({ error: { type: "not_found", message: "任务不存在" } }, 404);
+    return error(404, { error: { type: "not_found", message: "任务不存在" } });
   }
 
-  const page = Math.max(1, Number(c.req.query("page")) || 1);
-  const pageSize = Math.min(100, Math.max(1, Number(c.req.query("pageSize")) || 20));
+  const page = Math.max(1, Number((query as any)?.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number((query as any)?.pageSize) || 20));
   const result = await listExecutionLogs(taskId, page, pageSize);
 
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 /** DELETE /tasks/:id/logs — Clear all execution logs for a task */
-app.delete("/tasks/:id/logs", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const taskId = c.req.param("id")!;
+app.delete("/tasks/:id/logs", async ({ store, params, error }) => {
+  const user = store.user!;
+  const taskId = params.id;
 
   const taskResult = await getTask(user.id, taskId);
   if (!taskResult.success) {
-    return c.json({ error: { type: "not_found", message: "任务不存在" } }, 404);
+    return error(404, { error: { type: "not_found", message: "任务不存在" } });
   }
 
   const result = await clearExecutionLogs(taskId);
-  return c.json(result);
-});
+  return result;
+}, { sessionAuth: true });
 
 export default app;

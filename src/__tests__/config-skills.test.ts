@@ -135,6 +135,15 @@ mock.module("../services/skill", () => ({
     if (importError) throw importError;
     return importResult;
   },
+  importWorkspaceSkillDirectories: async () => {
+    if (importError) throw importError;
+    return importResult;
+  },
+  listSkillSources: async () => [],
+  getWorkspaceSkill: async () => null,
+  setWorkspaceSkill: async (_ws: string, _name: string, data: any) => ({ name: _name, enabled: true, description: data.description }),
+  deleteWorkspaceSkill: async () => true,
+  listWorkspaceSkills: async () => [],
 }));
 
 const skillsRoute = (await import("../routes/web/config/skills")).default;
@@ -149,7 +158,7 @@ describe("Skills Config Route", () => {
   });
 
   test("list 返回空列表", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "list" }),
@@ -163,7 +172,7 @@ describe("Skills Config Route", () => {
     await createSkill(skillsDir, "enabled-skill", "Enabled", "# Enabled");
     await mkdir(disabledDir, { recursive: true });
     await createSkill(disabledDir, "disabled-skill", "Disabled", "# Disabled");
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "list" }),
@@ -176,7 +185,7 @@ describe("Skills Config Route", () => {
 
   test("get 返回 skill 详情", async () => {
     await createSkill(skillsDir, "test-skill", "A test skill", "# Test\nHello world", { version: "1.0" });
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get", name: "test-skill" }),
@@ -190,7 +199,7 @@ describe("Skills Config Route", () => {
   });
 
   test("get 不存在 skill", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get", name: "ghost" }),
@@ -201,7 +210,7 @@ describe("Skills Config Route", () => {
   });
 
   test("get 缺少 name", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get" }),
@@ -212,7 +221,7 @@ describe("Skills Config Route", () => {
   });
 
   test("set 创建新 skill", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "new-skill", data: { description: "New", content: "# New" } }),
@@ -230,7 +239,7 @@ describe("Skills Config Route", () => {
     const { rename } = await import("node:fs/promises");
     await rename(join(skillsDir, "my-skill"), join(disabledDir, "my-skill"));
 
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "my-skill", data: { description: "Updated", content: "# Updated" } }),
@@ -243,7 +252,7 @@ describe("Skills Config Route", () => {
   });
 
   test("set 缺少必填字段", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "set", name: "x", data: { description: "D" } }),
@@ -255,7 +264,7 @@ describe("Skills Config Route", () => {
 
   test("delete 已存在 skill", async () => {
     await createSkill(skillsDir, "to-delete", "Del", "# Del");
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", name: "to-delete" }),
@@ -266,7 +275,7 @@ describe("Skills Config Route", () => {
   });
 
   test("delete 不存在 skill", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", name: "ghost" }),
@@ -282,7 +291,7 @@ describe("Skills Config Route", () => {
     const { rename } = await import("node:fs/promises");
     await rename(join(skillsDir, "toggle"), join(disabledDir, "toggle"));
 
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "enable", name: "toggle" }),
@@ -294,7 +303,7 @@ describe("Skills Config Route", () => {
   });
 
   test("enable 不存在 skill", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "enable", name: "ghost" }),
@@ -306,7 +315,7 @@ describe("Skills Config Route", () => {
 
   test("disable 启用→禁用", async () => {
     await createSkill(skillsDir, "toggle2", "T2", "# T2");
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "disable", name: "toggle2" }),
@@ -318,7 +327,7 @@ describe("Skills Config Route", () => {
   });
 
   test("disable 不存在 skill", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "disable", name: "ghost" }),
@@ -329,7 +338,7 @@ describe("Skills Config Route", () => {
   });
 
   test("未知 action", async () => {
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "unknown" }),
@@ -349,7 +358,7 @@ describe("Skills Config Route", () => {
     formData.append("manifest", JSON.stringify([{ skillName: "existing", relativePath: "SKILL.md" }]));
     formData.append("files", new File(["---\nname: \"existing\"\n---\n# Existing"], "SKILL.md"));
 
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills/upload", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
       method: "POST",
       body: formData,
     }));
@@ -376,7 +385,7 @@ describe("Skills Config Route", () => {
     formData.append("files", new File(["---\ndescription: \"Fresh\"\n---\n# Fresh"], "SKILL.md"));
     formData.append("files", new File(["ref"], "ref.md"));
 
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills/upload", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
       method: "POST",
       body: formData,
     }));
@@ -392,7 +401,7 @@ describe("Skills Config Route", () => {
     const formData = new FormData();
     formData.append("files", new File(["x"], "SKILL.md"));
 
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills/upload", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
       method: "POST",
       body: formData,
     }));
@@ -408,7 +417,7 @@ describe("Skills Config Route", () => {
     formData.append("manifest", JSON.stringify([{ skillName: "broken", relativePath: "notes.md" }]));
     formData.append("files", new File(["# Broken"], "notes.md"));
 
-    const res = await skillsRoute.request(new Request("http://localhost/config/skills/upload", {
+    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
       method: "POST",
       body: formData,
     }));

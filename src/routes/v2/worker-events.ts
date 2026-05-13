@@ -1,9 +1,10 @@
-import { Hono } from "hono";
-import { sessionIngressAuth, acceptCliHeaders } from "../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import { publishSessionEvent } from "../../services/transport";
 import { getSession, touchSession, updateSessionStatus } from "../../services/session";
 
-const app = new Hono();
+const app = new Elysia({ name: "v1-code-sessions-worker-events", prefix: "/v1/code/sessions" })
+  .use(authGuardPlugin);
 
 function extractWorkerEvents(body: unknown): Array<Record<string, unknown>> {
   if (!body || typeof body !== "object") {
@@ -29,14 +30,14 @@ function extractWorkerEvents(body: unknown): Array<Record<string, unknown>> {
 }
 
 /** POST /v1/code/sessions/:id/worker/events — Write events */
-app.post("/:id/worker/events", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.post("/:id/worker/events", async ({ params, body, error }) => {
+  const sessionId = params.id;
   if (!getSession(sessionId)) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
-  const body = await c.req.json();
+  const b = (body as any) ?? {};
 
-  const events = extractWorkerEvents(body);
+  const events = extractWorkerEvents(b);
   const published = [];
   for (const evt of events) {
     const eventType = typeof evt.type === "string" ? evt.type : "message";
@@ -46,54 +47,54 @@ app.post("/:id/worker/events", acceptCliHeaders, sessionIngressAuth, async (c) =
 
   touchSession(sessionId);
 
-  return c.json({ status: "ok", count: published.length }, 200);
-});
+  return { status: "ok", count: published.length };
+}, { sessionIngressAuth: true });
 
 /** PUT /v1/code/sessions/:id/worker/state — Report worker state */
-app.put("/:id/worker/state", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.put("/:id/worker/state", async ({ params, body, error }) => {
+  const sessionId = params.id;
   if (!getSession(sessionId)) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
-  const body = await c.req.json();
+  const b = (body as any) ?? {};
 
-  if (body.status) {
-    updateSessionStatus(sessionId, body.status);
+  if (b.status) {
+    updateSessionStatus(sessionId, b.status);
   } else {
     touchSession(sessionId);
   }
 
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { sessionIngressAuth: true });
 
 /** PUT /v1/code/sessions/:id/worker/external_metadata — Report worker metadata (no-op) */
-app.put("/:id/worker/external_metadata", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.put("/:id/worker/external_metadata", async ({ params, error }) => {
+  const sessionId = params.id;
   if (!getSession(sessionId)) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
   // TUI's CCRClient calls this for metadata reporting. Accept and discard.
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { sessionIngressAuth: true });
 
 /** POST /v1/code/sessions/:id/worker/events/delivery — Batch delivery tracking (no-op) */
-app.post("/:id/worker/events/delivery", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.post("/:id/worker/events/delivery", async ({ params, error }) => {
+  const sessionId = params.id;
   if (!getSession(sessionId)) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { sessionIngressAuth: true });
 
 /** POST /v1/code/sessions/:id/worker/events/:eventId/delivery — Delivery tracking (no-op) */
-app.post("/:id/worker/events/:eventId/delivery", acceptCliHeaders, sessionIngressAuth, async (c) => {
-  const sessionId = c.req.param("id")!;
+app.post("/:id/worker/events/:eventId/delivery", async ({ params, error }) => {
+  const sessionId = params.id;
   if (!getSession(sessionId)) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
   // TUI's CCRClient reports event delivery status (received/processing/processed).
   // Accept and discard — event bus doesn't track per-event delivery.
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { sessionIngressAuth: true });
 
 export default app;

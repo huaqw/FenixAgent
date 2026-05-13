@@ -1,5 +1,5 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../../plugins/auth";
 import { getSection, setTopLevelField, getConfig, modifySection } from "../../../services/config";
 import {
   InvalidKnowledgeBindingError,
@@ -312,32 +312,33 @@ async function handleSetDefault(name: string) {
   return { success: true, data: { default_agent: name } };
 }
 
-const app = new Hono();
+const app = new Elysia({ name: "web-config-agents", prefix: "/web" })
+  .use(authGuardPlugin);
 
-app.post("/config/agents", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const body = await c.req.json<{ action: string; name?: string; data?: Record<string, unknown> }>().catch((): { action: string; name?: string; data?: Record<string, unknown> } => ({ action: "" }));
-  const { action, name, data } = body;
+app.post("/config/agents", async ({ store, body, error }) => {
+  const user = store.user!;
+  const b = (body as any) ?? {};
+  const { action, name, data } = { action: b.action ?? "", name: b.name, data: b.data as Record<string, unknown> | undefined };
   try {
     switch (action) {
-      case "list": return c.json(await handleList());
-      case "get": return c.json(await handleGet(name!));
-      case "set": return c.json(await handleSet(user.id, name!, data!));
-      case "create": return c.json(await handleCreate(user.id, name!, data!));
-      case "delete": return c.json(await handleDelete(name!));
-      case "set_default": return c.json(await handleSetDefault(name!));
-      default: return c.json({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } }, 400);
+      case "list": return await handleList();
+      case "get": return await handleGet(name!);
+      case "set": return await handleSet(user.id, name!, data!);
+      case "create": return await handleCreate(user.id, name!, data!);
+      case "delete": return await handleDelete(name!);
+      case "set_default": return await handleSetDefault(name!);
+      default: return error(400, { success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } });
     }
-  } catch (error) {
+  } catch (error_) {
     if (
-      error instanceof InvalidKnowledgeBindingError
-      || (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "INVALID_KNOWLEDGE_BINDINGS")
+      error_ instanceof InvalidKnowledgeBindingError
+      || (typeof error_ === "object" && error_ !== null && "code" in error_ && (error_ as { code?: string }).code === "INVALID_KNOWLEDGE_BINDINGS")
     ) {
-      const message = error instanceof Error ? error.message : "知识库绑定无效";
-      return c.json({ success: false, error: { code: "INVALID_KNOWLEDGE_BINDINGS", message } }, 400);
+      const message = error_ instanceof Error ? error_.message : "知识库绑定无效";
+      return error(400, { success: false, error: { code: "INVALID_KNOWLEDGE_BINDINGS", message } });
     }
-    throw error;
+    throw error_;
   }
-});
+}, { sessionAuth: true });
 
 export default app;

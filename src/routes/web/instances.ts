@@ -1,9 +1,10 @@
-import { Hono } from "hono";
-import { sessionAuth } from "../../auth/middleware";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 import { spawnInstance, listInstances, stopInstance, spawnInstanceFromEnvironment } from "../../services/instance";
 import type { SpawnedInstance } from "../../services/instance";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-instances", prefix: "/web" })
+  .use(authGuardPlugin);
 
 function toResponse(inst: SpawnedInstance) {
   return {
@@ -19,52 +20,52 @@ function toResponse(inst: SpawnedInstance) {
   };
 }
 
-app.post("/instances", sessionAuth, async (c) => {
-  const user = c.get("user")!;
+app.post("/instances", async ({ store, error }) => {
+  const user = store.user!;
   try {
     const inst = await spawnInstance(user.id);
-    return c.json(toResponse(inst), 201);
+    return toResponse(inst);
   } catch (err: any) {
-    return c.json({ error: { type: "spawn_failed", message: err.message } }, 500);
+    return error(500, { error: { type: "spawn_failed", message: err.message } });
   }
-});
+}, { sessionAuth: true });
 
-app.post("/instances/from-environment", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const body = await c.req.json();
-  const environmentId = body.environmentId;
+app.post("/instances/from-environment", async ({ store, body, error }) => {
+  const user = store.user!;
+  const b = (body as any) ?? {};
+  const environmentId = b.environmentId;
   if (!environmentId) {
-    return c.json({ error: { type: "VALIDATION_ERROR", message: "environmentId is required" } }, 400);
+    return error(400, { error: { type: "VALIDATION_ERROR", message: "environmentId is required" } });
   }
   try {
     const inst = await spawnInstanceFromEnvironment(user.id, environmentId);
-    return c.json(toResponse(inst), 201);
+    return toResponse(inst);
   } catch (err: any) {
     const status = err.message === "Environment not found" ? 404
       : err.message === "Not your environment" ? 403
       : err.message.startsWith("Workspace directory does not exist") ? 400
       : 500;
-    return c.json({ error: { type: "spawn_failed", message: err.message } }, status);
+    return error(status, { error: { type: "spawn_failed", message: err.message } });
   }
-});
+}, { sessionAuth: true });
 
-app.get("/instances", sessionAuth, async (c) => {
-  const user = c.get("user")!;
+app.get("/instances", ({ store }) => {
+  const user = store.user!;
   const insts = listInstances(user.id);
-  return c.json(insts.map(toResponse), 200);
-});
+  return insts.map(toResponse);
+}, { sessionAuth: true });
 
-app.delete("/instances/:id", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const id = c.req.param("id")!;
+app.delete("/instances/:id", ({ store, params, error }) => {
+  const user = store.user!;
+  const id = params.id;
   const result = stopInstance(id, user.id);
   if (!result.ok) {
     const statusCode = result.error === "Instance not found" ? 404
       : result.error === "Not your instance" ? 403
       : 400;
-    return c.json({ error: { type: "bad_request", message: result.error } }, statusCode);
+    return error(statusCode, { error: { type: "bad_request", message: result.error } });
   }
-  return c.json({ ok: true });
-});
+  return { ok: true };
+}, { sessionAuth: true });
 
 export default app;

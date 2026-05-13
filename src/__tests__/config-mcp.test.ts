@@ -36,7 +36,7 @@ describe("MCP Config Route", () => {
 
   test("handleList 空配置", async () => {
     _mcpStore = {};
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "list" }),
@@ -47,7 +47,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleList 含多个服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "list" }),
@@ -66,7 +66,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleGet 存在的服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get", name: "my-local" }),
@@ -79,7 +79,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleGet 不存在的服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get", name: "nonexistent" }),
@@ -90,7 +90,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 正常创建 local 服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -107,7 +107,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 正常创建 remote 服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -123,7 +123,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 重名", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -138,7 +138,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 无效名称 UPPER_CASE", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -154,7 +154,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 无效配置缺少 type", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -169,7 +169,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate local 缺少 command", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -184,7 +184,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate remote 缺少 url", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -199,7 +199,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleUpdate 正常更新", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -216,7 +216,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleUpdate 不存在的服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -231,7 +231,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleDelete 正常删除", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", name: "my-local" }),
@@ -242,7 +242,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleDelete 不存在的服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", name: "ghost" }),
@@ -255,7 +255,7 @@ describe("MCP Config Route", () => {
   test("handleEnable 正常启用", async () => {
     // 先禁用
     _mcpStore["my-local"].enabled = false;
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "enable", name: "my-local" }),
@@ -268,7 +268,7 @@ describe("MCP Config Route", () => {
 
   test("handleEnable 禁用变体（无原始配置）", async () => {
     _mcpStore["lost-server"] = { enabled: false };
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "enable", name: "lost-server" }),
@@ -280,7 +280,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleDisable 正常禁用", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "disable", name: "my-local" }),
@@ -292,7 +292,7 @@ describe("MCP Config Route", () => {
   });
 
   test("handleDisable 不存在的服务器", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "disable", name: "ghost" }),
@@ -303,7 +303,7 @@ describe("MCP Config Route", () => {
   });
 
   test("未知 action", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "unknown" }),
@@ -316,7 +316,7 @@ describe("MCP Config Route", () => {
   describe("isValidMcpName 边界", () => {
     // 通过 route 间接测试名称校验
     test("空字符串 → 失败", async () => {
-      const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", name: "", config: { type: "local", command: ["npx"] } }),
@@ -328,7 +328,7 @@ describe("MCP Config Route", () => {
 
     test("单字符 a → 成功", async () => {
       _mcpStore = {};
-      const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", name: "a", config: { type: "local", command: ["npx"] } }),
@@ -339,7 +339,7 @@ describe("MCP Config Route", () => {
 
     test("my-server → 成功", async () => {
       _mcpStore = {};
-      const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", name: "my-server", config: { type: "local", command: ["npx"] } }),
@@ -349,7 +349,7 @@ describe("MCP Config Route", () => {
     });
 
     test("my--server（连续连字符）→ 失败", async () => {
-      const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", name: "my--server", config: { type: "local", command: ["npx"] } }),
@@ -360,7 +360,7 @@ describe("MCP Config Route", () => {
     });
 
     test("以连字符开头 -abc → 失败", async () => {
-      const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", name: "-abc", config: { type: "local", command: ["npx"] } }),
@@ -372,7 +372,7 @@ describe("MCP Config Route", () => {
   });
 
   test("validateMcpConfig 非对象输入 null", async () => {
-    const res = await mcpRoute.request(new Request("http://localhost/config/mcp", {
+    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "create", name: "test", config: null }),

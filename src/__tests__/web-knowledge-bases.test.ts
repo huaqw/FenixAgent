@@ -11,7 +11,7 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
-const { Hono } = await import("hono");
+const { default: Elysia } = await import("elysia");
 const { db } = await import("../db");
 const {
   agentKnowledgeBinding,
@@ -23,8 +23,11 @@ const { eq } = await import("drizzle-orm");
 const webKnowledgeBases = (await import("../routes/web/knowledge-bases")).default;
 const { setKnowledgeProviderForTesting } = await import("../services/knowledge-base");
 
-const testApp = new Hono();
-testApp.route("/web", webKnowledgeBases);
+const testApp = new Elysia().use(webKnowledgeBases);
+
+function request(path: string, init?: RequestInit) {
+  return testApp.handle(new Request(`http://localhost${path}`, init));
+}
 
 const fakeProvider = {
   async createKnowledgeBase(input: { slug: string; name: string }) {
@@ -80,7 +83,7 @@ describe("Knowledge base routes", () => {
   });
 
   test("POST /web/knowledge-bases returns 201 with kb_ id", async () => {
-    const response = await testApp.request("/web/knowledge-bases", {
+    const response = await request("/web/knowledge-bases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -144,7 +147,7 @@ describe("Knowledge base routes", () => {
       updatedAt: now,
     });
 
-    const response = await testApp.request("/web/knowledge-bases");
+    const response = await request("/web/knowledge-bases");
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveLength(1);
@@ -168,7 +171,7 @@ describe("Knowledge base routes", () => {
       updatedAt: now,
     });
 
-    const response = await testApp.request("/web/knowledge-bases/kb_patch", {
+    const response = await request("/web/knowledge-bases/kb_patch", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description: "after" }),
@@ -204,7 +207,7 @@ describe("Knowledge base routes", () => {
       updatedAt: now,
     });
 
-    const deleteResponse = await testApp.request("/web/knowledge-bases/kb_delete", {
+    const deleteResponse = await request("/web/knowledge-bases/kb_delete", {
       method: "DELETE",
     });
     expect(deleteResponse.status).toBe(200);
@@ -212,7 +215,7 @@ describe("Knowledge base routes", () => {
       { remoteId: "viking://resources/kb/kb-user-1/docs/", recursive: true },
     ]);
 
-    const detailResponse = await testApp.request("/web/knowledge-bases/kb_delete");
+    const detailResponse = await request("/web/knowledge-bases/kb_delete");
     expect(detailResponse.status).toBe(404);
   });
 
@@ -238,7 +241,7 @@ describe("Knowledge base routes", () => {
       updatedAt: now,
     });
 
-    const response = await testApp.request("/web/knowledge-bases/kb_delete_busy", {
+    const response = await request("/web/knowledge-bases/kb_delete_busy", {
       method: "DELETE",
     });
 

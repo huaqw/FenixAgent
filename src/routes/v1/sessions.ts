@@ -1,5 +1,5 @@
 import { log, error as logError } from "../../logger";
-import { Hono } from "hono";
+import Elysia from "elysia";
 import {
   createSession,
   getSession,
@@ -8,89 +8,90 @@ import {
   resolveExistingSessionId,
 } from "../../services/session";
 import { createWorkItem } from "../../services/work-dispatch";
-import { apiKeyAuth, acceptCliHeaders } from "../../auth/middleware";
+import { authGuardPlugin } from "../../plugins/auth";
 import { publishSessionEvent } from "../../services/transport";
 
-const app = new Hono();
+const app = new Elysia({ name: "v1-sessions", prefix: "/v1/sessions" })
+  .use(authGuardPlugin);
 
 /** POST /v1/sessions — Create session */
-app.post("/", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const body = await c.req.json();
-  const username = (c.get as any)("username") as string | undefined;
-  const session = createSession({ ...body, username });
+app.post("/", async ({ store, body }) => {
+  const b = (body as any) ?? {};
+  const username = (store as any).username as string | undefined;
+  const session = createSession({ ...b, username });
 
   // Create work item if environment is specified
-  if (body.environment_id) {
+  if (b.environment_id) {
     try {
-      await createWorkItem(body.environment_id, session.id);
+      await createWorkItem(b.environment_id, session.id);
     } catch (err) {
       logError(`[RCS] Failed to create work item: ${(err as Error).message}`);
     }
   }
 
   // Publish initial events if provided
-  if (body.events && Array.isArray(body.events)) {
-    for (const evt of body.events) {
+  if (b.events && Array.isArray(b.events)) {
+    for (const evt of b.events) {
       publishSessionEvent(session.id, evt.type || "init", evt, "outbound");
     }
   }
 
-  return c.json(session, 200);
-});
+  return session;
+}, { apiKeyAuth: true });
 
 /** GET /v1/sessions/:id — Get session */
-app.get("/:id", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const sessionId = resolveExistingSessionId(c.req.param("id")!) ?? c.req.param("id")!;
+app.get("/:id", async ({ params, error }) => {
+  const sessionId = resolveExistingSessionId(params.id) ?? params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
-  return c.json(session, 200);
-});
+  return session;
+}, { apiKeyAuth: true });
 
 /** PATCH /v1/sessions/:id — Update session title */
-app.patch("/:id", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const sessionId = resolveExistingSessionId(c.req.param("id")!) ?? c.req.param("id")!;
+app.patch("/:id", async ({ params, body, error }) => {
+  const sessionId = resolveExistingSessionId(params.id) ?? params.id;
   const existing = getSession(sessionId);
   if (!existing) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
-  const body = await c.req.json();
-  if (body.title) {
-    updateSessionTitle(sessionId, body.title);
+  const b = (body as any) ?? {};
+  if (b.title) {
+    updateSessionTitle(sessionId, b.title);
   }
   const session = getSession(sessionId);
-  return c.json(session, 200);
-});
+  return session;
+}, { apiKeyAuth: true });
 
 /** POST /v1/sessions/:id/archive — Archive session */
-app.post("/:id/archive", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const sessionId = resolveExistingSessionId(c.req.param("id")!) ?? c.req.param("id")!;
+app.post("/:id/archive", async ({ params, error }) => {
+  const sessionId = resolveExistingSessionId(params.id) ?? params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   try {
     archiveSession(sessionId);
   } catch {
-    return c.json({ status: "ok" }, 409);
+    return { status: "ok" };
   }
 
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { apiKeyAuth: true });
 
 /** POST /v1/sessions/:id/events — Send event to session */
-app.post("/:id/events", acceptCliHeaders, apiKeyAuth, async (c) => {
-  const sessionId = resolveExistingSessionId(c.req.param("id")!) ?? c.req.param("id")!;
+app.post("/:id/events", async ({ params, body, error }) => {
+  const sessionId = resolveExistingSessionId(params.id) ?? params.id;
   const session = getSession(sessionId);
   if (!session) {
-    return c.json({ error: { type: "not_found", message: "Session not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
-  const body = await c.req.json();
+  const b = (body as any) ?? {};
 
-  const events = body.events
-    ? Array.isArray(body.events) ? body.events : [body.events]
+  const events = b.events
+    ? Array.isArray(b.events) ? b.events : [b.events]
     : Array.isArray(body) ? body : [body];
   const published = [];
   for (const evt of events) {
@@ -98,7 +99,7 @@ app.post("/:id/events", acceptCliHeaders, apiKeyAuth, async (c) => {
     published.push(result);
   }
 
-  return c.json({ status: "ok", events: published.length }, 200);
-});
+  return { status: "ok", events: published.length };
+}, { apiKeyAuth: true });
 
 export default app;

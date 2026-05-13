@@ -1,6 +1,6 @@
-import { Hono } from "hono";
+import Elysia from "elysia";
 import { randomBytes } from "node:crypto";
-import { apiKeyAuth } from "../../auth/middleware";
+import { authGuardPlugin } from "../../plugins/auth";
 import {
   storeCreateEnvironment,
   storeCreateSession,
@@ -10,61 +10,52 @@ import {
   storeListSessionsByEnvironment,
 } from "../../store";
 
-const app = new Hono();
+const app = new Elysia({ name: "v1-environments", prefix: "/v1/environments" })
+  .use(authGuardPlugin);
 
 function generateBridgeSecret(): string {
   return `rest_${randomBytes(24).toString("hex")}`;
 }
 
 /** POST /v1/environments/bridge — REST registration for acp-link compatibility */
-app.post("/bridge", apiKeyAuth, async (c) => {
-  const user = c.get("user")!;
-  const body = await c.req.json<{
-    machine_name?: string;
-    directory?: string;
-    branch?: string;
-    git_repo_url?: string;
-    max_sessions?: number;
-    worker_type?: string;
-    bridge_id?: string;
-    capabilities?: Record<string, unknown>;
-    metadata?: { worker_type?: string };
-  }>();
+app.post("/bridge", async ({ store, body, error }) => {
+  const user = store.user!;
+  const b = (body as any) ?? {};
 
   // If authenticated via environment secret, return the existing environment
-  const authEnvId = c.get("authEnvironmentId") as string | undefined;
+  const authEnvId = store.authEnvironmentId as string | undefined;
   if (authEnvId) {
     const existing = storeGetEnvironment(authEnvId);
     if (existing) {
       storeUpdateEnvironment(authEnvId, {
         status: "active",
         lastPollAt: new Date(),
-        capabilities: body.capabilities || undefined,
-        maxSessions: body.max_sessions,
+        capabilities: b.capabilities || undefined,
+        maxSessions: b.max_sessions,
       });
 
       const sessions = storeListSessionsByEnvironment(authEnvId);
-      return c.json({
+      return {
         environment_id: existing.id,
         environment_secret: existing.secret,
         status: "active",
         session_id: sessions.length > 0 ? sessions[0].id : undefined,
-      }, 200);
+      };
     }
   }
 
-  const workerType = body.worker_type || body.metadata?.worker_type || "acp";
+  const workerType = b.worker_type || b.metadata?.worker_type || "acp";
 
   const record = storeCreateEnvironment({
     secret: generateBridgeSecret(),
     userId: user.id,
-    machineName: body.machine_name,
-    directory: body.directory,
-    branch: body.branch,
-    gitRepoUrl: body.git_repo_url,
-    maxSessions: body.max_sessions,
+    machineName: b.machine_name,
+    directory: b.directory,
+    branch: b.branch,
+    gitRepoUrl: b.git_repo_url,
+    maxSessions: b.max_sessions,
     workerType,
-    capabilities: body.capabilities,
+    capabilities: b.capabilities,
   });
 
   let sessionId: string | undefined;
@@ -75,7 +66,7 @@ app.post("/bridge", apiKeyAuth, async (c) => {
     } else {
       const session = storeCreateSession({
         environmentId: record.id,
-        title: body.machine_name || "ACP Agent",
+        title: b.machine_name || "ACP Agent",
         source: "acp",
         userId: user.id,
       });
@@ -83,36 +74,36 @@ app.post("/bridge", apiKeyAuth, async (c) => {
     }
   }
 
-  return c.json({
+  return {
     environment_id: record.id,
     environment_secret: record.secret,
     status: record.status,
     session_id: sessionId,
-  }, 200);
-});
+  };
+}, { apiKeyAuth: true });
 
 /** DELETE /v1/environments/bridge/:id — Deregister */
-app.delete("/bridge/:id", apiKeyAuth, async (c) => {
-  const user = c.get("user")!;
-  const envId = c.req.param("id")!;
+app.delete("/bridge/:id", async ({ store, params, error }) => {
+  const user = store.user!;
+  const envId = params.id;
   const env = storeGetEnvironment(envId);
   if (!env || env.userId !== user.id) {
-    return c.json({ error: { type: "not_found", message: "Environment not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Environment not found" } });
   }
   storeDeleteEnvironment(envId);
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { apiKeyAuth: true });
 
 /** POST /v1/environments/:id/bridge/reconnect — Reconnect */
-app.post("/:id/bridge/reconnect", apiKeyAuth, async (c) => {
-  const user = c.get("user")!;
-  const envId = c.req.param("id")!;
+app.post("/:id/bridge/reconnect", async ({ store, params, error }) => {
+  const user = store.user!;
+  const envId = params.id;
   const env = storeGetEnvironment(envId);
   if (!env || env.userId !== user.id) {
-    return c.json({ error: { type: "not_found", message: "Environment not found" } }, 404);
+    return error(404, { error: { type: "not_found", message: "Environment not found" } });
   }
   storeUpdateEnvironment(envId, { status: "active" });
-  return c.json({ status: "ok" }, 200);
-});
+  return { status: "ok" };
+}, { apiKeyAuth: true });
 
 export default app;

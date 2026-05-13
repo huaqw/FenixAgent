@@ -1,16 +1,5 @@
 /** API 请求/响应类型定义 */
 
-// Hono context variable types
-declare module "hono" {
-  interface ContextVariableMap {
-    user: { id: string; email: string; name: string } | null;
-    session: { id: string; userId: string; token: string } | null;
-    uuid: string | undefined;
-    username: string | undefined;
-    authEnvironmentId: string | undefined;
-  }
-}
-
 // --- Environment ---
 
 export interface EnvironmentResponse {
