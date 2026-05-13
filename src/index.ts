@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { config } from "./config";
+import { initDb, client as pgClient } from "./db";
 import { closeAllAcpConnections } from "./transport/acp-ws-handler";
 import { closeAllRelayConnections } from "./transport/acp-relay-handler";
 import { existsSync } from "node:fs";
@@ -37,12 +38,13 @@ import { errorPlugin } from "./plugins/error-handler";
 import { authPlugin, authGuardPlugin } from "./plugins/auth";
 import { ctrlStaticPlugin } from "./plugins/static";
 
-console.log("[RCS] Database initialized (SQLite + better-auth)");
+await initDb();
+console.log("[RCS] Database initialized (PostgreSQL + better-auth)");
 
 await migrateSkillsDir();
-await startScheduler();
-storeLoadSessionsFromDB();
+await storeLoadSessionsFromDB();
 console.log("[RCS] Sessions restored from database");
+await startScheduler();
 
 // Initialize Hermes client if configured
 const hermesUrl = process.env.HERMES_URL ?? (config as any).channels?.hermesUrl;
@@ -60,7 +62,7 @@ try {
 
 // Auto-start instances for all environments on server boot
 (async () => {
-  const envs = storeListAllEnvironments();
+  const envs = await storeListAllEnvironments();
   for (const env of envs) {
     if (!env.userId) continue;
     if (!env.autoStart) continue;
@@ -153,6 +155,7 @@ async function gracefulShutdown(signal: string) {
   closeAllRelayConnections();
   stopAllInstances();
   stopScheduler();
+  await pgClient.end();
   process.exit(0);
 }
 

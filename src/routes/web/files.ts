@@ -62,7 +62,7 @@ async function resolveWorkspacePath(
     const session = internalId ? storeGetSession(internalId) : undefined;
     const envId = session?.environmentId;
     if (!envId) return null;
-    const env = storeGetEnvironment(envId);
+    const env = await storeGetEnvironment(envId);
     if (!env) return null;
 
     const workspaceDir = env.workspacePath;
@@ -111,8 +111,8 @@ function shouldHideWorkspaceEntry(entryPath: string, userDir: string): boolean {
 const app = new Elysia({ name: "web-files", prefix: "/web/sessions" })
   .use(authGuardPlugin);
 
-app.get("/:sessionId/user", async ({ store, params, query, error }) => {
-    const sessionId = params.sessionId;
+app.get("/:id/user", async ({ store, params, query, error }) => {
+    const sessionId = params.id;
     const queryPath = (query as any)?.path || "";
     const result = await resolveWorkspacePath(sessionId, queryPath);
     if (!result) return error(404, { error: { type: "not_found", message: "Session or environment not found" } });
@@ -146,8 +146,8 @@ app.get("/:sessionId/user", async ({ store, params, query, error }) => {
     return { entries: items };
 }, { sessionAuth: true });
 
-app.get("/:sessionId/user/*", async ({ store, params, query, error, set }) => {
-    const sessionId = params.sessionId;
+app.get("/:id/user/*", async ({ store, params, query, error, set }) => {
+    const sessionId = params.id;
     const filePath = normalizeUserRoutePath((params as any)["*"]);
     const preview = (query as any)?.preview === "true";
 
@@ -186,8 +186,8 @@ app.get("/:sessionId/user/*", async ({ store, params, query, error, set }) => {
     return new Response(createReadStream(resolved) as any);
 }, { sessionAuth: true });
 
-app.post("/:sessionId/user/*", async ({ store, params, request, error }) => {
-    const sessionId = params.sessionId;
+app.post("/:id/user/*", async ({ store, params, request, error }) => {
+    const sessionId = params.id;
     const dirPath = normalizeUserRoutePath((params as any)["*"] || "");
 
     if (!isUserPath(dirPath)) return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
@@ -220,8 +220,8 @@ app.post("/:sessionId/user/*", async ({ store, params, request, error }) => {
     return { files: uploaded };
 }, { sessionAuth: true });
 
-app.put("/:sessionId/user/*", async ({ store, params, body, error }) => {
-    const sessionId = params.sessionId;
+app.put("/:id/user/*", async ({ store, params, body, error }) => {
+    const sessionId = params.id;
     const filePath = normalizeUserRoutePath((params as any)["*"]);
 
     if (!isUserPath(filePath)) return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
@@ -245,8 +245,8 @@ app.put("/:sessionId/user/*", async ({ store, params, body, error }) => {
     return { name: fileName, path: normalizedPath, size: Buffer.byteLength(b.content) };
 }, { sessionAuth: true });
 
-app.delete("/:sessionId/user/*", async ({ store, params, error }) => {
-    const sessionId = params.sessionId;
+app.delete("/:id/user/*", async ({ store, params, error }) => {
+    const sessionId = params.id;
     const filePath = normalizeUserRoutePath((params as any)["*"]);
 
     if (!isUserPath(filePath)) return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });

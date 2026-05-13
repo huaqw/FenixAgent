@@ -26,20 +26,20 @@ import { removeEventBus, getAllEventBuses, getEventBus } from "../transport/even
 import { issueToken } from "../auth/token";
 import { publishSessionEvent } from "../services/transport";
 
-function ensureSystemUser() {
-  const existing = db.select().from(userTable).where(eq(userTable.email, "system@rcs.local")).limit(1).all();
+async function ensureSystemUser() {
+  const existing = await db.select().from(userTable).where(eq(userTable.email, "system@rcs.local")).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
   try {
-    db.insert(userTable).values({
+    await db.insert(userTable).values({
       id: "system", name: "System", email: "system@rcs.local",
       emailVerified: false, createdAt: now, updatedAt: now,
-    }).run();
+    });
   } catch {}
 }
 
 // Pre-create system user for API key auth fallback
-ensureSystemUser();
+await ensureSystemUser();
 
 // Restore mocks after all tests to prevent pollution
 afterAll(() => mock.restore());
@@ -645,8 +645,8 @@ describe("Web Session Routes", () => {
   });
 
   test.skip("GET /web/sessions and /all — serialize owned code sessions as compat IDs", async () => {
-    const codeSession = storeCreateSession({ idPrefix: "cse_" });
-    storeBindSession(codeSession.id, "user-1");
+    const codeSession = await storeCreateSession({ idPrefix: "cse_" });
+    await storeBindSession(codeSession.id, "user-1");
     const compatId = toWebSessionId(codeSession.id);
 
     const listRes = await request(app, "/web/sessions?uuid=user-1");
@@ -687,12 +687,12 @@ describe("Web Session Routes", () => {
   });
 
   test.skip("GET /web/sessions and /all — hides archived and inactive sessions", async () => {
-    const archived = storeCreateSession({});
-    const inactive = storeCreateSession({});
-    const open = storeCreateSession({});
-    storeBindSession(archived.id, "user-1");
-    storeBindSession(inactive.id, "user-1");
-    storeBindSession(open.id, "user-1");
+    const archived = await storeCreateSession({});
+    const inactive = await storeCreateSession({});
+    const open = await storeCreateSession({});
+    await storeBindSession(archived.id, "user-1");
+    await storeBindSession(inactive.id, "user-1");
+    await storeBindSession(open.id, "user-1");
 
     await request(app, `/v1/sessions/${archived.id}/archive`, {
       method: "POST",
@@ -700,7 +700,7 @@ describe("Web Session Routes", () => {
     });
 
     const { storeUpdateSession } = await import("../store");
-    storeUpdateSession(inactive.id, { status: "inactive" });
+    await storeUpdateSession(inactive.id, { status: "inactive" });
 
     const listRes = await request(app, "/web/sessions?uuid=user-1");
     expect(listRes.status).toBe(200);
@@ -734,7 +734,7 @@ describe("Web Session Routes", () => {
     const {
       session: { id },
     } = await createRes.json();
-    storeBindSession(id, "user-1");
+    await storeBindSession(id, "user-1");
 
     await request(app, `/v1/code/sessions/${id}/worker`, {
       method: "PUT",
@@ -819,8 +819,8 @@ describe("Web Session Routes", () => {
   });
 
   test.skip("GET /web/sessions/:id and history — supports compat code session IDs", async () => {
-    const codeSession = storeCreateSession({ idPrefix: "cse_" });
-    storeBindSession(codeSession.id, "user-1");
+    const codeSession = await storeCreateSession({ idPrefix: "cse_" });
+    await storeBindSession(codeSession.id, "user-1");
     const compatId = toWebSessionId(codeSession.id);
 
     const getRes = await request(app, `/web/sessions/${compatId}?uuid=user-1`);
@@ -878,7 +878,7 @@ describe("Web Session Routes", () => {
 
     // Delete the session from store directly
     const { storeDeleteSession } = await import("../store");
-    storeDeleteSession(id);
+    await storeDeleteSession(id);
 
     const histRes = await request(app, `/web/sessions/${id}/history?uuid=user-1`);
     expect(histRes.status).toBe(404);
@@ -919,8 +919,8 @@ describe("Web Session Routes", () => {
   });
 
   test.skip("GET /web/sessions/:id/events — supports compat code session IDs", async () => {
-    const codeSession = storeCreateSession({ idPrefix: "cse_" });
-    storeBindSession(codeSession.id, "user-1");
+    const codeSession = await storeCreateSession({ idPrefix: "cse_" });
+    await storeBindSession(codeSession.id, "user-1");
     const compatId = toWebSessionId(codeSession.id);
 
     const eventsRes = await request(app, `/web/sessions/${compatId}/events?uuid=user-1`);
@@ -1001,7 +1001,7 @@ describe("Web Control Routes", () => {
   });
 
   test.skip("POST /web/sessions/:id/events/control/interrupt — supports compat code session IDs", async () => {
-    const rawSessionId = storeCreateSession({ idPrefix: "cse_" }).id;
+    const rawSessionId = (await storeCreateSession({ idPrefix: "cse_" })).id;
     storeBindSession(rawSessionId, "user-1");
     const compatId = toWebSessionId(rawSessionId);
 

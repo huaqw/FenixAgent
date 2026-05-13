@@ -32,84 +32,84 @@ import { eq } from "drizzle-orm";
 import { getEventBus, getAllEventBuses, removeEventBus } from "../transport/event-bus";
 import { runDisconnectMonitorSweep } from "../services/disconnect-monitor";
 
-function ensureUser(userId: string) {
-  const existing = db.select().from(user).where(eq(user.id, userId)).limit(1).all();
+async function ensureUser(userId: string) {
+  const existing = await db.select().from(user).where(eq(user.id, userId)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
   try {
-    db.insert(user).values({
+    await db.insert(user).values({
       id: userId,
       name: userId,
       email: `${userId}@disconnect-monitor-test.com`,
       emailVerified: false,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
   } catch {
     // User might already exist
   }
 }
 
 describe("Disconnect Monitor Logic", () => {
-  beforeEach(() => {
-    ensureUser("u1");
+  beforeEach(async () => {
+    await ensureUser("u1");
     storeReset();
     for (const [key] of getAllEventBuses()) {
       removeEventBus(key);
     }
   });
 
-  test("environment times out when lastPollAt is too old", () => {
-    const env = storeCreateEnvironment({ userId: "u1", workerType: "legacy" });
+  test("environment times out when lastPollAt is too old", async () => {
+    const env = await storeCreateEnvironment({ userId: "u1", workerType: "legacy" });
     const timeoutMs = 300 * 1000; // 5 minutes
 
     // Simulate lastPollAt being 6 minutes ago
     const oldDate = new Date(Date.now() - timeoutMs - 60000);
-    storeUpdateEnvironment(env.id, { lastPollAt: oldDate });
+    await storeUpdateEnvironment(env.id, { lastPollAt: oldDate });
 
-    runDisconnectMonitorSweep();
+    await runDisconnectMonitorSweep();
 
-    const updated = storeGetEnvironment(env.id);
+    const updated = await storeGetEnvironment(env.id);
     expect(updated?.status).toBe("disconnected");
   });
 
-  test("environment stays active when lastPollAt is recent", () => {
-    const env = storeCreateEnvironment({ userId: "u1", workerType: "legacy" });
-    runDisconnectMonitorSweep();
+  test("environment stays active when lastPollAt is recent", async () => {
+    const env = await storeCreateEnvironment({ userId: "u1", workerType: "legacy" });
+    await runDisconnectMonitorSweep();
 
-    const updated = storeGetEnvironment(env.id);
+    const updated = await storeGetEnvironment(env.id);
     expect(updated?.status).toBe("active");
   });
 
-  test("session becomes inactive when updatedAt is too old", () => {
-    const session = storeCreateSession({});
-    storeUpdateSession(session.id, { status: "running" });
-    const rec = storeGetSession(session.id);
+  test("session becomes inactive when updatedAt is too old", async () => {
+    const session = await storeCreateSession({});
+    await storeUpdateSession(session.id, { status: "running" });
+    const rec = await storeGetSession(session.id);
     expect(rec).toBeTruthy();
     if (!rec) return;
 
     rec.updatedAt = new Date(Date.now() - 300 * 1000 * 2 - 60000);
 
-    runDisconnectMonitorSweep();
+    await runDisconnectMonitorSweep();
 
-    const updated = storeGetSession(session.id);
+    const updated = await storeGetSession(session.id);
     expect(updated?.status).toBe("inactive");
   });
 
-  test("session stays running when recently updated", () => {
-    const session = storeCreateSession({});
-    storeUpdateSession(session.id, { status: "running" });
+  test("session stays running when recently updated", async () => {
+    const session = await storeCreateSession({});
+    await storeUpdateSession(session.id, { status: "running" });
 
-    runDisconnectMonitorSweep();
+    await runDisconnectMonitorSweep();
 
-    const updated = storeGetSession(session.id);
+    const updated = await storeGetSession(session.id);
     expect(updated?.status).toBe("running");
   });
 
-  test("session timeout publishes an inactive session_status event", () => {
-    const session = storeCreateSession({});
-    storeUpdateSession(session.id, { status: "idle" });
-    const rec = storeGetSession(session.id);
+  test("session timeout publishes an inactive session_status event", async () => {
+    const session = await storeCreateSession({});
+    await storeUpdateSession(session.id, { status: "idle" });
+    const rec = await storeGetSession(session.id);
     expect(rec).toBeTruthy();
     if (!rec) return;
     rec.updatedAt = new Date(Date.now() - 300 * 1000 * 2 - 60000);
@@ -120,7 +120,7 @@ describe("Disconnect Monitor Logic", () => {
       events.push({ type: event.type, payload: event.payload as { status?: string } });
     });
 
-    runDisconnectMonitorSweep();
+    await runDisconnectMonitorSweep();
 
     expect(events).toContainEqual({
       type: "session_status",

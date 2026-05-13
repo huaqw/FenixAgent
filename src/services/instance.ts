@@ -194,14 +194,14 @@ export function stopAllInstances(): void {
 export async function spawnInstanceFromEnvironment(userId: string, environmentId: string): Promise<SpawnedInstance> {
   const acpLinkPath = resolveExecutable("acp-link");
 
-  const env = storeGetEnvironment(environmentId);
+  const env = await storeGetEnvironment(environmentId);
   if (!env) throw new Error("Environment not found");
   if (env.userId !== userId) throw new Error("Not your environment");
 
   // Reuse existing session if one was restored from DB, otherwise create new
   let session = storeListSessionsByEnvironment(environmentId)[0];
   if (!session) {
-    session = storeCreateSession({
+    session = await storeCreateSession({
       environmentId,
       title: env.agentName || env.name,
       source: "acp",

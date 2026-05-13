@@ -13,36 +13,36 @@ import {
 const TEST_USER_ID = "user_apikey_test";
 const TEST_USER_EMAIL = "apikey-test@rcs.local";
 
-function ensureUser() {
-  const existing = db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1).all();
+async function ensureUser() {
+  const existing = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(user).values({
+  await db.insert(user).values({
     id: TEST_USER_ID,
     name: "API Key Test",
     email: TEST_USER_EMAIL,
     emailVerified: false,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function cleanupApiKeys() {
+async function cleanupApiKeys() {
   try {
-    db.delete(apiKey).where(eq(apiKey.userId, TEST_USER_ID)).run();
+    await db.delete(apiKey).where(eq(apiKey.userId, TEST_USER_ID));
   } catch {}
 }
 
-ensureUser();
+await ensureUser();
 
 describe("API Key Service", () => {
-  beforeEach(() => {
-    cleanupApiKeys();
+  beforeEach(async () => {
+    await cleanupApiKeys();
   });
 
-  afterAll(() => {
-    cleanupApiKeys();
-    try { db.delete(user).where(eq(user.id, TEST_USER_ID)).run(); } catch {}
+  afterAll(async () => {
+    await cleanupApiKeys();
+    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
   });
 
   describe("createApiKey", () => {

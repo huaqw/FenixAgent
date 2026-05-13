@@ -25,10 +25,10 @@ function toResponse(row: EnvironmentRecord): EnvironmentResponse {
   };
 }
 
-export function registerEnvironment(req: RegisterEnvironmentRequest & { metadata?: { worker_type?: string }; username?: string; userId?: string }) {
+export async function registerEnvironment(req: RegisterEnvironmentRequest & { metadata?: { worker_type?: string }; username?: string; userId?: string }) {
   const secret = `env_${randomBytes(24).toString("hex")}`;
   const workerType = req.worker_type || req.metadata?.worker_type;
-  const record = storeCreateEnvironment({
+  const record = await storeCreateEnvironment({
     secret,
     userId: req.userId || "system",
     machineName: req.machine_name,
@@ -48,7 +48,7 @@ export function registerEnvironment(req: RegisterEnvironmentRequest & { metadata
     if (existing.length > 0) {
       sessionId = existing[0].id;
     } else {
-      const session = storeCreateSession({
+      const session = await storeCreateSession({
         environmentId: record.id,
         title: req.machine_name || "ACP Agent",
         source: "acp",
@@ -60,30 +60,32 @@ export function registerEnvironment(req: RegisterEnvironmentRequest & { metadata
   return { environment_id: record.id, environment_secret: record.secret, status: record.status as "active", session_id: sessionId };
 }
 
-export function deregisterEnvironment(envId: string) {
-  storeUpdateEnvironment(envId, { status: "deregistered" });
+export async function deregisterEnvironment(envId: string) {
+  await storeUpdateEnvironment(envId, { status: "deregistered" });
 }
 
-export function getEnvironment(envId: string) {
+export async function getEnvironment(envId: string) {
   return storeGetEnvironment(envId);
 }
 
-export function updatePollTime(envId: string) {
-  storeUpdateEnvironment(envId, { lastPollAt: new Date() });
+export async function updatePollTime(envId: string) {
+  await storeUpdateEnvironment(envId, { lastPollAt: new Date() });
 }
 
-export function listActiveEnvironments() {
+export async function listActiveEnvironments() {
   return storeListActiveEnvironments();
 }
 
-export function listActiveEnvironmentsResponse(): EnvironmentResponse[] {
-  return storeListActiveEnvironments().map(toResponse);
+export async function listActiveEnvironmentsResponse(): Promise<EnvironmentResponse[]> {
+  const envs = await storeListActiveEnvironments();
+  return envs.map(toResponse);
 }
 
-export function listActiveEnvironmentsByUsername(username: string): EnvironmentResponse[] {
-  return storeListActiveEnvironmentsByUsername(username).map(toResponse);
+export async function listActiveEnvironmentsByUsername(username: string): Promise<EnvironmentResponse[]> {
+  const envs = await storeListActiveEnvironmentsByUsername(username);
+  return envs.map(toResponse);
 }
 
-export function reconnectEnvironment(envId: string) {
-  storeUpdateEnvironment(envId, { status: "active" });
+export async function reconnectEnvironment(envId: string) {
+  await storeUpdateEnvironment(envId, { status: "active" });
 }

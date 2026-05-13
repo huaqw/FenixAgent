@@ -14,33 +14,33 @@ let workspaceRoot = "";
 let toolDir = "";
 let originalPath = process.env.PATH ?? "";
 
-function upsertUser() {
-  const existing = db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1).all();
+async function upsertUser() {
+  const existing = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(user).values({
+  await db.insert(user).values({
     id: TEST_USER_ID,
     name: "Runner Test",
     email: "runner-test@rcs.local",
     emailVerified: false,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function upsertEnvironment(agentName: string | null) {
+async function upsertEnvironment(agentName: string | null) {
   const now = new Date();
-  const existing = db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1).all();
+  const existing = await db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1);
   if (existing.length > 0) {
-    db.update(environment).set({
+    await db.update(environment).set({
       workspacePath: workspaceRoot,
       agentName,
       updatedAt: now,
-    }).where(eq(environment.id, TEST_ENV_ID)).run();
+    }).where(eq(environment.id, TEST_ENV_ID));
     return;
   }
 
-  db.insert(environment).values({
+  await db.insert(environment).values({
     id: TEST_ENV_ID,
     name: "runner-env",
     description: null,
@@ -58,7 +58,7 @@ function upsertEnvironment(agentName: string | null) {
     lastPollAt: null,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
 async function createFakeOpencode() {
@@ -104,14 +104,14 @@ describe("agent-task-runner", () => {
     workspaceRoot = await mkdtemp(join(tmpdir(), "agent-task-runner-workspace-"));
     originalPath = process.env.PATH ?? "";
     await createFakeOpencode();
-    upsertUser();
-    upsertEnvironment("agent-alpha");
+    await upsertUser();
+    await upsertEnvironment("agent-alpha");
   });
 
   afterAll(async () => {
     process.env.PATH = originalPath;
-    try { db.delete(environment).where(eq(environment.id, TEST_ENV_ID)).run(); } catch {}
-    try { db.delete(user).where(eq(user.id, TEST_USER_ID)).run(); } catch {}
+    try { await db.delete(environment).where(eq(environment.id, TEST_ENV_ID)); } catch {}
+    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
     if (workspaceRoot) {
       await rm(workspaceRoot, { recursive: true, force: true });
     }
@@ -155,7 +155,7 @@ describe("agent-task-runner", () => {
   });
 
   it("throws when the environment does not exist", async () => {
-    db.delete(environment).where(eq(environment.id, TEST_ENV_ID)).run();
+    await db.delete(environment).where(eq(environment.id, TEST_ENV_ID));
 
     await expect(runAgentTask({
       userId: TEST_USER_ID,
@@ -168,7 +168,7 @@ describe("agent-task-runner", () => {
   });
 
   it("writes an empty config when environment has no agent name", async () => {
-    upsertEnvironment(null);
+    await upsertEnvironment(null);
 
     const result = await runAgentTask({
       userId: TEST_USER_ID,

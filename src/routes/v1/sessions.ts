@@ -18,7 +18,7 @@ const app = new Elysia({ name: "v1-sessions", prefix: "/v1/sessions" })
 app.post("/", async ({ store, body }) => {
   const b = (body as any) ?? {};
   const username = (store as any).username as string | undefined;
-  const session = createSession({ ...b, username });
+  const session = await createSession({ ...b, username });
 
   // Create work item if environment is specified
   if (b.environment_id) {
@@ -42,7 +42,7 @@ app.post("/", async ({ store, body }) => {
 /** GET /v1/sessions/:id — Get session */
 app.get("/:id", async ({ params, error }) => {
   const sessionId = resolveExistingSessionId(params.id) ?? params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
@@ -52,28 +52,28 @@ app.get("/:id", async ({ params, error }) => {
 /** PATCH /v1/sessions/:id — Update session title */
 app.patch("/:id", async ({ params, body, error }) => {
   const sessionId = resolveExistingSessionId(params.id) ?? params.id;
-  const existing = getSession(sessionId);
+  const existing = await getSession(sessionId);
   if (!existing) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
   const b = (body as any) ?? {};
   if (b.title) {
-    updateSessionTitle(sessionId, b.title);
+    await updateSessionTitle(sessionId, b.title);
   }
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   return session;
 }, { apiKeyAuth: true });
 
 /** POST /v1/sessions/:id/archive — Archive session */
 app.post("/:id/archive", async ({ params, error }) => {
   const sessionId = resolveExistingSessionId(params.id) ?? params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   try {
-    archiveSession(sessionId);
+    await archiveSession(sessionId);
   } catch {
     return { status: "ok" };
   }
@@ -84,7 +84,7 @@ app.post("/:id/archive", async ({ params, error }) => {
 /** POST /v1/sessions/:id/events — Send event to session */
 app.post("/:id/events", async ({ params, body, error }) => {
   const sessionId = resolveExistingSessionId(params.id) ?? params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }

@@ -54,28 +54,28 @@ function request(path: string, init?: RequestInit) {
   return testApp.handle(new Request(`http://localhost${path}`, init));
 }
 
-function ensureTestUser() {
-  const existing = db.select().from(user).where(eq(user.id, "test-user-1")).limit(1).all();
+async function ensureTestUser() {
+  const existing = await db.select().from(user).where(eq(user.id, "test-user-1")).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
   try {
-    db.insert(user).values({
+    await db.insert(user).values({
       id: "test-user-1",
       name: "TestUser",
       email: "test-webenv@test.com",
       emailVerified: false,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
   } catch {
     // User might already exist from other tests
   }
 }
+await ensureTestUser();
 
 describe("Web Environments CRUD API", () => {
   beforeEach(() => {
     storeReset();
-    ensureTestUser();
     (instanceMock.listInstancesByEnvironment as any).mockClear?.();
     (instanceMock.listInstancesByEnvironment as any).mockReturnValue?.([]);
     (instanceMock.getRunningInstancesByEnvironment as any).mockClear?.();
@@ -137,7 +137,7 @@ describe("Web Environments CRUD API", () => {
     const before = (await resBefore.json()).length;
 
     const envName = `env-list-${Date.now()}`;
-    storeCreateEnvironment({ name: envName, workspacePath: "/tmp/ws1", userId: "test-user-1", status: "idle" });
+    await storeCreateEnvironment({ name: envName, workspacePath: "/tmp/ws1", userId: "test-user-1", status: "idle" });
 
     const res = await request("/web/environments");
     expect(res.status).toBe(200);
@@ -149,7 +149,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("GET /web/environments/:id — returns detail with secret", async () => {
-    const env = storeCreateEnvironment({ name: `env-detail-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-detail-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", status: "idle" });
 
     const res = await request(`/web/environments/${env.id}`);
     expect(res.status).toBe(200);
@@ -163,7 +163,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("PUT /web/environments/:id — updates description", async () => {
-    const env = storeCreateEnvironment({ name: `env-put-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-put-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", status: "idle" });
 
     const res = await request(`/web/environments/${env.id}`, {
       method: "PUT",
@@ -176,19 +176,19 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("DELETE /web/environments/:id — deletes environment", async () => {
-    const env = storeCreateEnvironment({ name: `env-del-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-del-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", status: "idle" });
 
     const res = await request(`/web/environments/${env.id}`, { method: "DELETE" });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
 
-    expect(storeGetEnvironment(env.id)).toBeUndefined();
+    expect(await storeGetEnvironment(env.id)).toBeUndefined();
   });
 
   test("GET /web/environments — returns instances array and instances_count", async () => {
     const envName = `env-inst-count-${Date.now()}`;
-    storeCreateEnvironment({ name: envName, workspacePath: "/tmp/ws1", userId: "test-user-1", status: "idle" });
+    await storeCreateEnvironment({ name: envName, workspacePath: "/tmp/ws1", userId: "test-user-1", status: "idle" });
 
     const res = await request("/web/environments");
     expect(res.status).toBe(200);
@@ -200,7 +200,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("GET /web/environments — includes active instance data", async () => {
-    const env = storeCreateEnvironment({ name: `env-inst-data-${Date.now()}`, workspacePath: "/tmp/ws2", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-inst-data-${Date.now()}`, workspacePath: "/tmp/ws2", userId: "test-user-1", status: "idle" });
     (instanceMock.listInstancesByEnvironment as any).mockReturnValue([{
       id: "inst_1",
       instanceNumber: 1,
@@ -222,7 +222,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("POST /:id/enter with empty body auto-creates instance", async () => {
-    const env = storeCreateEnvironment({ name: `env-enter-auto-${Date.now()}`, workspacePath: "/tmp/ws3", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-enter-auto-${Date.now()}`, workspacePath: "/tmp/ws3", userId: "test-user-1", status: "idle" });
 
     const res = await request(`/web/environments/${env.id}/enter`, {
       method: "POST",
@@ -236,7 +236,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("POST /:id/enter with instance_number selects specific instance", async () => {
-    const env = storeCreateEnvironment({ name: `env-enter-num-${Date.now()}`, workspacePath: "/tmp/ws4", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-enter-num-${Date.now()}`, workspacePath: "/tmp/ws4", userId: "test-user-1", status: "idle" });
     (instanceMock.getRunningInstancesByEnvironment as any).mockReturnValue([
       { id: "inst_1", instanceNumber: 1, status: "running", sessionId: "session_a", port: 8888, createdAt: new Date() },
       { id: "inst_2", instanceNumber: 2, status: "running", sessionId: "session_b", port: 8889, createdAt: new Date() },
@@ -254,7 +254,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("POST /:id/enter with non-existent instance_number returns 404", async () => {
-    const env = storeCreateEnvironment({ name: `env-enter-404-${Date.now()}`, workspacePath: "/tmp/ws5", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-enter-404-${Date.now()}`, workspacePath: "/tmp/ws5", userId: "test-user-1", status: "idle" });
     (instanceMock.getRunningInstancesByEnvironment as any).mockReturnValue([
       { id: "inst_1", instanceNumber: 1, status: "running", sessionId: "session_a", port: 8888, createdAt: new Date() },
     ]);
@@ -268,7 +268,7 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("GET /:id/instances returns active instance list", async () => {
-    const env = storeCreateEnvironment({ name: `env-list-inst-${Date.now()}`, workspacePath: "/tmp/ws6", userId: "test-user-1", status: "idle" });
+    const env = await storeCreateEnvironment({ name: `env-list-inst-${Date.now()}`, workspacePath: "/tmp/ws6", userId: "test-user-1", status: "idle" });
     (instanceMock.listInstancesByEnvironment as any).mockReturnValue([
       { id: "inst_1", instanceNumber: 1, status: "running", sessionId: "session_a", port: 8888, createdAt: new Date("2026-01-01T00:00:00Z") },
       { id: "inst_2", instanceNumber: 2, status: "starting", sessionId: "session_b", port: 8889, createdAt: new Date("2026-01-02T00:00:00Z") },

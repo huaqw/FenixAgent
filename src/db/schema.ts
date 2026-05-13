@@ -1,22 +1,22 @@
-import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
 
-// better-auth tables
-export const user = sqliteTable("user", {
+// better-auth tables — primary keys stay as text (better-auth generates IDs internally)
+export const user = pgTable("user", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+  name: varchar("name").notNull(),
+  email: varchar("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const session = sqliteTable("session", {
+export const session = pgTable("session", {
   id: text("id").primaryKey(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   token: text("token").notNull().unique(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id")
@@ -24,7 +24,7 @@ export const session = sqliteTable("session", {
     .references(() => user.id, { onDelete: "cascade" }),
 });
 
-export const account = sqliteTable("account", {
+export const account = pgTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
@@ -34,142 +34,141 @@ export const account = sqliteTable("account", {
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
-  accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp" }),
-  refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp" }),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
   scope: text("scope"),
   password: text("password"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const verification = sqliteTable("verification", {
+export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }),
-  updatedAt: integer("updated_at", { mode: "timestamp" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-// Custom tables
-export const apiKey = sqliteTable("api_key", {
-  id: text("id").primaryKey(),
+// Custom tables — primary keys use uuid with PG auto-generation
+export const apiKey = pgTable("api_key", {
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  key: text("key").notNull().unique(),
-  label: text("label").notNull().default(""),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+  key: varchar("key").notNull().unique(),
+  label: varchar("label").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
 });
 
 // MCP Tool 缓存表
-export const mcpTool = sqliteTable("mcp_tool", {
-  id: text("id").primaryKey(),
-  serverName: text("server_name").notNull(),
-  toolName: text("tool_name").notNull(),
+export const mcpTool = pgTable("mcp_tool", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serverName: varchar("server_name").notNull(),
+  toolName: varchar("tool_name").notNull(),
   description: text("description"),
-  inputSchema: text("input_schema"),
-  inspectedAt: integer("inspected_at", { mode: "timestamp" }).notNull(),
+  inputSchema: jsonb("input_schema"),
+  inspectedAt: timestamp("inspected_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Share Link 分享链接表
-export const shareLink = sqliteTable("share_link", {
-  id: text("id").primaryKey(),
-  sessionId: text("session_id").notNull(),
-  environmentId: text("environment_id").notNull(),
-  token: text("token").notNull().unique(),
-  mode: text("mode", { enum: ["readonly", "writable"] }).notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }),
-  createdBy: text("created_by").notNull(),
+export const shareLink = pgTable("share_link", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sessionId: varchar("session_id").notNull(),
+  environmentId: varchar("environment_id").notNull(),
+  token: varchar("token").notNull().unique(),
+  mode: varchar("mode", { length: 20 }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdBy: varchar("created_by").notNull(),
   accessCount: integer("access_count").notNull().default(0),
-  lastAccessedAt: integer("last_accessed_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Share Event Snapshot 分享事件快照表
-export const shareEventSnapshot = sqliteTable("share_event_snapshot", {
-  id: text("id").primaryKey(),
-  shareLinkId: text("share_link_id")
-    .notNull()
+export const shareEventSnapshot = pgTable("share_event_snapshot", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  shareLinkId: uuid("share_link_id")
     .references(() => shareLink.id, { onDelete: "cascade" }),
-  events: text("events").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  events: jsonb("events").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Environment 持久化表
-export const environment = sqliteTable("environment", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull().unique(),
+export const environment = pgTable("environment", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name").notNull().unique(),
   description: text("description"),
-  workspacePath: text("workspace_path").notNull(),
-  agentName: text("agent_name"),
-  status: text("status").notNull().default("idle"),
-  machineName: text("machine_name"),
-  branch: text("branch"),
-  gitRepoUrl: text("git_repo_url"),
+  workspacePath: varchar("workspace_path").notNull(),
+  agentName: varchar("agent_name"),
+  status: varchar("status", { length: 50 }).notNull().default("idle"),
+  machineName: varchar("machine_name"),
+  branch: varchar("branch"),
+  gitRepoUrl: varchar("git_repo_url"),
   maxSessions: integer("max_sessions").notNull().default(1),
-  workerType: text("worker_type").notNull().default("acp"),
-  capabilities: text("capabilities"),
-  secret: text("secret").notNull(),
+  workerType: varchar("worker_type", { length: 50 }).notNull().default("acp"),
+  capabilities: jsonb("capabilities"),
+  secret: varchar("secret").notNull(),
   userId: text("user_id").notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  autoStart: integer("auto_start", { mode: "boolean" }).notNull().default(false),
-  lastPollAt: integer("last_poll_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  autoStart: boolean("auto_start").notNull().default(false),
+  lastPollAt: timestamp("last_poll_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const knowledgeBase = sqliteTable("knowledge_base", {
-  id: text("id").primaryKey(),
+export const knowledgeBase = pgTable("knowledge_base", {
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  slug: text("slug").notNull(),
+  name: varchar("name").notNull(),
+  slug: varchar("slug").notNull(),
   description: text("description"),
-  provider: text("provider").notNull().default("openviking"),
-  remoteId: text("remote_id"),
-  remoteAccountId: text("remote_account_id"),
-  remoteUserId: text("remote_user_id"),
-  status: text("status").notNull().default("empty"),
+  provider: varchar("provider").notNull().default("openviking"),
+  remoteId: varchar("remote_id"),
+  remoteAccountId: varchar("remote_account_id"),
+  remoteUserId: varchar("remote_user_id"),
+  status: varchar("status", { length: 50 }).notNull().default("empty"),
   lastError: text("last_error"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userSlugIdx: uniqueIndex("idx_knowledge_base_user_slug").on(table.userId, table.slug),
   userStatusIdx: index("idx_knowledge_base_user_status").on(table.userId, table.status),
 }));
 
-export const knowledgeResource = sqliteTable("knowledge_resource", {
-  id: text("id").primaryKey(),
-  knowledgeBaseId: text("knowledge_base_id")
+export const knowledgeResource = pgTable("knowledge_resource", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  knowledgeBaseId: uuid("knowledge_base_id")
     .notNull()
     .references(() => knowledgeBase.id, { onDelete: "cascade" }),
-  sourceType: text("source_type").notNull(),
-  sourceName: text("source_name").notNull(),
+  sourceType: varchar("source_type").notNull(),
+  sourceName: varchar("source_name").notNull(),
   sourcePath: text("source_path"),
-  remoteId: text("remote_id"),
-  status: text("status").notNull().default("pending"),
+  remoteId: varchar("remote_id"),
+  status: varchar("status").notNull().default("pending"),
   lastError: text("last_error"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   kbIdx: index("idx_knowledge_resource_kb").on(table.knowledgeBaseId),
   statusIdx: index("idx_knowledge_resource_status").on(table.status),
 }));
 
-export const agentKnowledgeBinding = sqliteTable("agent_knowledge_binding", {
-  id: text("id").primaryKey(),
-  agentName: text("agent_name").notNull(),
-  knowledgeBaseId: text("knowledge_base_id")
+export const agentKnowledgeBinding = pgTable("agent_knowledge_binding", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agentName: varchar("agent_name").notNull(),
+  knowledgeBaseId: uuid("knowledge_base_id")
     .notNull()
     .references(() => knowledgeBase.id, { onDelete: "cascade" }),
   priority: integer("priority").notNull().default(0),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   agentIdx: index("idx_agent_knowledge_binding_agent").on(table.agentName),
   kbIdx: index("idx_agent_knowledge_binding_kb").on(table.knowledgeBaseId),
@@ -177,78 +176,78 @@ export const agentKnowledgeBinding = sqliteTable("agent_knowledge_binding", {
 }));
 
 // 定时任务表
-export const scheduledTask = sqliteTable("scheduled_task", {
-  id: text("id").primaryKey(),
+export const scheduledTask = pgTable("scheduled_task", {
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
+  name: varchar("name").notNull(),
   description: text("description"),
-  cron: text("cron").notNull(),
-  timezone: text("timezone"),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  environmentId: text("environment_id")
+  cron: varchar("cron").notNull(),
+  timezone: varchar("timezone"),
+  enabled: boolean("enabled").notNull().default(true),
+  environmentId: uuid("environment_id")
     .notNull()
     .references(() => environment.id, { onDelete: "cascade" }),
   task: text("task").notNull(),
   timeoutMinutes: integer("timeout_minutes").notNull().default(30),
-  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
-  nextRunAt: integer("next_run_at", { mode: "timestamp" }),
-  lastStatus: text("last_status"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+  lastStatus: varchar("last_status"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // 任务执行日志表
-export const taskExecutionLog = sqliteTable("task_execution_log", {
-  id: text("id").primaryKey(),
-  taskId: text("task_id")
+export const taskExecutionLog = pgTable("task_execution_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id")
     .notNull()
     .references(() => scheduledTask.id, { onDelete: "cascade" }),
-  status: text("status").notNull(),
+  status: varchar("status").notNull(),
   error: text("error"),
   duration: integer("duration"),
-  triggeredBy: text("triggered_by").notNull().default("cron"),
-  workspacePath: text("workspace_path"),
-  workspaceName: text("workspace_name"),
-  environmentId: text("environment_id"),
-  environmentName: text("environment_name"),
-  taskSnapshot: text("task_snapshot"),
+  triggeredBy: varchar("triggered_by").notNull().default("cron"),
+  workspacePath: varchar("workspace_path"),
+  workspaceName: varchar("workspace_name"),
+  environmentId: varchar("environment_id"),
+  environmentName: varchar("environment_name"),
+  taskSnapshot: jsonb("task_snapshot"),
   skipReason: text("skip_reason"),
   resultSummary: text("result_summary"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Hermes 通道绑定表
-export const channelBinding = sqliteTable("channel_binding", {
-  id: text("id").primaryKey(),
-  platform: text("platform").notNull(),
-  chatId: text("chat_id"),
-  agentId: text("agent_id").notNull(),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+export const channelBinding = pgTable("channel_binding", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  platform: varchar("platform").notNull(),
+  chatId: varchar("chat_id"),
+  agentId: varchar("agent_id").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   platformIdx: index("idx_channel_binding_platform").on(table.platform),
   agentIdx: index("idx_channel_binding_agent_id").on(table.agentId),
 }));
 
 // Agent Session 持久化表
-export const agentSession = sqliteTable("agent_session", {
-  id: text("id").primaryKey(),
-  environmentId: text("environment_id")
+export const agentSession = pgTable("agent_session", {
+  id: varchar("id").primaryKey(),
+  environmentId: uuid("environment_id")
     .references(() => environment.id, { onDelete: "set null" }),
-  title: text("title"),
-  status: text("status").notNull(),
-  source: text("source").notNull(),
-  permissionMode: text("permission_mode"),
+  title: varchar("title"),
+  status: varchar("status").notNull(),
+  source: varchar("source").notNull(),
+  permissionMode: varchar("permission_mode"),
   workerEpoch: integer("worker_epoch").notNull().default(0),
-  username: text("username"),
+  username: varchar("username"),
   userId: text("user_id"),
-  cwd: text("cwd"),
-  shareMode: text("share_mode").notNull().default("none"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  cwd: varchar("cwd"),
+  shareMode: varchar("share_mode", { length: 20 }).notNull().default("none"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   envIdx: index("idx_agent_session_env").on(table.environmentId),
 }));

@@ -29,25 +29,27 @@ mock.restore();
 const TEST_USER_ID = "user_scheduler_test";
 const TEST_ENV_ID = "env_scheduler_test";
 
-function ensureUser() {
-  const existing = db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1).all();
+// 确保 DB 中存在测试用户
+async function ensureUser() {
+  const existing = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(user).values({
+  await db.insert(user).values({
     id: TEST_USER_ID,
     name: "Scheduler Test",
     email: "scheduler-test@rcs.local",
     emailVerified: false,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function ensureEnvironment() {
-  const existing = db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1).all();
+// 确保 DB 中存在测试环境
+async function ensureEnvironment() {
+  const existing = await db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(environment).values({
+  await db.insert(environment).values({
     id: TEST_ENV_ID,
     name: "scheduler-env",
     description: null,
@@ -65,13 +67,14 @@ function ensureEnvironment() {
     lastPollAt: null,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function insertTask(id: string, enabled: boolean, timezone: string | null, cron = "* * * * *") {
+// 插入测试任务
+async function insertTask(id: string, enabled: boolean, timezone: string | null, cron = "* * * * *") {
   const now = new Date();
   try {
-    db.insert(scheduledTask).values({
+    await db.insert(scheduledTask).values({
       id,
       userId: TEST_USER_ID,
       name: id,
@@ -87,34 +90,35 @@ function insertTask(id: string, enabled: boolean, timezone: string | null, cron 
       lastStatus: null,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
   } catch {}
 }
 
-function cleanupRows() {
-  try { db.delete(taskExecutionLog).run(); } catch {}
-  try { db.delete(scheduledTask).where(eq(scheduledTask.userId, TEST_USER_ID)).run(); } catch {}
+// 清理测试数据
+async function cleanupRows() {
+  try { await db.delete(taskExecutionLog); } catch {}
+  try { await db.delete(scheduledTask).where(eq(scheduledTask.userId, TEST_USER_ID)); } catch {}
 }
 
-ensureUser();
-ensureEnvironment();
+await ensureUser();
+await ensureEnvironment();
 
 describe("Scheduler", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     scheduler.stopScheduler();
-    cleanupRows();
+    await cleanupRows();
     mockScheduleJob.mockClear();
     mockCancel.mockClear();
     mockRunAgentTask.mockReset();
     setRunAgentTaskForTesting(mockRunAgentTask);
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     scheduler.stopScheduler();
-    cleanupRows();
+    await cleanupRows();
     setRunAgentTaskForTesting(null);
-    try { db.delete(environment).where(eq(environment.id, TEST_ENV_ID)).run(); } catch {}
-    try { db.delete(user).where(eq(user.id, TEST_USER_ID)).run(); } catch {}
+    try { await db.delete(environment).where(eq(environment.id, TEST_ENV_ID)); } catch {}
+    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
   });
 
   describe("scheduleTask", () => {
@@ -137,8 +141,8 @@ describe("Scheduler", () => {
 
   describe("startScheduler", () => {
     it("schedules only enabled tasks from db", async () => {
-      insertTask("task_s1", true, "UTC", "1 * * * *");
-      insertTask("task_s2", false, "UTC", "2 * * * *");
+      await insertTask("task_s1", true, "UTC", "1 * * * *");
+      await insertTask("task_s2", false, "UTC", "2 * * * *");
 
       await scheduler.startScheduler();
 
@@ -150,7 +154,7 @@ describe("Scheduler", () => {
 
   describe("concurrent execution", () => {
     it("writes skipped log when the same task triggers twice", async () => {
-      insertTask("task_skip", true, "UTC");
+      await insertTask("task_skip", true, "UTC");
 
       let resolveExecution: (() => void) | null = null;
       mockRunAgentTask.mockImplementation(() => new Promise((resolve) => {
@@ -172,7 +176,7 @@ describe("Scheduler", () => {
       handler();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const logs = db.select().from(taskExecutionLog).where(eq(taskExecutionLog.taskId, "task_skip")).all();
+      const logs = await db.select().from(taskExecutionLog).where(eq(taskExecutionLog.taskId, "task_skip"));
       expect(logs.some((row) => row.status === "skipped" && row.skipReason === "previous_run_still_active")).toBe(true);
 
       expect(resolveExecution).toBeDefined();

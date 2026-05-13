@@ -11,15 +11,15 @@ const app = new Elysia({ name: "web-control", prefix: "/web" })
 type OwnershipCheckResult =
   | { error: true }
   | { error: true; reason: string }
-  | { error: false; session: NonNullable<ReturnType<typeof getSession>>; sessionId: string };
+  | { error: false; session: NonNullable<Awaited<ReturnType<typeof getSession>>>; sessionId: string };
 
-function checkOwnership(uuid: string | null, sessionId: string): OwnershipCheckResult {
+async function checkOwnership(uuid: string | null, sessionId: string): Promise<OwnershipCheckResult> {
   if (!uuid) return { error: true };
   const resolvedSessionId = resolveOwnedWebSessionId(sessionId, uuid);
   if (!resolvedSessionId) {
     return { error: true };
   }
-  const session = getSession(resolvedSessionId);
+  const session = await getSession(resolvedSessionId);
   if (!session) {
     return { error: true };
   }
@@ -37,7 +37,7 @@ function closedSessionResponse(message: string) {
 app.post("/sessions/:id/events", async ({ store, params, body, error }) => {
   const requestedSessionId = params.id;
   const uuid = store.uuid;
-  const ownership = checkOwnership(uuid, requestedSessionId);
+  const ownership = await checkOwnership(uuid, requestedSessionId);
   if (ownership.error) {
     const message = "reason" in ownership ? ownership.reason : "Not your session";
     const status = "reason" in ownership ? 409 : 403;
@@ -57,7 +57,7 @@ app.post("/sessions/:id/events", async ({ store, params, body, error }) => {
 app.post("/sessions/:id/control", async ({ store, params, body, error }) => {
   const requestedSessionId = params.id;
   const uuid = store.uuid;
-  const ownership = checkOwnership(uuid, requestedSessionId);
+  const ownership = await checkOwnership(uuid, requestedSessionId);
   if (ownership.error) {
     const message = "reason" in ownership ? ownership.reason : "Not your session";
     const status = "reason" in ownership ? 409 : 403;
@@ -74,7 +74,7 @@ app.post("/sessions/:id/control", async ({ store, params, body, error }) => {
 app.post("/sessions/:id/interrupt", async ({ store, params, error }) => {
   const requestedSessionId = params.id;
   const uuid = store.uuid;
-  const ownership = checkOwnership(uuid, requestedSessionId);
+  const ownership = await checkOwnership(uuid, requestedSessionId);
   if (ownership.error) {
     const message = "reason" in ownership ? ownership.reason : "Not your session";
     const status = "reason" in ownership ? 409 : 403;
@@ -83,7 +83,7 @@ app.post("/sessions/:id/interrupt", async ({ store, params, error }) => {
   const { sessionId } = ownership;
 
   publishSessionEvent(sessionId, "interrupt", { action: "interrupt" }, "outbound");
-  updateSessionStatus(sessionId, "idle");
+  await updateSessionStatus(sessionId, "idle");
   return { status: "ok" };
 }, { uuidAuth: true });
 

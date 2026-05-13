@@ -77,11 +77,12 @@ export async function validateApiKeyAndGetUser(key: string): Promise<{ userId: s
 
   const row = rows[0];
 
-  // Update lastUsedAt in background
+  // Update lastUsedAt in background (fire-and-forget)
   db.update(apiKey)
     .set({ lastUsedAt: new Date() })
     .where(eq(apiKey.id, row.id))
-    .run();
+    .then(() => {})
+    .catch(() => {});
 
   return { userId: row.userId, keyId: row.id };
 }

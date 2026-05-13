@@ -280,7 +280,7 @@ function openEventBusRelay(ws: WsConnection, relayWsId: string, agentId: string,
 }
 
 /** Called from onMessage — forwards frontend messages */
-export function handleRelayMessage(ws: WsConnection, relayWsId: string, data: string): void {
+export async function handleRelayMessage(ws: WsConnection, relayWsId: string, data: string): Promise<void> {
   const entry = relayConnections.get(relayWsId);
   if (!entry) return;
 
@@ -322,7 +322,7 @@ export function handleRelayMessage(ws: WsConnection, relayWsId: string, data: st
     }
 
     if (msg.type === "connect") {
-      const env = storeGetEnvironment(entry.agentId);
+      const env = await storeGetEnvironment(entry.agentId);
       sendToRelayWs(ws, {
         type: "status",
         payload: { connected: true, capabilities: env?.capabilities ?? null },

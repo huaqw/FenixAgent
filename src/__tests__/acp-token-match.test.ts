@@ -12,50 +12,50 @@ const { user } = await import("../db/schema");
 const { eq } = await import("drizzle-orm");
 const { runDisconnectMonitorSweep } = await import("../services/disconnect-monitor");
 
-function ensureUser(userId: string) {
-  const existing = db.select().from(user).where(eq(user.id, userId)).limit(1).all();
+async function ensureUser(userId: string) {
+  const existing = await db.select().from(user).where(eq(user.id, userId)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
   try {
-    db.insert(user).values({
+    await db.insert(user).values({
       id: userId,
       name: userId,
       email: `${userId}@acp-token-test.com`,
       emailVerified: false,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
   } catch {
     // User might already exist
   }
 }
 
 describe("ACP Token Match", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     storeReset();
-    ensureUser("u-acp-test");
+    await ensureUser("u-acp-test");
   });
 
-  test("environment.secret can be looked up by secret", () => {
-    const env = storeCreateEnvironment({
+  test("environment.secret can be looked up by secret", async () => {
+    const env = await storeCreateEnvironment({
       name: `test-env-${Date.now()}`,
       workspacePath: "/tmp/ws",
       userId: "u-acp-test",
       status: "idle",
     });
 
-    const found = storeGetEnvironmentBySecret(env.secret);
+    const found = await storeGetEnvironmentBySecret(env.secret);
     expect(found).toBeDefined();
     expect(found!.id).toBe(env.id);
     expect(found!.userId).toBe("u-acp-test");
   });
 
-  test("environment.secret returns undefined for non-existent secret", () => {
-    expect(storeGetEnvironmentBySecret("no_such_secret")).toBeUndefined();
+  test("environment.secret returns undefined for non-existent secret", async () => {
+    expect(await storeGetEnvironmentBySecret("no_such_secret")).toBeUndefined();
   });
 
-  test("persistent environment disconnect updates status to idle", () => {
-    const env = storeCreateEnvironment({
+  test("persistent environment disconnect updates status to idle", async () => {
+    const env = await storeCreateEnvironment({
       name: `persistent-env-${Date.now()}`,
       workspacePath: "/tmp/ws",
       userId: "u-acp-test",
@@ -63,26 +63,26 @@ describe("ACP Token Match", () => {
     });
 
     // Simulate disconnect — update status to idle
-    storeUpdateEnvironment(env.id, { status: "idle" });
+    await storeUpdateEnvironment(env.id, { status: "idle" });
 
-    const updated = storeGetEnvironment(env.id);
+    const updated = await storeGetEnvironment(env.id);
     expect(updated).toBeDefined();
     expect(updated!.status).toBe("idle");
   });
 
-  test("temporary environment disconnect deletes record", () => {
-    const env = storeCreateEnvironment({
+  test("temporary environment disconnect deletes record", async () => {
+    const env = await storeCreateEnvironment({
       userId: "u-acp-test",
       status: "active",
     });
 
-    storeDeleteEnvironment(env.id);
-    expect(storeGetEnvironment(env.id)).toBeUndefined();
+    await storeDeleteEnvironment(env.id);
+    expect(await storeGetEnvironment(env.id)).toBeUndefined();
   });
 
-  test("disconnect monitor ACP agent timeout updates status to idle", () => {
+  test("disconnect monitor ACP agent timeout updates status to idle", async () => {
     const past = new Date(Date.now() - 600_000); // 10 minutes ago
-    const env = storeCreateEnvironment({
+    const env = await storeCreateEnvironment({
       name: `timeout-env-${Date.now()}`,
       workspacePath: "/tmp/ws",
       userId: "u-acp-test",
@@ -90,11 +90,11 @@ describe("ACP Token Match", () => {
     });
 
     // Manually set lastPollAt to past
-    storeUpdateEnvironment(env.id, { lastPollAt: past });
+    await storeUpdateEnvironment(env.id, { lastPollAt: past });
 
-    runDisconnectMonitorSweep();
+    await runDisconnectMonitorSweep();
 
-    const updated = storeGetEnvironment(env.id);
+    const updated = await storeGetEnvironment(env.id);
     expect(updated).toBeDefined();
     expect(updated!.status).toBe("idle");
   });

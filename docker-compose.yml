@@ -1,4 +1,20 @@
 services:
+    postgres:
+        image: postgres:16-alpine
+        container_name: mothership-postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: rcs
+            POSTGRES_PASSWORD: rcs
+            POSTGRES_DB: rcs
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U rcs"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
     openviking:
         image: ghcr.io/volcengine/openviking:v0.3.14
         container_name: mothership-openviking
@@ -25,6 +41,9 @@ services:
             dockerfile: Dockerfile
         container_name: mothership-beta
         restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
         ports:
             - "3001:3000"
         environment:
@@ -32,8 +51,7 @@ services:
             RCS_PORT: 3000
             RCS_BASE_URL: http://localhost:3000
             RCS_API_KEYS: 8198625e-f6e0-4402-a278-b1910408c160
-            # RCS server database path inside the container.
-            RCS_DB_PATH: /app/data/rcs.db
+            DATABASE_URL: postgres://rcs:rcs@postgres:5432/rcs
             ACPX_G_URL: http://localhost:8848
             RCS_KNOWLEDGE_PROVIDER: ${RCS_KNOWLEDGE_PROVIDER:-}
             RCS_KNOWLEDGE_BASE_URL: ${RCS_KNOWLEDGE_BASE_URL:-}
@@ -41,8 +59,6 @@ services:
             OPENCODE_DISABLE_AUTOUPDATE: "1"
             OPENCODE_DISABLE_TELEMETRY: "1"
         volumes:
-            # SQLite 数据库及其他 RCS 运行时数据
-            - rcs-data:/app/data
             # OpenCode 全局配置：直接注入宿主机配置文件
             - ~/.config/opencode/opencode.json:/root/.config/opencode/opencode.json
             # Skill 技能目录：直接注入宿主机 skills
@@ -67,8 +83,8 @@ services:
             start_period: 20s
 
 volumes:
-    # RCS SQLite 持久化数据
-    rcs-data:
+    # PostgreSQL 持久化数据
+    postgres-data:
     # OpenCode 认证/缓存/状态持久化
     rcs-opencode-data:
     # 容器内 Agent 工作空间持久化

@@ -26,27 +26,20 @@ import {
     storeDeleteEnvironment,
 } from "../store";
 
-function ensureUser() {
-    const existing = db
-        .select()
-        .from(userTable)
-        .where(eq(userTable.id, "test-user"))
-        .limit(1)
-        .all();
+async function ensureUser() {
+    const existing = await db.select().from(userTable).where(eq(userTable.id, "test-user")).limit(1);
     if (existing.length > 0) return;
     const now = new Date();
-    db.insert(userTable)
-        .values({
-            id: "test-user",
-            name: "Test",
-            email: "test@test.com",
-            emailVerified: false,
-            createdAt: now,
-            updatedAt: now,
-        })
-        .run();
+    await db.insert(userTable).values({
+        id: "test-user",
+        name: "Test",
+        email: "test@test.com",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+    });
 }
-ensureUser();
+await ensureUser();
 
 let workspaceDir = "";
 
@@ -66,13 +59,13 @@ describe("Files Route", () => {
         storeReset();
 
         // Create real environment and session with test workspace
-        const env = storeCreateEnvironment({
+        const env = await storeCreateEnvironment({
             userId: "test-user",
             workspacePath: workspaceDir,
             status: "active",
         });
         envId = env.id;
-        const session = storeCreateSession({ environmentId: env.id });
+        const session = await storeCreateSession({ environmentId: env.id });
         sessionId = session.id;
 
         const mod = await import("../routes/web/files");
@@ -99,12 +92,12 @@ describe("Files Route", () => {
 
     test("GET /:sessionId/user — 404 for invalid session without environment", async () => {
         // Delete the specific environment and clear sessions so no fallback is available
-        storeDeleteEnvironment(envId);
+        await storeDeleteEnvironment(envId);
         storeReset();
         // Also delete any other environments for this user to prevent fallback
         const { storeListEnvironmentsByUserId } = await import("../store");
-        for (const env of storeListEnvironmentsByUserId("test-user")) {
-            storeDeleteEnvironment(env.id);
+        for (const env of await storeListEnvironmentsByUserId("test-user")) {
+            await storeDeleteEnvironment(env.id);
         }
         const res = await request(app, `/web/sessions/invalid-session/user`, {
             headers: { "Content-Type": "application/json" },

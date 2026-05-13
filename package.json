@@ -52,6 +52,7 @@
         "motion": "^12.29.2",
         "nanoid": "^5.1.6",
         "node-schedule": "^2.1.1",
+        "postgres": "^3.4.9",
         "qr-scanner": "^1.4.2",
         "qrcode": "^1.5.4",
         "radix-ui": "^1.4.3",

@@ -39,25 +39,25 @@ mock.module("../services/scheduler", () => ({
 const TEST_USER_ID = "test_user";
 const TEST_ENV_ID = "env_routes_test";
 
-function ensureUser() {
-  const existing = db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1).all();
+async function ensureUser() {
+  const existing = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(user).values({
+  await db.insert(user).values({
     id: TEST_USER_ID,
     name: "Test",
     email: "task-routes@test.com",
     emailVerified: false,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function ensureEnvironment() {
-  const existing = db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1).all();
+async function ensureEnvironment() {
+  const existing = await db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(environment).values({
+  await db.insert(environment).values({
     id: TEST_ENV_ID,
     name: "route-env",
     description: null,
@@ -75,16 +75,16 @@ function ensureEnvironment() {
     lastPollAt: null,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function cleanup() {
-  try { db.delete(taskExecutionLog).run(); } catch {}
-  try { db.delete(scheduledTask).where(eq(scheduledTask.userId, TEST_USER_ID)).run(); } catch {}
+async function cleanup() {
+  try { await db.delete(taskExecutionLog); } catch {}
+  try { await db.delete(scheduledTask).where(eq(scheduledTask.userId, TEST_USER_ID)); } catch {}
 }
 
-ensureUser();
-ensureEnvironment();
+await ensureUser();
+await ensureEnvironment();
 
 const app = (await import("../routes/web/tasks")).default;
 const { setRunAgentTaskForTesting } = await import("../services/task");
@@ -114,8 +114,8 @@ async function createTaskViaRoute(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Task Routes", () => {
-  beforeEach(() => {
-    cleanup();
+  beforeEach(async () => {
+    await cleanup();
     mockRunAgentTask.mockClear();
     mockScheduleTask.mockClear();
     mockUnscheduleTask.mockClear();
@@ -123,8 +123,8 @@ describe("Task Routes", () => {
     setRunAgentTaskForTesting(mockRunAgentTask);
   });
 
-  afterEach(() => {
-    cleanup();
+  afterEach(async () => {
+    await cleanup();
     setRunAgentTaskForTesting(null);
   });
 

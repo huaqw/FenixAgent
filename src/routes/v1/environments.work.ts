@@ -9,7 +9,7 @@ const app = new Elysia({ name: "v1-environments-work", prefix: "/v1/environments
 /** GET /v1/environments/:id/work/poll — Long-poll for work */
 app.get("/:id/work/poll", async ({ params, set }) => {
   const envId = params.id;
-  updatePollTime(envId);
+  await updatePollTime(envId);
   const result = await pollWork(envId);
   if (!result) {
     // Return 204 No Content so the client's axios parses it as null

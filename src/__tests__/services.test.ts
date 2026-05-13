@@ -47,19 +47,19 @@ import {
 import { normalizePayload, publishSessionEvent } from "../services/transport";
 import { getEventBus, removeEventBus, getAllEventBuses } from "../transport/event-bus";
 
-function ensureUser(userId: string) {
-  const existing = db.select().from(user).where(eq(user.id, userId)).limit(1).all();
+async function ensureUser(userId: string) {
+  const existing = await db.select().from(user).where(eq(user.id, userId)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
   try {
-    db.insert(user).values({
+    await db.insert(user).values({
       id: userId,
       name: userId,
       email: `${userId}@services-test.com`,
       emailVerified: false,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
   } catch {
     // User might already exist
   }
@@ -68,8 +68,8 @@ function ensureUser(userId: string) {
 // ---------- Session Service ----------
 
 describe("Session Service", () => {
-  beforeEach(() => {
-    ensureUser("u1");
+  beforeEach(async () => {
+    await ensureUser("u1");
     storeReset();
     for (const [key] of getAllEventBuses()) {
       removeEventBus(key);
@@ -77,8 +77,8 @@ describe("Session Service", () => {
   });
 
   describe("createSession", () => {
-    test("creates a session with defaults", () => {
-      const resp = createSession({});
+    test("creates a session with defaults", async () => {
+      const resp = await createSession({});
       expect(resp.id).toMatch(/^session_/);
       expect(resp.status).toBe("idle");
       expect(resp.source).toBe("acp");
@@ -87,9 +87,9 @@ describe("Session Service", () => {
       expect(resp.created_at).toBeGreaterThan(0);
     });
 
-    test("creates a session with all options", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const resp = createSession({
+    test("creates a session with all options", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const resp = await createSession({
         environment_id: env.id,
         title: "My Session",
         source: "cli",
@@ -101,83 +101,83 @@ describe("Session Service", () => {
       expect(resp.permission_mode).toBe("auto");
     });
 
-    test("creates session with username", () => {
-      const resp = createSession({ username: "alice" });
+    test("creates session with username", async () => {
+      const resp = await createSession({ username: "alice" });
       expect(resp.username).toBe("alice");
     });
   });
 
   describe("createCodeSession", () => {
-    test("creates a code session with cse_ prefix", () => {
-      const resp = createCodeSession({});
+    test("creates a code session with cse_ prefix", async () => {
+      const resp = await createCodeSession({});
       expect(resp.id).toMatch(/^cse_/);
     });
   });
 
   describe("getSession", () => {
-    test("returns null for non-existent session", () => {
-      expect(getSession("nope")).toBeNull();
+    test("returns null for non-existent session", async () => {
+      expect(await getSession("nope")).toBeNull();
     });
 
-    test("returns created session", () => {
-      const created = createSession({});
-      const fetched = getSession(created.id);
+    test("returns created session", async () => {
+      const created = await createSession({});
+      const fetched = await getSession(created.id);
       expect(fetched).not.toBeNull();
       expect(fetched!.id).toBe(created.id);
     });
   });
 
   describe("updateSessionTitle", () => {
-    test("updates title", () => {
-      const s = createSession({});
-      updateSessionTitle(s.id, "New Title");
-      expect(getSession(s.id)?.title).toBe("New Title");
+    test("updates title", async () => {
+      const s = await createSession({});
+      await updateSessionTitle(s.id, "New Title");
+      expect((await getSession(s.id))?.title).toBe("New Title");
     });
   });
 
   describe("updateSessionStatus", () => {
-    test("updates status", () => {
-      const s = createSession({});
-      updateSessionStatus(s.id, "active");
-      expect(getSession(s.id)?.status).toBe("active");
+    test("updates status", async () => {
+      const s = await createSession({});
+      await updateSessionStatus(s.id, "active");
+      expect((await getSession(s.id))?.status).toBe("active");
     });
   });
 
   describe("archiveSession", () => {
-    test("sets status to archived and removes event bus", () => {
-      const s = createSession({});
+    test("sets status to archived and removes event bus", async () => {
+      const s = await createSession({});
       // Create event bus for this session
       getEventBus(s.id);
-      archiveSession(s.id);
-      expect(getSession(s.id)?.status).toBe("archived");
+      await archiveSession(s.id);
+      expect((await getSession(s.id))?.status).toBe("archived");
       expect(getAllEventBuses().has(s.id)).toBe(false);
     });
   });
 
   describe("incrementEpoch", () => {
-    test("increments epoch by 1", () => {
-      const s = createSession({});
-      expect(incrementEpoch(s.id)).toBe(1);
-      expect(incrementEpoch(s.id)).toBe(2);
-      expect(getSession(s.id)?.worker_epoch).toBe(2);
+    test("increments epoch by 1", async () => {
+      const s = await createSession({});
+      expect(await incrementEpoch(s.id)).toBe(1);
+      expect(await incrementEpoch(s.id)).toBe(2);
+      expect((await getSession(s.id))?.worker_epoch).toBe(2);
     });
 
-    test("throws for non-existent session", () => {
-      expect(() => incrementEpoch("nope")).toThrow("Session not found");
+    test("throws for non-existent session", async () => {
+      await expect(incrementEpoch("nope")).rejects.toThrow("Session not found");
     });
   });
 
   describe("listSessions", () => {
-    test("returns all sessions", () => {
-      createSession({});
-      createSession({});
-      expect(listSessions()).toHaveLength(2);
+    test("returns all sessions", async () => {
+      await createSession({});
+      await createSession({});
+      expect(await listSessions()).toHaveLength(2);
     });
   });
 
   describe("listSessionSummaries", () => {
-    test("returns summaries with correct fields", () => {
-      createSession({ title: "Test" });
+    test("returns summaries with correct fields", async () => {
+      await createSession({ title: "Test" });
       const summaries = listSessionSummaries();
       expect(summaries).toHaveLength(1);
       expect(summaries[0].title).toBe("Test");
@@ -188,19 +188,19 @@ describe("Session Service", () => {
   });
 
   describe("listSessionSummariesByUsername", () => {
-    test("filters by username", () => {
-      createSession({ username: "alice" });
-      createSession({ username: "bob" });
+    test("filters by username", async () => {
+      await createSession({ username: "alice" });
+      await createSession({ username: "bob" });
       expect(listSessionSummariesByUsername("alice")).toHaveLength(1);
     });
   });
 
   describe("listSessionsByEnvironment", () => {
-    test("filters by environment", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      createSession({ environment_id: env.id });
-      createSession({});
-      expect(listSessionsByEnvironment(env.id)).toHaveLength(1);
+    test("filters by environment", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      await createSession({ environment_id: env.id });
+      await createSession({});
+      expect(await listSessionsByEnvironment(env.id)).toHaveLength(1);
     });
   });
 });
@@ -208,21 +208,21 @@ describe("Session Service", () => {
 // ---------- Environment Service ----------
 
 describe("Environment Service", () => {
-  beforeEach(() => {
-    ensureUser("system");
+  beforeEach(async () => {
+    await ensureUser("system");
     storeReset();
   });
 
   describe("registerEnvironment", () => {
-    test("registers environment with defaults", () => {
-      const result = registerEnvironment({});
+    test("registers environment with defaults", async () => {
+      const result = await registerEnvironment({});
       expect(result.environment_id).toMatch(/^env_/);
       expect(result.environment_secret).toMatch(/^env_[0-9a-f]+$/);
       expect(result.status).toBe("active");
     });
 
-    test("registers with options", () => {
-      const result = registerEnvironment({
+    test("registers with options", async () => {
+      const result = await registerEnvironment({
         machine_name: "mac1",
         directory: "/home/user",
         branch: "main",
@@ -230,14 +230,14 @@ describe("Environment Service", () => {
         max_sessions: 5,
         worker_type: "custom",
       });
-      const env = getEnvironment(result.environment_id);
+      const env = await getEnvironment(result.environment_id);
       expect(env?.machineName).toBe("mac1");
       expect(env?.directory).toBe("/home/user");
       expect(env?.maxSessions).toBe(5);
     });
 
-    test("registers with username", () => {
-      const result = registerEnvironment({ username: "alice" });
+    test("registers with username", async () => {
+      const result = await registerEnvironment({ username: "alice" });
       // username is not persisted in DB, but registration succeeds
       expect(result.environment_id).toMatch(/^env_/);
       expect(result.status).toBe("active");
@@ -245,39 +245,39 @@ describe("Environment Service", () => {
   });
 
   describe("deregisterEnvironment", () => {
-    test("sets status to deregistered", () => {
-      const result = registerEnvironment({});
-      deregisterEnvironment(result.environment_id);
-      const env = getEnvironment(result.environment_id);
+    test("sets status to deregistered", async () => {
+      const result = await registerEnvironment({});
+      await deregisterEnvironment(result.environment_id);
+      const env = await getEnvironment(result.environment_id);
       expect(env?.status).toBe("deregistered");
     });
   });
 
   describe("updatePollTime", () => {
-    test("updates lastPollAt", () => {
-      const result = registerEnvironment({});
-      const before = getEnvironment(result.environment_id)?.lastPollAt;
+    test("updates lastPollAt", async () => {
+      const result = await registerEnvironment({});
+      const before = (await getEnvironment(result.environment_id))?.lastPollAt;
       // Small delay to ensure time difference
-      updatePollTime(result.environment_id);
-      const after = getEnvironment(result.environment_id)?.lastPollAt;
+      await updatePollTime(result.environment_id);
+      const after = (await getEnvironment(result.environment_id))?.lastPollAt;
       expect(after!.getTime()).toBeGreaterThanOrEqual(before!.getTime());
     });
   });
 
   describe("listActiveEnvironments", () => {
-    test("returns active environments", () => {
-      const before = listActiveEnvironments().length;
-      registerEnvironment({});
-      registerEnvironment({});
-      expect(listActiveEnvironments().length - before).toBe(2);
+    test("returns active environments", async () => {
+      const before = (await listActiveEnvironments()).length;
+      await registerEnvironment({});
+      await registerEnvironment({});
+      expect((await listActiveEnvironments()).length - before).toBe(2);
     });
   });
 
   describe("listActiveEnvironmentsResponse", () => {
-    test("returns response format", () => {
-      const result = registerEnvironment({ machine_name: "mac1" });
-      const envs = listActiveEnvironmentsResponse();
-      const found = envs.find(e => e.id === result.environment_id);
+    test("returns response format", async () => {
+      const result = await registerEnvironment({ machine_name: "mac1" });
+      const envs = await listActiveEnvironmentsResponse();
+      const found = envs.find((e: any) => e.id === result.environment_id);
       expect(found).toBeDefined();
       expect(found!.machine_name).toBe("mac1");
       expect(found!.last_poll_at).toBeGreaterThan(0);
@@ -285,24 +285,24 @@ describe("Environment Service", () => {
   });
 
   describe("listActiveEnvironmentsByUsername", () => {
-    test("filters by username", () => {
+    test("filters by username", async () => {
       // Create users alice and bob so the lookup by name works
-      ensureUser("alice");
-      ensureUser("bob");
-      const beforeAlice = listActiveEnvironmentsByUsername("alice").length;
-      registerEnvironment({ username: "alice", userId: "alice" });
-      registerEnvironment({ username: "bob", userId: "bob" });
-      expect(listActiveEnvironmentsByUsername("alice").length - beforeAlice).toBe(1);
+      await ensureUser("alice");
+      await ensureUser("bob");
+      const beforeAlice = (await listActiveEnvironmentsByUsername("alice")).length;
+      await registerEnvironment({ username: "alice", userId: "alice" });
+      await registerEnvironment({ username: "bob", userId: "bob" });
+      expect((await listActiveEnvironmentsByUsername("alice")).length - beforeAlice).toBe(1);
     });
   });
 
   describe("reconnectEnvironment", () => {
-    test("sets status back to active", () => {
-      const result = registerEnvironment({});
-      deregisterEnvironment(result.environment_id);
-      expect(getEnvironment(result.environment_id)?.status).toBe("deregistered");
-      reconnectEnvironment(result.environment_id);
-      expect(getEnvironment(result.environment_id)?.status).toBe("active");
+    test("sets status back to active", async () => {
+      const result = await registerEnvironment({});
+      await deregisterEnvironment(result.environment_id);
+      expect((await getEnvironment(result.environment_id))?.status).toBe("deregistered");
+      await reconnectEnvironment(result.environment_id);
+      expect((await getEnvironment(result.environment_id))?.status).toBe("active");
     });
   });
 });

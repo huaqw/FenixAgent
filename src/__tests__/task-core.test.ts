@@ -26,25 +26,25 @@ const USER_B = "user_task_b";
 const ENV_A = "env_task_a";
 const ENV_B = "env_task_b";
 
-function ensureUser(id: string, name: string, email: string) {
-  const existing = db.select().from(user).where(eq(user.id, id)).limit(1).all();
+async function ensureUser(id: string, name: string, email: string) {
+  const existing = await db.select().from(user).where(eq(user.id, id)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(user).values({
+  await db.insert(user).values({
     id,
     name,
     email,
     emailVerified: false,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function ensureEnvironment(id: string, userId: string, name: string, workspacePath: string) {
-  const existing = db.select().from(environment).where(eq(environment.id, id)).limit(1).all();
+async function ensureEnvironment(id: string, userId: string, name: string, workspacePath: string) {
+  const existing = await db.select().from(environment).where(eq(environment.id, id)).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
-  db.insert(environment).values({
+  await db.insert(environment).values({
     id,
     name,
     description: null,
@@ -62,39 +62,39 @@ function ensureEnvironment(id: string, userId: string, name: string, workspacePa
     lastPollAt: null,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  });
 }
 
-function cleanupTasks() {
-  try { db.delete(taskExecutionLog).run(); } catch {}
-  try { db.delete(scheduledTask).where(eq(scheduledTask.userId, USER_A)).run(); } catch {}
-  try { db.delete(scheduledTask).where(eq(scheduledTask.userId, USER_B)).run(); } catch {}
+async function cleanupTasks() {
+  try { await db.delete(taskExecutionLog); } catch {}
+  try { await db.delete(scheduledTask).where(eq(scheduledTask.userId, USER_A)); } catch {}
+  try { await db.delete(scheduledTask).where(eq(scheduledTask.userId, USER_B)); } catch {}
 }
 
-ensureUser(USER_A, "Alice Task", "alice-task@test.com");
-ensureUser(USER_B, "Bob Task", "bob-task@test.com");
-ensureEnvironment(ENV_A, USER_A, "env-a", "/tmp/env-a");
-ensureEnvironment(ENV_B, USER_B, "env-b", "/tmp/env-b");
+await ensureUser(USER_A, "Alice Task", "alice-task@test.com");
+await ensureUser(USER_B, "Bob Task", "bob-task@test.com");
+await ensureEnvironment(ENV_A, USER_A, "env-a", "/tmp/env-a");
+await ensureEnvironment(ENV_B, USER_B, "env-b", "/tmp/env-b");
 
-beforeEach(() => {
-  cleanupTasks();
+beforeEach(async () => {
+  await cleanupTasks();
   mockRunAgentTask.mockReset();
   setRunAgentTaskForTesting(mockRunAgentTask);
 });
 
-afterEach(() => {
-  cleanupTasks();
+afterEach(async () => {
+  await cleanupTasks();
   setRunAgentTaskForTesting(null);
 });
 
-afterAll(() => {
+afterAll(async () => {
   setRunAgentTaskForTesting(null);
-  try { db.delete(taskExecutionLog).run(); } catch {}
-  try { db.delete(scheduledTask).run(); } catch {}
-  try { db.delete(environment).where(and(eq(environment.id, ENV_A), eq(environment.userId, USER_A))).run(); } catch {}
-  try { db.delete(environment).where(and(eq(environment.id, ENV_B), eq(environment.userId, USER_B))).run(); } catch {}
-  try { db.delete(user).where(eq(user.id, USER_A)).run(); } catch {}
-  try { db.delete(user).where(eq(user.id, USER_B)).run(); } catch {}
+  try { await db.delete(taskExecutionLog); } catch {}
+  try { await db.delete(scheduledTask); } catch {}
+  try { await db.delete(environment).where(and(eq(environment.id, ENV_A), eq(environment.userId, USER_A))); } catch {}
+  try { await db.delete(environment).where(and(eq(environment.id, ENV_B), eq(environment.userId, USER_B))); } catch {}
+  try { await db.delete(user).where(eq(user.id, USER_A)); } catch {}
+  try { await db.delete(user).where(eq(user.id, USER_B)); } catch {}
 });
 
 function getValidInput(overrides: Record<string, unknown> = {}) {

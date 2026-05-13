@@ -1,300 +1,266 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
-import { mkdirSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
 
-const isTest =
-  process.env.NODE_ENV === "test" ||
-  (typeof Bun !== "undefined" && !!Bun.env.BUN_TEST);
-const DB_PATH = process.env.RCS_DB_PATH || (isTest ? ":memory:" : "./data/rcs.db");
+const DATABASE_URL = process.env.DATABASE_URL || "postgres://rcs:rcs@localhost:5432/rcs";
+export const client = postgres(DATABASE_URL);
+export const db = drizzle(client, { schema });
 
-// Ensure data directory exists
-const dir = dirname(DB_PATH);
-if (!existsSync(dir)) {
-  mkdirSync(dir, { recursive: true });
-}
-
-const sqlite = new Database(DB_PATH);
-
-// Enable WAL mode for better concurrent read performance
-sqlite.exec("PRAGMA journal_mode = WAL");
-sqlite.exec("PRAGMA foreign_keys = ON");
-
-export const db = drizzle(sqlite, { schema });
-export { sqlite };
-
-function getTableColumns(tableName: string): string[] {
-  return sqlite.query(`PRAGMA table_info(${tableName})`).all().map((row: any) => row.name);
-}
-
-function ensureScheduledTaskSchema() {
-  const scheduledTaskColumns = getTableColumns("scheduled_task");
-  const taskLogColumns = getTableColumns("task_execution_log");
-
-  const scheduledTaskMismatch =
-    scheduledTaskColumns.length > 0 &&
-    (!scheduledTaskColumns.includes("environment_id") ||
-      !scheduledTaskColumns.includes("task") ||
-      !scheduledTaskColumns.includes("timeout_minutes"));
-
-  const taskLogMismatch =
-    taskLogColumns.length > 0 &&
-    (!taskLogColumns.includes("workspace_path") ||
-      !taskLogColumns.includes("task_snapshot") ||
-      !taskLogColumns.includes("result_summary"));
-
-  if (!scheduledTaskMismatch && !taskLogMismatch) {
-    return;
-  }
-
-  sqlite.exec(`
-    DROP TABLE IF EXISTS task_execution_log;
-    DROP TABLE IF EXISTS scheduled_task;
-  `);
-}
-
-// Run table creation on startup
-export function initDb() {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS user (
+export async function initDb() {
+  // Create better-auth tables first — custom tables reference "user"(id) via FK.
+  // better-auth's drizzleAdapter auto-creates these on first request, but we need them now.
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS "user" (
       id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
+      name VARCHAR NOT NULL,
+      email VARCHAR NOT NULL UNIQUE,
+      email_verified BOOLEAN NOT NULL DEFAULT FALSE,
       image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE TABLE IF NOT EXISTS session (
+    CREATE TABLE IF NOT EXISTS "session" (
       id TEXT PRIMARY KEY,
-      expires_at INTEGER NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
       token TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       ip_address TEXT,
       user_agent TEXT,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS account (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
       provider_id TEXT NOT NULL,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
       access_token TEXT,
       refresh_token TEXT,
       id_token TEXT,
-      access_token_expires_at INTEGER,
-      refresh_token_expires_at INTEGER,
+      access_token_expires_at TIMESTAMPTZ,
+      refresh_token_expires_at TIMESTAMPTZ,
       scope TEXT,
       password TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS verification (
       id TEXT PRIMARY KEY,
       identifier TEXT NOT NULL,
       value TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER,
-      updated_at INTEGER
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ
     );
+  `);
 
+  // Custom tables in dependency order.
+
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS api_key (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      key TEXT NOT NULL UNIQUE,
-      label TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL,
-      last_used_at INTEGER
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      key VARCHAR NOT NULL UNIQUE,
+      label VARCHAR NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_used_at TIMESTAMPTZ
     );
-
     CREATE INDEX IF NOT EXISTS idx_api_key_key ON api_key(key);
     CREATE INDEX IF NOT EXISTS idx_api_key_user_id ON api_key(user_id);
-    CREATE INDEX IF NOT EXISTS idx_session_user_id ON session(user_id);
-    CREATE INDEX IF NOT EXISTS idx_session_token ON session(token);
+  `);
 
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS mcp_tool (
-      id TEXT PRIMARY KEY,
-      server_name TEXT NOT NULL,
-      tool_name TEXT NOT NULL,
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      server_name VARCHAR NOT NULL,
+      tool_name VARCHAR NOT NULL,
       description TEXT,
-      input_schema TEXT,
-      inspected_at INTEGER NOT NULL
+      input_schema JSONB,
+      inspected_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_server ON mcp_tool(server_name);
     CREATE INDEX IF NOT EXISTS idx_mcp_tool_server_tool ON mcp_tool(server_name, tool_name);
+  `);
 
-    CREATE TABLE IF NOT EXISTS environment (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT,
-      workspace_path TEXT NOT NULL,
-      agent_name TEXT,
-      status TEXT NOT NULL DEFAULT 'idle',
-      machine_name TEXT,
-      branch TEXT,
-      git_repo_url TEXT,
-      max_sessions INTEGER NOT NULL DEFAULT 1,
-      worker_type TEXT NOT NULL DEFAULT 'acp',
-      capabilities TEXT,
-      secret TEXT NOT NULL,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      auto_start INTEGER NOT NULL DEFAULT 0,
-      last_poll_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS share_link (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      session_id VARCHAR NOT NULL,
+      environment_id VARCHAR NOT NULL,
+      token VARCHAR NOT NULL UNIQUE,
+      mode VARCHAR(20) NOT NULL CHECK (mode IN ('readonly', 'writable')),
+      expires_at TIMESTAMPTZ,
+      created_by VARCHAR NOT NULL,
+      access_count INTEGER NOT NULL DEFAULT 0,
+      last_accessed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
 
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS share_event_snapshot (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      share_link_id UUID REFERENCES share_link(id) ON DELETE CASCADE,
+      events JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS environment (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      name VARCHAR NOT NULL UNIQUE,
+      description TEXT,
+      workspace_path VARCHAR NOT NULL,
+      agent_name VARCHAR,
+      status VARCHAR(50) NOT NULL DEFAULT 'idle',
+      machine_name VARCHAR,
+      branch VARCHAR,
+      git_repo_url VARCHAR,
+      max_sessions INTEGER NOT NULL DEFAULT 1,
+      worker_type VARCHAR(50) NOT NULL DEFAULT 'acp',
+      capabilities JSONB,
+      secret VARCHAR NOT NULL,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      auto_start BOOLEAN NOT NULL DEFAULT FALSE,
+      last_poll_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE INDEX IF NOT EXISTS idx_environment_user_id ON environment(user_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_environment_secret ON environment(secret);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_environment_name ON environment(name);
+  `);
 
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS knowledge_base (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      slug TEXT NOT NULL,
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      name VARCHAR NOT NULL,
+      slug VARCHAR NOT NULL,
       description TEXT,
-      provider TEXT NOT NULL DEFAULT 'openviking',
-      remote_id TEXT,
-      remote_account_id TEXT,
-      remote_user_id TEXT,
-      status TEXT NOT NULL DEFAULT 'empty',
+      provider VARCHAR NOT NULL DEFAULT 'openviking',
+      remote_id VARCHAR,
+      remote_account_id VARCHAR,
+      remote_user_id VARCHAR,
+      status VARCHAR(50) NOT NULL DEFAULT 'empty',
       last_error TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-
-    CREATE TABLE IF NOT EXISTS knowledge_resource (
-      id TEXT PRIMARY KEY,
-      knowledge_base_id TEXT NOT NULL REFERENCES knowledge_base(id) ON DELETE CASCADE,
-      source_type TEXT NOT NULL,
-      source_name TEXT NOT NULL,
-      source_path TEXT,
-      remote_id TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      last_error TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS agent_knowledge_binding (
-      id TEXT PRIMARY KEY,
-      agent_name TEXT NOT NULL,
-      knowledge_base_id TEXT NOT NULL REFERENCES knowledge_base(id) ON DELETE CASCADE,
-      priority INTEGER NOT NULL DEFAULT 0,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
     CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_base_user_slug ON knowledge_base(user_id, slug);
     CREATE INDEX IF NOT EXISTS idx_knowledge_base_user_status ON knowledge_base(user_id, status);
+  `);
+
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS knowledge_resource (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      knowledge_base_id UUID NOT NULL REFERENCES knowledge_base(id) ON DELETE CASCADE,
+      source_type VARCHAR NOT NULL,
+      source_name VARCHAR NOT NULL,
+      source_path TEXT,
+      remote_id VARCHAR,
+      status VARCHAR NOT NULL DEFAULT 'pending',
+      last_error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE INDEX IF NOT EXISTS idx_knowledge_resource_kb ON knowledge_resource(knowledge_base_id);
     CREATE INDEX IF NOT EXISTS idx_knowledge_resource_status ON knowledge_resource(status);
+  `);
+
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS agent_knowledge_binding (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      agent_name VARCHAR NOT NULL,
+      knowledge_base_id UUID NOT NULL REFERENCES knowledge_base(id) ON DELETE CASCADE,
+      priority INTEGER NOT NULL DEFAULT 0,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE INDEX IF NOT EXISTS idx_agent_knowledge_binding_agent ON agent_knowledge_binding(agent_name);
     CREATE INDEX IF NOT EXISTS idx_agent_knowledge_binding_kb ON agent_knowledge_binding(knowledge_base_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_knowledge_binding_agent_kb ON agent_knowledge_binding(agent_name, knowledge_base_id);
   `);
 
-  // Migrate: add auto_start column to existing environment table
-  try {
-    sqlite.exec(`ALTER TABLE environment ADD COLUMN auto_start INTEGER NOT NULL DEFAULT 0`);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  try {
-    sqlite.exec(`ALTER TABLE knowledge_base ADD COLUMN remote_account_id TEXT`);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  try {
-    sqlite.exec(`ALTER TABLE knowledge_base ADD COLUMN remote_user_id TEXT`);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  ensureScheduledTaskSchema();
-
-  sqlite.exec(`
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS scheduled_task (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      name VARCHAR NOT NULL,
       description TEXT,
-      cron TEXT NOT NULL,
-      timezone TEXT,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      environment_id TEXT NOT NULL REFERENCES environment(id) ON DELETE CASCADE,
+      cron VARCHAR NOT NULL,
+      timezone VARCHAR,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      environment_id UUID NOT NULL REFERENCES environment(id) ON DELETE CASCADE,
       task TEXT NOT NULL,
       timeout_minutes INTEGER NOT NULL DEFAULT 30,
-      last_run_at INTEGER,
-      next_run_at INTEGER,
-      last_status TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      last_run_at TIMESTAMPTZ,
+      next_run_at TIMESTAMPTZ,
+      last_status VARCHAR,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-
-    CREATE TABLE IF NOT EXISTS task_execution_log (
-      id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL REFERENCES scheduled_task(id) ON DELETE CASCADE,
-      status TEXT NOT NULL,
-      error TEXT,
-      duration INTEGER,
-      triggered_by TEXT NOT NULL DEFAULT 'cron',
-      workspace_path TEXT,
-      workspace_name TEXT,
-      environment_id TEXT,
-      environment_name TEXT,
-      task_snapshot TEXT,
-      skip_reason TEXT,
-      result_summary TEXT,
-      created_at INTEGER NOT NULL
-    );
-
     CREATE INDEX IF NOT EXISTS idx_scheduled_task_user_id ON scheduled_task(user_id);
     CREATE INDEX IF NOT EXISTS idx_scheduled_task_environment_id ON scheduled_task(environment_id);
+  `);
+
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS task_execution_log (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      task_id UUID NOT NULL REFERENCES scheduled_task(id) ON DELETE CASCADE,
+      status VARCHAR NOT NULL,
+      error TEXT,
+      duration INTEGER,
+      triggered_by VARCHAR NOT NULL DEFAULT 'cron',
+      workspace_path VARCHAR,
+      workspace_name VARCHAR,
+      environment_id VARCHAR,
+      environment_name VARCHAR,
+      task_snapshot JSONB,
+      skip_reason TEXT,
+      result_summary TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE INDEX IF NOT EXISTS idx_task_execution_log_task_id ON task_execution_log(task_id);
     CREATE INDEX IF NOT EXISTS idx_task_execution_log_created_at ON task_execution_log(created_at);
+  `);
 
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS channel_binding (
-      id TEXT PRIMARY KEY,
-      platform TEXT NOT NULL,
-      chat_id TEXT,
-      agent_id TEXT NOT NULL,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      platform VARCHAR NOT NULL,
+      chat_id VARCHAR,
+      agent_id VARCHAR NOT NULL,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-
     CREATE INDEX IF NOT EXISTS idx_channel_binding_platform ON channel_binding(platform);
     CREATE INDEX IF NOT EXISTS idx_channel_binding_agent_id ON channel_binding(agent_id);
+  `);
 
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS agent_session (
-      id TEXT PRIMARY KEY,
-      environment_id TEXT REFERENCES environment(id) ON DELETE SET NULL,
-      title TEXT,
-      status TEXT NOT NULL,
-      source TEXT NOT NULL,
-      permission_mode TEXT,
+      id VARCHAR PRIMARY KEY,
+      environment_id UUID REFERENCES environment(id) ON DELETE SET NULL,
+      title VARCHAR,
+      status VARCHAR NOT NULL,
+      source VARCHAR NOT NULL,
+      permission_mode VARCHAR,
       worker_epoch INTEGER NOT NULL DEFAULT 0,
-      username TEXT,
+      username VARCHAR,
       user_id TEXT,
-      cwd TEXT,
-      share_mode TEXT NOT NULL DEFAULT 'none',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      cwd VARCHAR,
+      share_mode VARCHAR(20) NOT NULL DEFAULT 'none',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-
     CREATE INDEX IF NOT EXISTS idx_agent_session_env ON agent_session(environment_id);
   `);
 }
-
-initDb();

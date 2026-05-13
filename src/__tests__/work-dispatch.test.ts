@@ -34,17 +34,17 @@ describe("Work Dispatch", () => {
   let envId: string;
   let sessionId: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     storeReset();
     // Ensure user exists for foreign key constraint
-    const existing = db.select().from(user).where(eq(user.id, "u1")).limit(1).all();
+    const existing = await db.select().from(user).where(eq(user.id, "u1")).limit(1);
     if (existing.length === 0) {
       const now = new Date();
-      db.insert(user).values({ id: "u1", name: "u1", email: "u1@test.com", emailVerified: false, createdAt: now, updatedAt: now }).run();
+      await db.insert(user).values({ id: "u1", name: "u1", email: "u1@test.com", emailVerified: false, createdAt: now, updatedAt: now });
     }
-    const env = storeCreateEnvironment({ userId: "u1" });
+    const env = await storeCreateEnvironment({ userId: "u1" });
     envId = env.id;
-    const session = storeCreateSession({ environmentId: envId });
+    const session = await storeCreateSession({ environmentId: envId });
     sessionId = session.id;
   });
 
@@ -62,10 +62,10 @@ describe("Work Dispatch", () => {
     });
 
     test("throws for inactive environment", async () => {
-      const inactiveEnv = storeCreateEnvironment({ userId: "u1" });
+      const inactiveEnv = await storeCreateEnvironment({ userId: "u1" });
       // Manually set status to deregistered
       const { storeUpdateEnvironment } = await import("../store");
-      storeUpdateEnvironment(inactiveEnv.id, { status: "deregistered" });
+      await storeUpdateEnvironment(inactiveEnv.id, { status: "deregistered" });
       await expect(createWorkItem(inactiveEnv.id, sessionId)).rejects.toThrow("not active");
     });
 
@@ -98,7 +98,7 @@ describe("Work Dispatch", () => {
     });
 
     test("does not return work for different environment", async () => {
-      const env2 = storeCreateEnvironment({ userId: "u1" });
+      const env2 = await storeCreateEnvironment({ userId: "u1" });
       await createWorkItem(envId, sessionId);
       const result = await pollWork(env2.id, 0.1);
       expect(result).toBeNull();
@@ -139,7 +139,7 @@ describe("Work Dispatch", () => {
   describe("reconnectWorkForEnvironment", () => {
     test("creates work items for idle sessions in environment", async () => {
       // Create another idle session
-      storeCreateSession({ environmentId: envId });
+      await storeCreateSession({ environmentId: envId });
       const workIds = await reconnectWorkForEnvironment(envId);
       expect(workIds).toHaveLength(2);
       for (const id of workIds) {
@@ -148,16 +148,16 @@ describe("Work Dispatch", () => {
     });
 
     test("skips non-idle sessions", async () => {
-      const activeSession = storeCreateSession({ environmentId: envId });
+      const activeSession = await storeCreateSession({ environmentId: envId });
       const { storeUpdateSession } = await import("../store");
-      storeUpdateSession(activeSession.id, { status: "active" });
+      await storeUpdateSession(activeSession.id, { status: "active" });
       const workIds = await reconnectWorkForEnvironment(envId);
       // Only the original idle session should get work
       expect(workIds).toHaveLength(1);
     });
 
     test("returns empty for environment with no sessions", async () => {
-      const emptyEnv = storeCreateEnvironment({ userId: "u1" });
+      const emptyEnv = await storeCreateEnvironment({ userId: "u1" });
       const workIds = await reconnectWorkForEnvironment(emptyEnv.id);
       expect(workIds).toHaveLength(0);
     });

@@ -43,7 +43,7 @@ async function handleGet(body: { name?: string; source?: string; workspaceId?: s
     return errorFn(400, errorResponse("VALIDATION_ERROR", "Missing 'name' field"));
   }
   if (body.source === "workspace" && body.workspaceId) {
-    const env = storeGetEnvironment(body.workspaceId);
+    const env = await storeGetEnvironment(body.workspaceId);
     if (!env) return errorFn(404, errorResponse("NOT_FOUND", "Workspace not found"));
     const skill = await getWorkspaceSkill(env.workspacePath, body.name);
     if (!skill) return errorFn(404, errorResponse("NOT_FOUND", `Skill '${body.name}' not found`));
@@ -64,7 +64,7 @@ async function handleSet(body: { name?: string; data?: { description: string; co
     return errorFn(400, errorResponse("VALIDATION_ERROR", "Missing required fields: data.description, data.content"));
   }
   if (body.source === "workspace" && body.workspaceId) {
-    const env = storeGetEnvironment(body.workspaceId);
+    const env = await storeGetEnvironment(body.workspaceId);
     if (!env) return errorFn(404, errorResponse("NOT_FOUND", "Workspace not found"));
     const result = await setWorkspaceSkill(env.workspacePath, body.name, body.data);
     return successResponse({ name: result.name, enabled: result.enabled });
@@ -78,7 +78,7 @@ async function handleDelete(body: { name?: string; source?: string; workspaceId?
     return errorFn(400, errorResponse("VALIDATION_ERROR", "Missing 'name' field"));
   }
   if (body.source === "workspace" && body.workspaceId) {
-    const env = storeGetEnvironment(body.workspaceId);
+    const env = await storeGetEnvironment(body.workspaceId);
     if (!env) return errorFn(404, errorResponse("NOT_FOUND", "Workspace not found"));
     const deleted = await deleteWorkspaceSkill(env.workspacePath, body.name);
     if (!deleted) return errorFn(404, errorResponse("NOT_FOUND", `Skill '${body.name}' not found`));
@@ -174,7 +174,7 @@ async function handleUpload(request: Request, errorFn: (status: number, body: un
     );
 
     if (isWorkspaceUpload) {
-      const env = storeGetEnvironment(workspaceIdValue);
+      const env = await storeGetEnvironment(workspaceIdValue);
       if (!env) return errorFn(404, errorResponse("NOT_FOUND", "Workspace not found"));
       const result = await importWorkspaceSkillDirectories(env.workspacePath, uploadFiles, conflictStrategy);
       if (result.conflicts.length > 0) {

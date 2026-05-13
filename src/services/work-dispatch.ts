@@ -25,7 +25,7 @@ function encodeWorkSecret(): string {
 
 export async function createWorkItem(environmentId: string, sessionId: string): Promise<string> {
   // Validate environment exists and is active
-  const env = storeGetEnvironment(environmentId);
+  const env = await storeGetEnvironment(environmentId);
   if (!env) {
     throw new Error(`Environment ${environmentId} not found`);
   }

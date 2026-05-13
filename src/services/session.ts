@@ -19,8 +19,8 @@ const CODE_SESSION_PREFIX = "cse_";
 const WEB_SESSION_PREFIX = "session_";
 const CLOSED_SESSION_STATUSES = new Set(["archived", "inactive"]);
 
-function toResponse(row: { id: string; environmentId: string | null; title: string | null; status: string; source: string; permissionMode: string | null; workerEpoch: number; username: string | null; createdAt: Date; updatedAt: Date }): SessionResponse {
-  const env = row.environmentId ? storeGetEnvironment(row.environmentId) : null;
+async function toResponse(row: { id: string; environmentId: string | null; title: string | null; status: string; source: string; permissionMode: string | null; workerEpoch: number; username: string | null; createdAt: Date; updatedAt: Date }): Promise<SessionResponse> {
+  const env = row.environmentId ? await storeGetEnvironment(row.environmentId) : null;
   return {
     id: row.id,
     environment_id: row.environmentId,
@@ -46,16 +46,16 @@ function toCompatibleCodeSessionId(sessionId: string): string | null {
   return `${CODE_SESSION_PREFIX}${sessionId.slice(WEB_SESSION_PREFIX.length)}`;
 }
 
-export function toWebSessionResponse(session: SessionResponse): SessionResponse {
+export async function toWebSessionResponse(session: SessionResponse): Promise<SessionResponse> {
   return { ...session, id: toWebSessionId(session.id) };
 }
 
-function toWebSessionSummaryResponse(session: SessionSummaryResponse): SessionSummaryResponse {
+async function toWebSessionSummaryResponse(session: SessionSummaryResponse): Promise<SessionSummaryResponse> {
   return { ...session, id: toWebSessionId(session.id) };
 }
 
-export function createSession(req: CreateSessionRequest & { username?: string }): SessionResponse {
-  const record = storeCreateSession({
+export async function createSession(req: CreateSessionRequest & { username?: string }): Promise<SessionResponse> {
+  const record = await storeCreateSession({
     environmentId: req.environment_id,
     title: req.title,
     source: req.source,
@@ -66,8 +66,8 @@ export function createSession(req: CreateSessionRequest & { username?: string })
   return toResponse(record);
 }
 
-export function createCodeSession(req: CreateCodeSessionRequest): SessionResponse {
-  const record = storeCreateSession({
+export async function createCodeSession(req: CreateCodeSessionRequest): Promise<SessionResponse> {
+  const record = await storeCreateSession({
     idPrefix: "cse_",
     title: req.title,
     source: req.source,
@@ -77,7 +77,7 @@ export function createCodeSession(req: CreateCodeSessionRequest): SessionRespons
   return toResponse(record);
 }
 
-export function getSession(sessionId: string): SessionResponse | null {
+export async function getSession(sessionId: string): Promise<SessionResponse | null> {
   const record = storeGetSession(sessionId);
   return record ? toResponse(record) : null;
 }
@@ -126,26 +126,29 @@ export function resolveOwnedWebSessionId(sessionId: string, uuid: string): strin
   return null;
 }
 
-export function listWebSessionsByOwnerUuid(uuid: string): SessionResponse[] {
-  return storeListSessionsByOwnerUuid(uuid)
-    .filter((session) => !isSessionClosedStatus(session.status))
-    .map(toResponse)
-    .map(toWebSessionResponse);
+export async function listWebSessionsByOwnerUuid(uuid: string): Promise<SessionResponse[]> {
+  const sessions = storeListSessionsByOwnerUuid(uuid)
+    .filter((session) => !isSessionClosedStatus(session.status));
+  const results: SessionResponse[] = [];
+  for (const s of sessions) {
+    results.push(await toWebSessionResponse(await toResponse(s)));
+  }
+  return results;
 }
 
-export function listWebSessionSummariesByOwnerUuid(uuid: string): SessionSummaryResponse[] {
+export async function listWebSessionSummariesByOwnerUuid(uuid: string): Promise<SessionSummaryResponse[]> {
   return storeListSessionsByOwnerUuid(uuid)
     .filter((session) => !isSessionClosedStatus(session.status))
     .map(toSummaryResponse)
-    .map(toWebSessionSummaryResponse);
+    .map(toWebSessionSummaryResponse) as unknown as SessionSummaryResponse[];
 }
 
-export function updateSessionTitle(sessionId: string, title: string) {
-  storeUpdateSession(sessionId, { title });
+export async function updateSessionTitle(sessionId: string, title: string) {
+  await storeUpdateSession(sessionId, { title });
 }
 
-export function updateSessionStatus(sessionId: string, status: string) {
-  storeUpdateSession(sessionId, { status });
+export async function updateSessionStatus(sessionId: string, status: string) {
+  await storeUpdateSession(sessionId, { status });
   const bus = getAllEventBuses().get(sessionId);
   if (!bus) return;
 
@@ -158,25 +161,29 @@ export function updateSessionStatus(sessionId: string, status: string) {
   });
 }
 
-export function touchSession(sessionId: string) {
-  storeUpdateSession(sessionId, {});
+export async function touchSession(sessionId: string) {
+  await storeUpdateSession(sessionId, {});
 }
 
-export function archiveSession(sessionId: string) {
-  updateSessionStatus(sessionId, "archived");
+export async function archiveSession(sessionId: string) {
+  await updateSessionStatus(sessionId, "archived");
   removeEventBus(sessionId);
 }
 
-export function incrementEpoch(sessionId: string): number {
+export async function incrementEpoch(sessionId: string): Promise<number> {
   const record = storeGetSession(sessionId);
   if (!record) throw new Error("Session not found");
   const newEpoch = record.workerEpoch + 1;
-  storeUpdateSession(sessionId, { workerEpoch: newEpoch });
+  await storeUpdateSession(sessionId, { workerEpoch: newEpoch });
   return newEpoch;
 }
 
-export function listSessions() {
-  return storeListSessions().map(toResponse);
+export async function listSessions() {
+  const results: SessionResponse[] = [];
+  for (const s of storeListSessions()) {
+    results.push(await toResponse(s));
+  }
+  return results;
 }
 
 function toSummaryResponse(row: { id: string; title: string | null; status: string; username: string | null; updatedAt: Date }): SessionSummaryResponse {
@@ -201,6 +208,10 @@ export function listSessionSummariesByUsername(username: string): SessionSummary
   return storeListSessionsByUsername(username).map(toSummaryResponse);
 }
 
-export function listSessionsByEnvironment(envId: string) {
-  return storeListSessionsByEnvironment(envId).map(toResponse);
+export async function listSessionsByEnvironment(envId: string) {
+  const results: SessionResponse[] = [];
+  for (const s of storeListSessionsByEnvironment(envId)) {
+    results.push(await toResponse(s));
+  }
+  return results;
 }

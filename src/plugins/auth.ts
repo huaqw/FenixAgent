@@ -116,7 +116,7 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
 
           // 0. Environment secret match
           const { storeGetEnvironmentBySecret } = await import("../store");
-          const envRecord = storeGetEnvironmentBySecret(token);
+          const envRecord = await storeGetEnvironmentBySecret(token);
           if (envRecord && envRecord.userId) {
             const user = await lookupUserById(envRecord.userId);
             if (user) {

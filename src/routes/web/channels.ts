@@ -43,10 +43,11 @@ app.get("/channels/hermes/status", () => {
 
 app.get("/channels/bindings", async () => {
   const bindings = await listBindings();
-  const enriched = bindings.map((b) => {
-    const env = storeGetEnvironment(b.agentId);
-    return { ...b, agentName: env?.name ?? null };
-  });
+  const enriched = [];
+  for (const b of bindings) {
+    const env = await storeGetEnvironment(b.agentId);
+    enriched.push({ ...b, agentName: env?.name ?? null });
+  }
   return enriched;
 }, { sessionAuth: true });
 
@@ -57,7 +58,7 @@ app.post("/channels/bindings", async ({ body, error }) => {
     return error(400, { error: { type: "VALIDATION_ERROR", message: "platform 和 agentId 为必填字段" } });
   }
   const binding = await createBinding({ platform, chatId: chatId ?? null, agentId, enabled });
-  const env = storeGetEnvironment(binding.agentId);
+  const env = await storeGetEnvironment(binding.agentId);
   return { ...binding, agentName: env?.name ?? null };
 }, { sessionAuth: true });
 
@@ -77,7 +78,7 @@ app.patch("/channels/bindings/:id", async ({ params, body, error }) => {
   if (!updated) {
     return error(404, { error: { type: "NOT_FOUND", message: "绑定不存在" } });
   }
-  const env = storeGetEnvironment(updated.agentId);
+  const env = await storeGetEnvironment(updated.agentId);
   return { ...updated, agentName: env?.name ?? null };
 }, { sessionAuth: true });
 

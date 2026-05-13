@@ -7,23 +7,23 @@ import {
 import { config } from "../config";
 import { updateSessionStatus } from "./session";
 
-export function runDisconnectMonitorSweep(now = Date.now()) {
+export async function runDisconnectMonitorSweep(now = Date.now()) {
   const timeoutMs = config.disconnectTimeout * 1000;
 
   // Check environment heartbeat timeout
-  const envs = storeListActiveEnvironments();
+  const envs = await storeListActiveEnvironments();
   for (const env of envs) {
     // Skip ACP agents — they use WS keepalive, not polling
     if (env.workerType === "acp") {
       if (env.lastPollAt && now - env.lastPollAt.getTime() > timeoutMs) {
         log(`[RCS] ACP agent ${env.id} timed out (no activity for ${Math.round((now - env.lastPollAt.getTime()) / 1000)}s)`);
-        storeUpdateEnvironment(env.id, { status: "idle" });
+        await storeUpdateEnvironment(env.id, { status: "idle" });
       }
       continue;
     }
     if (env.lastPollAt && now - env.lastPollAt.getTime() > timeoutMs) {
       log(`[RCS] Environment ${env.id} timed out (no poll for ${Math.round((now - env.lastPollAt.getTime()) / 1000)}s)`);
-      storeUpdateEnvironment(env.id, { status: "disconnected" });
+      await storeUpdateEnvironment(env.id, { status: "disconnected" });
     }
   }
 
@@ -34,7 +34,7 @@ export function runDisconnectMonitorSweep(now = Date.now()) {
       const elapsed = now - session.updatedAt.getTime();
       if (elapsed > timeoutMs * 2) {
         log(`[RCS] Session ${session.id} marked inactive (no update for ${Math.round(elapsed / 1000)}s)`);
-        updateSessionStatus(session.id, "inactive");
+        await updateSessionStatus(session.id, "inactive");
       }
     }
   }
@@ -42,6 +42,8 @@ export function runDisconnectMonitorSweep(now = Date.now()) {
 
 export function startDisconnectMonitor() {
   setInterval(() => {
-    runDisconnectMonitorSweep();
+    runDisconnectMonitorSweep().catch((err) => {
+      logError("[RCS] Disconnect monitor sweep error:", err);
+    });
   }, 60_000); // Check every minute
 }

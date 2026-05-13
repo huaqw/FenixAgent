@@ -1,24 +1,24 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { storeReset, storeCreateSession, storeUpdateSession, storeGetSession, storeListSessions, storeLoadSessionsFromDB } from "../store";
+import { storeReset, storeUpdateSession, storeGetSession, storeListSessions, storeLoadSessionsFromDB } from "../store";
 import { db } from "../db";
 import { agentSession } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Startup recovery - storeLoadSessionsFromDB", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     storeReset();
-    db.delete(agentSession).run();
+    await db.delete(agentSession);
   });
 
-  test("restores sessions from DB to memory", () => {
+  test("restores sessions from DB to memory", async () => {
     // Insert 2 records directly into DB
     const now = new Date();
-    db.insert(agentSession).values([
+    await db.insert(agentSession).values([
       { id: "session_test1", status: "idle", source: "acp", shareMode: "none", createdAt: now, updatedAt: now, title: "Restored 1", cwd: "/home/test1" },
       { id: "session_test2", status: "running", source: "web", shareMode: "none", createdAt: now, updatedAt: now, title: "Restored 2", cwd: null },
-    ]).run();
+    ]);
 
-    storeLoadSessionsFromDB();
+    await storeLoadSessionsFromDB();
     expect(storeListSessions().length).toBe(2);
 
     const s1 = storeGetSession("session_test1");
@@ -33,18 +33,20 @@ describe("Startup recovery - storeLoadSessionsFromDB", () => {
     expect(s2!.cwd).toBeNull();
   });
 
-  test("does nothing when DB is empty", () => {
-    storeLoadSessionsFromDB();
+  // DB 为空时不恢复任何 session
+  test("does nothing when DB is empty", async () => {
+    await storeLoadSessionsFromDB();
     expect(storeListSessions().length).toBe(0);
   });
 
-  test("restored sessions can be queried and updated", () => {
+  // 恢复的 session 可以查询和更新
+  test("restored sessions can be queried and updated", async () => {
     const now = new Date();
-    db.insert(agentSession).values({
+    await db.insert(agentSession).values({
       id: "session_updatable", status: "idle", source: "acp", shareMode: "none", createdAt: now, updatedAt: now,
-    }).run();
+    });
 
-    storeLoadSessionsFromDB();
+    await storeLoadSessionsFromDB();
 
     // Can query
     const session = storeGetSession("session_updatable");
@@ -52,12 +54,12 @@ describe("Startup recovery - storeLoadSessionsFromDB", () => {
     expect(session!.status).toBe("idle");
 
     // Can update (both memory and DB)
-    storeUpdateSession("session_updatable", { title: "updated title" });
+    await storeUpdateSession("session_updatable", { title: "updated title" });
     const updated = storeGetSession("session_updatable");
     expect(updated!.title).toBe("updated title");
 
     // Verify DB also updated
-    const dbRow = db.select().from(agentSession).where(eq(agentSession.id, "session_updatable")).all();
+    const dbRow = await db.select().from(agentSession).where(eq(agentSession.id, "session_updatable"));
     expect(dbRow.length).toBe(1);
     expect(dbRow[0].title).toBe("updated title");
   });

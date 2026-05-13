@@ -15,7 +15,7 @@ const app = new Elysia({ name: "v1-code-sessions-worker", prefix: "/v1/code/sess
 /** GET /v1/code/sessions/:id/worker — Read worker state */
 app.get("/:id/worker", async ({ params, error }) => {
   const sessionId = params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
@@ -34,7 +34,7 @@ app.get("/:id/worker", async ({ params, error }) => {
 /** PUT /v1/code/sessions/:id/worker — Update worker state */
 app.put("/:id/worker", async ({ params, body, error }) => {
   const sessionId = params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
@@ -44,9 +44,9 @@ app.put("/:id/worker", async ({ params, body, error }) => {
     storeGetSessionWorker(sessionId)?.externalMetadata,
   );
   if (b.worker_status) {
-    updateSessionStatus(sessionId, b.worker_status);
+    await updateSessionStatus(sessionId, b.worker_status);
   } else {
-    touchSession(sessionId);
+    await touchSession(sessionId);
   }
 
   const worker = storeUpsertSessionWorker(sessionId, {
@@ -80,26 +80,26 @@ app.put("/:id/worker", async ({ params, body, error }) => {
 /** POST /v1/code/sessions/:id/worker/heartbeat — Keep worker alive */
 app.post("/:id/worker/heartbeat", async ({ params, error }) => {
   const sessionId = params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
   const now = new Date();
   storeUpsertSessionWorker(sessionId, { lastHeartbeatAt: now });
-  touchSession(sessionId);
+  await touchSession(sessionId);
   return { status: "ok", last_heartbeat_at: now.toISOString() };
 }, { sessionIngressAuth: true });
 
 /** POST /v1/code/sessions/:id/worker/register — Register worker */
 app.post("/:id/worker/register", async ({ params, error }) => {
   const sessionId = params.id;
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) {
     return error(404, { error: { type: "not_found", message: "Session not found" } });
   }
 
-  const epoch = incrementEpoch(sessionId);
+  const epoch = await incrementEpoch(sessionId);
   return { worker_epoch: epoch };
 }, { apiKeyAuth: true });
 

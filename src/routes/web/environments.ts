@@ -75,13 +75,14 @@ const app = new Elysia({ name: "web-environments", prefix: "/web" })
   .use(authGuardPlugin);
 
 /** GET /web/environments — List environments for the current user */
-app.get("/environments", ({ store }) => {
+app.get("/environments", async ({ store }) => {
     const user = store.user!;
-    const envs = storeListEnvironmentsByUserId(user.id);
-    return envs.map((env) => {
+    const envs = await storeListEnvironmentsByUserId(user.id);
+    const results = [];
+    for (const env of envs) {
       let sessions = storeListSessionsByEnvironment(env.id);
       if (sessions.length === 0) {
-        const session = storeCreateSession({
+        const session = await storeCreateSession({
           environmentId: env.id,
           title: env.agentName || env.name,
           source: "acp",
@@ -91,7 +92,7 @@ app.get("/environments", ({ store }) => {
       }
       const activeInstances = listInstancesByEnvironment(env.id);
       const firstInstance = activeInstances[0];
-      return {
+      results.push({
         ...sanitizeResponse(env),
         session_id: sessions[0].id,
         instance_status: firstInstance ? firstInstance.status : null,
@@ -105,8 +106,9 @@ app.get("/environments", ({ store }) => {
           created_at: Math.floor(inst.createdAt.getTime() / 1000),
         })),
         instances_count: activeInstances.length,
-      };
-    });
+      });
+    }
+    return results;
 }, { sessionAuth: true });
 
 /** POST /web/environments — Register a new environment */
@@ -166,7 +168,7 @@ app.post("/environments", async ({ store, body, error }) => {
     const secret = generateEnvSecret();
     let record;
     try {
-        record = storeCreateEnvironment({
+        record = await storeCreateEnvironment({
             name,
             description: description ?? null,
             workspacePath,
@@ -177,7 +179,7 @@ app.post("/environments", async ({ store, body, error }) => {
             autoStart: autoStart === true,
         });
     } catch (err: any) {
-        if (err.message?.includes("UNIQUE constraint failed")) {
+        if (err.message?.includes("UNIQUE constraint failed") || err.message?.includes("unique") || err.message?.includes("duplicate")) {
             return error(409, {
                 error: {
                     type: "VALIDATION_ERROR",
@@ -201,10 +203,10 @@ app.post("/environments", async ({ store, body, error }) => {
 }, { sessionAuth: true });
 
 /** GET /web/environments/:id — Get environment detail (with secret) */
-app.get("/environments/:id", ({ store, params, error }) => {
+app.get("/environments/:id", async ({ store, params, error }) => {
     const user = store.user!;
     const envId = params.id;
-    const env = storeGetEnvironment(envId);
+    const env = await storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
         return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
@@ -215,7 +217,7 @@ app.get("/environments/:id", ({ store, params, error }) => {
 app.put("/environments/:id", async ({ store, params, body, error }) => {
     const user = store.user!;
     const envId = params.id;
-    const env = storeGetEnvironment(envId);
+    const env = await storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
         return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
@@ -258,8 +260,8 @@ app.put("/environments/:id", async ({ store, params, body, error }) => {
         patch.autoStart = !!b.autoStart;
     }
 
-    storeUpdateEnvironment(envId, patch);
-    const updated = storeGetEnvironment(envId);
+    await storeUpdateEnvironment(envId, patch);
+    const updated = await storeGetEnvironment(envId);
     return sanitizeResponse(updated!);
 }, { sessionAuth: true });
 
@@ -267,7 +269,7 @@ app.put("/environments/:id", async ({ store, params, body, error }) => {
 app.post("/environments/:id/enter", async ({ store, params, body, error }) => {
     const user = store.user!;
     const envId = params.id;
-    const env = storeGetEnvironment(envId);
+    const env = await storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
         return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
@@ -306,7 +308,7 @@ app.post("/environments/:id/enter", async ({ store, params, body, error }) => {
         sessionId = sessions.length > 0 ? sessions[0].id : undefined;
     }
     if (!sessionId) {
-        const session = storeCreateSession({
+        const session = await storeCreateSession({
             environmentId: envId,
             title: env.agentName || env.name,
             source: "acp",
@@ -325,10 +327,10 @@ app.post("/environments/:id/enter", async ({ store, params, body, error }) => {
 }, { sessionAuth: true });
 
 /** GET /web/environments/:id/instances — List active instances for an environment */
-app.get("/environments/:id/instances", ({ store, params, error }) => {
+app.get("/environments/:id/instances", async ({ store, params, error }) => {
     const user = store.user!;
     const envId = params.id;
-    const env = storeGetEnvironment(envId);
+    const env = await storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
         return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
@@ -348,14 +350,14 @@ app.get("/environments/:id/instances", ({ store, params, error }) => {
 }, { sessionAuth: true });
 
 /** DELETE /web/environments/:id — Delete environment */
-app.delete("/environments/:id", ({ store, params, error }) => {
+app.delete("/environments/:id", async ({ store, params, error }) => {
     const user = store.user!;
     const envId = params.id;
-    const env = storeGetEnvironment(envId);
+    const env = await storeGetEnvironment(envId);
     if (!env || env.userId !== user.id) {
         return error(404, { error: { type: "NOT_FOUND", message: "环境不存在" } });
     }
-    storeDeleteEnvironment(envId);
+    await storeDeleteEnvironment(envId);
     return { ok: true };
 }, { sessionAuth: true });
 

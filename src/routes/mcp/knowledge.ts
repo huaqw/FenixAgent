@@ -79,7 +79,7 @@ app.all("/mcp/knowledge", async ({ request, error }) => {
     return error(401, { error: { message: "Missing bearer token" } });
   }
 
-  const environment = storeGetEnvironmentBySecret(token);
+  const environment = await storeGetEnvironmentBySecret(token);
   if (!environment) {
     return error(401, { error: { message: "Invalid bearer token" } });
   }

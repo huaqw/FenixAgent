@@ -11,8 +11,8 @@ import { resolveExistingWebSessionId, resolveOwnedWebSessionId } from "../../ser
 const app = new Elysia({ name: "web-sessions", prefix: "/web" })
   .use(authGuardPlugin);
 
-function toSessionResponse(row: { id: string; environmentId: string | null; title: string | null; status: string; source: string; permissionMode: string | null; workerEpoch: number; username: string | null; createdAt: Date; updatedAt: Date }) {
-  const env = row.environmentId ? storeGetEnvironment(row.environmentId) : null;
+async function toSessionResponse(row: { id: string; environmentId: string | null; title: string | null; status: string; source: string; permissionMode: string | null; workerEpoch: number; username: string | null; createdAt: Date; updatedAt: Date }) {
+  const env = row.environmentId ? await storeGetEnvironment(row.environmentId) : null;
   return {
     id: row.id,
     environment_id: row.environmentId,
@@ -39,10 +39,13 @@ function toSessionSummary(row: { id: string; title: string | null; status: strin
 }
 
 /** GET /web/sessions — List sessions owned by the current user */
-app.get("/sessions", ({ store }) => {
+app.get("/sessions", async ({ store }) => {
   const user = store.user!;
-  const sessions = storeListSessionsByUserId(user.id).map(toSessionResponse);
-  return sessions;
+  const results = [];
+  for (const s of storeListSessionsByUserId(user.id)) {
+    results.push(await toSessionResponse(s));
+  }
+  return results;
 }, { sessionAuth: true });
 
 /** GET /web/sessions/all — List session summaries owned by the current user */
@@ -53,7 +56,7 @@ app.get("/sessions/all", ({ store }) => {
 }, { sessionAuth: true });
 
 /** GET /web/sessions/:id — Session detail */
-app.get("/sessions/:id", ({ store, params, error }) => {
+app.get("/sessions/:id", async ({ store, params, error }) => {
   const user = store.user!;
   const sessionId = params.id;
   const session = storeGetSession(sessionId);
@@ -63,7 +66,7 @@ app.get("/sessions/:id", ({ store, params, error }) => {
   if (session.userId && session.userId !== user.id) {
     return error(403, { error: { type: "forbidden", message: "Not your session" } });
   }
-  return toSessionResponse(session);
+  return await toSessionResponse(session);
 }, { sessionAuth: true });
 
 /** GET /web/sessions/:id/history — Session event history

@@ -23,7 +23,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV RCS_HOST=0.0.0.0
 ENV RCS_PORT=3000
-ENV RCS_DB_PATH=/app/data/rcs.db
+ENV DATABASE_URL=postgres://rcs:rcs@postgres:5432/rcs
 ENV BUN_INSTALL_GLOBAL=/root/.bun
 ENV PATH=/root/.bun/bin:${PATH}
 ENV OPENCODE_DISABLE_AUTOUPDATE=1

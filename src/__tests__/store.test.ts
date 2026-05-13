@@ -27,35 +27,35 @@ import { db } from "../db";
 import { user, agentSession } from "../db/schema";
 import { eq } from "drizzle-orm";
 
-function ensureUser(userId: string) {
-  const existing = db.select().from(user).where(eq(user.id, userId)).limit(1).all();
+async function ensureUser(userId: string) {
+  const existing = await db.select().from(user).where(eq(user.id, userId)).limit(1);
   if (existing.length === 0) {
     const now = new Date();
-    db.insert(user).values({
+    await db.insert(user).values({
       id: userId,
       name: userId,
       email: `${userId}@test.com`,
       emailVerified: false,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
   }
 }
 
 describe("store", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     storeReset();
-    ensureUser("user1");
-    ensureUser("user-a");
-    ensureUser("user-b");
-    ensureUser("u1");
+    await ensureUser("user1");
+    await ensureUser("user-a");
+    await ensureUser("user-b");
+    await ensureUser("u1");
   });
 
   // ---------- Environment ----------
 
   describe("storeCreateEnvironment", () => {
-    test("creates environment with required fields", () => {
-      const env = storeCreateEnvironment({ userId: "user1" });
+    test("creates environment with required fields", async () => {
+      const env = await storeCreateEnvironment({ userId: "user1" });
       expect(env.id).toMatch(/^env_/);
       expect(env.secret).toBeTruthy();
       expect(env.status).toBe("active");
@@ -67,23 +67,23 @@ describe("store", () => {
       expect(env.updatedAt).toBeInstanceOf(Date);
     });
 
-    test("auto-generates name when not provided", () => {
-      const env = storeCreateEnvironment({ userId: "user1" });
+    test("auto-generates name when not provided", async () => {
+      const env = await storeCreateEnvironment({ userId: "user1" });
       expect(env.name).toMatch(/^env-/);
     });
 
-    test("uses provided name", () => {
-      const env = storeCreateEnvironment({ userId: "user1", name: `my-env-${Date.now()}` });
+    test("uses provided name", async () => {
+      const env = await storeCreateEnvironment({ userId: "user1", name: `my-env-${Date.now()}` });
       expect(env.name).toMatch(/^my-env-/);
     });
 
-    test("defaults workspacePath to /tmp when not provided", () => {
-      const env = storeCreateEnvironment({ userId: "user1" });
+    test("defaults workspacePath to /tmp when not provided", async () => {
+      const env = await storeCreateEnvironment({ userId: "user1" });
       expect(env.workspacePath).toBe("/tmp");
     });
 
-    test("creates environment with all optional fields", () => {
-      const env = storeCreateEnvironment({
+    test("creates environment with all optional fields", async () => {
+      const env = await storeCreateEnvironment({
         userId: "user1",
         name: `test-env-${Date.now()}`,
         description: "A test environment",
@@ -101,31 +101,31 @@ describe("store", () => {
       expect(env.capabilities).toEqual({ foo: true });
     });
 
-    test("creates with custom status", () => {
-      const env = storeCreateEnvironment({ userId: "user1", status: "idle" });
+    test("creates with custom status", async () => {
+      const env = await storeCreateEnvironment({ userId: "user1", status: "idle" });
       expect(env.status).toBe("idle");
     });
 
-    test("uses provided secret when given", () => {
+    test("uses provided secret when given", async () => {
       const secret = `custom-secret-${Date.now()}`;
-      const env = storeCreateEnvironment({ secret, userId: "user1" });
+      const env = await storeCreateEnvironment({ secret, userId: "user1" });
       expect(env.secret).toBe(secret);
     });
 
-    test("auto-generates secret when not provided", () => {
-      const env = storeCreateEnvironment({ userId: "user1" });
+    test("auto-generates secret when not provided", async () => {
+      const env = await storeCreateEnvironment({ userId: "user1" });
       expect(env.secret).toMatch(/^sec_/);
     });
   });
 
   describe("storeGetEnvironment", () => {
-    test("returns undefined for non-existent env", () => {
-      expect(storeGetEnvironment("env_no")).toBeUndefined();
+    test("returns undefined for non-existent env", async () => {
+      expect(await storeGetEnvironment("env_no")).toBeUndefined();
     });
 
-    test("returns created environment by id", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const fetched = storeGetEnvironment(env.id);
+    test("returns created environment by id", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const fetched = await storeGetEnvironment(env.id);
       expect(fetched).toBeDefined();
       expect(fetched!.id).toBe(env.id);
       expect(fetched!.secret).toBe(env.secret);
@@ -134,63 +134,63 @@ describe("store", () => {
   });
 
   describe("storeGetEnvironmentBySecret", () => {
-    test("returns environment matching secret", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const fetched = storeGetEnvironmentBySecret(env.secret);
+    test("returns environment matching secret", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const fetched = await storeGetEnvironmentBySecret(env.secret);
       expect(fetched).toBeDefined();
       expect(fetched!.id).toBe(env.id);
     });
 
-    test("returns undefined for non-existent secret", () => {
-      expect(storeGetEnvironmentBySecret("no_such_secret")).toBeUndefined();
+    test("returns undefined for non-existent secret", async () => {
+      expect(await storeGetEnvironmentBySecret("no_such_secret")).toBeUndefined();
     });
   });
 
   describe("storeUpdateEnvironment", () => {
-    test("updates existing environment fields", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const result = storeUpdateEnvironment(env.id, { status: "offline", machineName: "host1", capabilities: { bar: 1 } });
+    test("updates existing environment fields", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const result = await storeUpdateEnvironment(env.id, { status: "offline", machineName: "host1", capabilities: { bar: 1 } });
       expect(result).toBe(true);
-      const updated = storeGetEnvironment(env.id);
+      const updated = await storeGetEnvironment(env.id);
       expect(updated?.status).toBe("offline");
       expect(updated?.machineName).toBe("host1");
       expect(updated?.capabilities).toEqual({ bar: 1 });
     });
 
-    test("returns false for non-existent environment", () => {
-      expect(storeUpdateEnvironment("env_no", { status: "active" })).toBe(false);
+    test("returns false for non-existent environment", async () => {
+      expect(await storeUpdateEnvironment("env_no", { status: "active" })).toBe(false);
     });
   });
 
   describe("storeListActiveEnvironments", () => {
-    test("returns only active environments", () => {
-      const before = storeListActiveEnvironments().length;
-      const env1 = storeCreateEnvironment({ userId: "u1" });
-      storeCreateEnvironment({ userId: "u1" });
-      storeUpdateEnvironment(env1.id, { status: "offline" });
-      const active = storeListActiveEnvironments();
+    test("returns only active environments", async () => {
+      const before = (await storeListActiveEnvironments()).length;
+      const env1 = await storeCreateEnvironment({ userId: "u1" });
+      await storeCreateEnvironment({ userId: "u1" });
+      await storeUpdateEnvironment(env1.id, { status: "offline" });
+      const active = await storeListActiveEnvironments();
       expect(active.length - before).toBe(1);
     });
   });
 
   describe("storeListEnvironmentsByUserId", () => {
-    test("filters by userId", () => {
-      const beforeA = storeListEnvironmentsByUserId("user-a").length;
-      const beforeB = storeListEnvironmentsByUserId("user-b").length;
-      storeCreateEnvironment({ userId: "user-a" });
-      storeCreateEnvironment({ userId: "user-b" });
-      storeCreateEnvironment({ userId: "user-a" });
-      expect(storeListEnvironmentsByUserId("user-a").length - beforeA).toBe(2);
-      expect(storeListEnvironmentsByUserId("user-b").length - beforeB).toBe(1);
-      expect(storeListEnvironmentsByUserId("user-c")).toHaveLength(0);
+    test("filters by userId", async () => {
+      const beforeA = (await storeListEnvironmentsByUserId("user-a")).length;
+      const beforeB = (await storeListEnvironmentsByUserId("user-b")).length;
+      await storeCreateEnvironment({ userId: "user-a" });
+      await storeCreateEnvironment({ userId: "user-b" });
+      await storeCreateEnvironment({ userId: "user-a" });
+      expect((await storeListEnvironmentsByUserId("user-a")).length - beforeA).toBe(2);
+      expect((await storeListEnvironmentsByUserId("user-b")).length - beforeB).toBe(1);
+      expect(await storeListEnvironmentsByUserId("user-c")).toHaveLength(0);
     });
   });
 
   // ---------- Session ----------
 
   describe("storeCreateSession", () => {
-    test("creates session with defaults", () => {
-      const session = storeCreateSession({});
+    test("creates session with defaults", async () => {
+      const session = await storeCreateSession({});
       expect(session.id).toMatch(/^session_/);
       expect(session.status).toBe("idle");
       expect(session.source).toBe("acp");
@@ -198,9 +198,9 @@ describe("store", () => {
       expect(session.userId).toBeNull();
     });
 
-    test("creates session with options", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const session = storeCreateSession({
+    test("creates session with options", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const session = await storeCreateSession({
         environmentId: env.id,
         title: "Test Session",
         source: "web",
@@ -220,9 +220,9 @@ describe("store", () => {
   });
 
   describe("storeUpdateSession", () => {
-    test("updates existing session", () => {
-      const session = storeCreateSession({});
-      storeUpdateSession(session.id, { title: "Updated", status: "active" });
+    test("updates existing session", async () => {
+      const session = await storeCreateSession({});
+      await storeUpdateSession(session.id, { title: "Updated", status: "active" });
       const updated = storeGetSession(session.id);
       expect(updated?.title).toBe("Updated");
       expect(updated?.status).toBe("active");
@@ -230,36 +230,36 @@ describe("store", () => {
   });
 
   describe("storeListSessions", () => {
-    test("returns all sessions", () => {
-      storeCreateSession({});
-      storeCreateSession({});
+    test("returns all sessions", async () => {
+      await storeCreateSession({});
+      await storeCreateSession({});
       expect(storeListSessions()).toHaveLength(2);
     });
   });
 
   describe("storeListSessionsByEnvironment", () => {
-    test("filters by environment", () => {
-      const env = storeCreateEnvironment({ userId: "u1" });
-      storeCreateSession({ environmentId: env.id });
-      storeCreateSession({});
+    test("filters by environment", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      await storeCreateSession({ environmentId: env.id });
+      await storeCreateSession({});
       expect(storeListSessionsByEnvironment(env.id)).toHaveLength(1);
     });
   });
 
   describe("storeListSessionsByUserId", () => {
-    test("filters by userId", () => {
-      storeCreateSession({ userId: "user-a" });
-      storeCreateSession({ userId: "user-b" });
-      storeCreateSession({ userId: "user-a" });
+    test("filters by userId", async () => {
+      await storeCreateSession({ userId: "user-a" });
+      await storeCreateSession({ userId: "user-b" });
+      await storeCreateSession({ userId: "user-a" });
       expect(storeListSessionsByUserId("user-a")).toHaveLength(2);
       expect(storeListSessionsByUserId("user-b")).toHaveLength(1);
     });
   });
 
   describe("storeDeleteSession", () => {
-    test("deletes existing session", () => {
-      const session = storeCreateSession({});
-      expect(storeDeleteSession(session.id)).toBe(true);
+    test("deletes existing session", async () => {
+      const session = await storeCreateSession({});
+      expect(await storeDeleteSession(session.id)).toBe(true);
       expect(storeGetSession(session.id)).toBeUndefined();
     });
   });
@@ -267,77 +267,77 @@ describe("store", () => {
   // ---------- ACP Agent ----------
 
   describe("ACP agent lifecycle", () => {
-    test("deletes agent and disassociates sessions (SET NULL)", () => {
-      const env = storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "agent1" });
-      const session = storeCreateSession({ environmentId: env.id, title: "test session", userId: "u1" });
-      expect(storeDeleteEnvironment(env.id)).toBe(true);
-      expect(storeGetEnvironment(env.id)).toBeUndefined();
+    test("deletes agent and disassociates sessions (SET NULL)", async () => {
+      const env = await storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "agent1" });
+      const session = await storeCreateSession({ environmentId: env.id, title: "test session", userId: "u1" });
+      expect(await storeDeleteEnvironment(env.id)).toBe(true);
+      expect(await storeGetEnvironment(env.id)).toBeUndefined();
       // Session should still exist but with null environmentId
       const updatedSession = storeGetSession(session.id);
       expect(updatedSession).toBeDefined();
       expect(updatedSession!.environmentId).toBeNull();
     });
 
-    test("lists ACP agents", () => {
-      const before = storeListAcpAgents().length;
-      storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a1" });
-      storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a2" });
-      expect(storeListAcpAgents().length - before).toBe(2);
+    test("lists ACP agents", async () => {
+      const before = (await storeListAcpAgents()).length;
+      await storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a1" });
+      await storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a2" });
+      expect((await storeListAcpAgents()).length - before).toBe(2);
     });
 
-    test("lists ACP agents by userId", () => {
-      const beforeA = storeListAcpAgentsByUserId("user-a").length;
-      const beforeB = storeListAcpAgentsByUserId("user-b").length;
-      storeCreateEnvironment({ userId: "user-a", workerType: "acp", machineName: "a1" });
-      storeCreateEnvironment({ userId: "user-b", workerType: "acp", machineName: "a2" });
-      expect(storeListAcpAgentsByUserId("user-a").length - beforeA).toBe(1);
-      expect(storeListAcpAgentsByUserId("user-b").length - beforeB).toBe(1);
+    test("lists ACP agents by userId", async () => {
+      const beforeA = (await storeListAcpAgentsByUserId("user-a")).length;
+      const beforeB = (await storeListAcpAgentsByUserId("user-b")).length;
+      await storeCreateEnvironment({ userId: "user-a", workerType: "acp", machineName: "a1" });
+      await storeCreateEnvironment({ userId: "user-b", workerType: "acp", machineName: "a2" });
+      expect((await storeListAcpAgentsByUserId("user-a")).length - beforeA).toBe(1);
+      expect((await storeListAcpAgentsByUserId("user-b")).length - beforeB).toBe(1);
     });
 
-    test("lists online ACP agents", () => {
-      const before = storeListOnlineAcpAgents().length;
-      storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a1" });
-      storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a2" });
-      expect(storeListOnlineAcpAgents().length - before).toBe(2);
+    test("lists online ACP agents", async () => {
+      const before = (await storeListOnlineAcpAgents()).length;
+      await storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a1" });
+      await storeCreateEnvironment({ userId: "u1", workerType: "acp", machineName: "a2" });
+      expect((await storeListOnlineAcpAgents()).length - before).toBe(2);
     });
   });
 
   // ---------- storeListSessionsForAgentByCwd ----------
 
   describe("storeListSessionsForAgentByCwd", () => {
-    test("returns sessions for agent with matching cwd (exact)", () => {
-      ensureUser("u-cwd1");
-      const env = storeCreateEnvironment({ userId: "u-cwd1", workerType: "acp", workspacePath: "/home/user/project" });
-      storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd1" });
-      storeCreateSession({ environmentId: env.id, title: "session 2", userId: "u-cwd1" });
+    test("returns sessions for agent with matching cwd (exact)", async () => {
+      await ensureUser("u-cwd1");
+      const env = await storeCreateEnvironment({ userId: "u-cwd1", workerType: "acp", workspacePath: "/home/user/project" });
+      await storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd1" });
+      await storeCreateSession({ environmentId: env.id, title: "session 2", userId: "u-cwd1" });
 
       const result = storeListSessionsForAgentByCwd(env.id, "/home/user/project");
       expect(result).toHaveLength(2);
     });
 
-    test("returns sessions for agent with prefix cwd match", () => {
-      ensureUser("u-cwd2");
-      const env = storeCreateEnvironment({ userId: "u-cwd2", workerType: "acp", workspacePath: "/home/user/project/subdir" });
-      storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd2" });
+    test("returns sessions for agent with prefix cwd match", async () => {
+      await ensureUser("u-cwd2");
+      const env = await storeCreateEnvironment({ userId: "u-cwd2", workerType: "acp", workspacePath: "/home/user/project/subdir" });
+      await storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd2" });
 
       const result = storeListSessionsForAgentByCwd(env.id, "/home/user/project");
       expect(result).toHaveLength(1);
     });
 
-    test("returns empty when cwd does not match", () => {
-      ensureUser("u-cwd3");
-      const env = storeCreateEnvironment({ userId: "u-cwd3", workerType: "acp", workspacePath: "/home/user/other-project" });
-      storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd3" });
+    test("returns empty when cwd does not match", async () => {
+      await ensureUser("u-cwd3");
+      const env = await storeCreateEnvironment({ userId: "u-cwd3", workerType: "acp", workspacePath: "/home/user/other-project" });
+      await storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd3" });
 
       const result = storeListSessionsForAgentByCwd(env.id, "/home/user/project");
       expect(result).toHaveLength(0);
     });
 
-    test("returns all sessions when cwd is not specified", () => {
-      ensureUser("u-cwd4");
-      const env = storeCreateEnvironment({ userId: "u-cwd4", workerType: "acp", workspacePath: "/home/user/project" });
-      storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd4" });
-      storeCreateSession({ environmentId: env.id, title: "session 2", userId: "u-cwd4" });
+    test("returns all sessions when cwd is not specified", async () => {
+      await ensureUser("u-cwd4");
+      const env = await storeCreateEnvironment({ userId: "u-cwd4", workerType: "acp", workspacePath: "/home/user/project" });
+      await storeCreateSession({ environmentId: env.id, title: "session 1", userId: "u-cwd4" });
+      await storeCreateSession({ environmentId: env.id, title: "session 2", userId: "u-cwd4" });
 
       const result = storeListSessionsForAgentByCwd(env.id);
       expect(result).toHaveLength(2);
@@ -352,8 +352,8 @@ describe("store", () => {
   // ---------- storeReset ----------
 
   describe("storeReset", () => {
-    test("clears in-memory data", () => {
-      storeCreateSession({});
+    test("clears in-memory data", async () => {
+      await storeCreateSession({});
 
       storeReset();
 
@@ -364,17 +364,17 @@ describe("store", () => {
   // ---------- Session Ownership ----------
 
   describe("storeBindSession / storeIsSessionOwner", () => {
-    test("binds user to session and checks ownership", () => {
+    test("binds user to session and checks ownership", async () => {
       const { storeBindSession, storeIsSessionOwner } = require("../store");
-      const s = storeCreateSession({});
+      const s = await storeCreateSession({});
       storeBindSession(s.id, "uuid-1");
       expect(storeIsSessionOwner(s.id, "uuid-1")).toBe(true);
       expect(storeIsSessionOwner(s.id, "uuid-2")).toBe(false);
     });
 
-    test("supports multiple owners", () => {
+    test("supports multiple owners", async () => {
       const { storeBindSession, storeGetSessionOwners } = require("../store");
-      const s = storeCreateSession({});
+      const s = await storeCreateSession({});
       storeBindSession(s.id, "uuid-1");
       storeBindSession(s.id, "uuid-2");
       const owners = storeGetSessionOwners(s.id);
@@ -386,10 +386,10 @@ describe("store", () => {
   // ---------- Work Items ----------
 
   describe("Work Items", () => {
-    test("create and get work item", () => {
+    test("create and get work item", async () => {
       const { storeCreateWorkItem, storeGetWorkItem } = require("../store");
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const session = storeCreateSession({ environmentId: env.id });
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const session = await storeCreateSession({ environmentId: env.id });
       const item = storeCreateWorkItem({
         environmentId: env.id,
         sessionId: session.id,
@@ -403,10 +403,10 @@ describe("store", () => {
       expect(fetched!.environmentId).toBe(env.id);
     });
 
-    test("get pending work item by environment", () => {
+    test("get pending work item by environment", async () => {
       const { storeCreateWorkItem, storeGetPendingWorkItem } = require("../store");
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const session = storeCreateSession({ environmentId: env.id });
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const session = await storeCreateSession({ environmentId: env.id });
       storeCreateWorkItem({ environmentId: env.id, sessionId: session.id, secret: "s1" });
 
       const pending = storeGetPendingWorkItem(env.id);
@@ -414,10 +414,10 @@ describe("store", () => {
       expect(pending!.state).toBe("pending");
     });
 
-    test("update work item state", () => {
+    test("update work item state", async () => {
       const { storeCreateWorkItem, storeUpdateWorkItem, storeGetWorkItem } = require("../store");
-      const env = storeCreateEnvironment({ userId: "u1" });
-      const session = storeCreateSession({ environmentId: env.id });
+      const env = await storeCreateEnvironment({ userId: "u1" });
+      const session = await storeCreateSession({ environmentId: env.id });
       const item = storeCreateWorkItem({ environmentId: env.id, sessionId: session.id, secret: "s1" });
 
       storeUpdateWorkItem(item.id, { state: "completed" });
@@ -452,15 +452,15 @@ describe("store", () => {
   // ---------- storeListAllEnvironments ----------
 
   describe("storeListAllEnvironments", () => {
-    test("returns all environments regardless of status", () => {
+    test("returns all environments regardless of status", async () => {
       const { storeListAllEnvironments } = require("../store");
-      const before = storeListAllEnvironments().length;
-      const env1 = storeCreateEnvironment({ userId: "u1", status: "active" });
-      storeCreateEnvironment({ userId: "u1", status: "active" });
+      const before = (await storeListAllEnvironments()).length;
+      const env1 = await storeCreateEnvironment({ userId: "u1", status: "active" });
+      await storeCreateEnvironment({ userId: "u1", status: "active" });
       // Deregister one
       const { storeUpdateEnvironment } = require("../store");
-      storeUpdateEnvironment(env1.id, { status: "deregistered" });
-      const all = storeListAllEnvironments();
+      await storeUpdateEnvironment(env1.id, { status: "deregistered" });
+      const all = await storeListAllEnvironments();
       expect(all.length - before).toBe(2);
     });
   });
@@ -468,18 +468,18 @@ describe("store", () => {
   // ---------- Session cwd field ----------
 
   describe("Session cwd field", () => {
-    test("storeCreateSession defaults cwd to null", () => {
-      const session = storeCreateSession({ title: "test" });
+    test("storeCreateSession defaults cwd to null", async () => {
+      const session = await storeCreateSession({ title: "test" });
       expect(session.cwd).toBeNull();
     });
 
-    test("storeCreateSession passes cwd through", () => {
-      const session = storeCreateSession({ cwd: "/home/user/project" });
+    test("storeCreateSession passes cwd through", async () => {
+      const session = await storeCreateSession({ cwd: "/home/user/project" });
       expect(session.cwd).toBe("/home/user/project");
     });
 
-    test("storeCreateSession with explicit null cwd", () => {
-      const session = storeCreateSession({ cwd: null });
+    test("storeCreateSession with explicit null cwd", async () => {
+      const session = await storeCreateSession({ cwd: null });
       expect(session.cwd).toBeNull();
     });
   });
@@ -492,9 +492,9 @@ describe("Write-through dual write", () => {
     storeReset();
   });
 
-  test("storeCreateSession writes to DB", () => {
-    const session = storeCreateSession({ title: "db test", cwd: "/home/test" });
-    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+  test("storeCreateSession writes to DB", async () => {
+    const session = await storeCreateSession({ title: "db test", cwd: "/home/test" });
+    const row = await db.select().from(agentSession).where(eq(agentSession.id, session.id));
     expect(row.length).toBe(1);
     expect(row[0].title).toBe("db test");
     expect(row[0].cwd).toBe("/home/test");
@@ -502,55 +502,52 @@ describe("Write-through dual write", () => {
     expect(row[0].shareMode).toBe("none");
   });
 
-  test("storeUpdateSession writes to DB", () => {
-    const session = storeCreateSession({ title: "original" });
-    storeUpdateSession(session.id, { title: "updated", status: "running" });
-    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+  test("storeUpdateSession writes to DB", async () => {
+    const session = await storeCreateSession({ title: "original" });
+    await storeUpdateSession(session.id, { title: "updated", status: "running" });
+    const row = await db.select().from(agentSession).where(eq(agentSession.id, session.id));
     expect(row.length).toBe(1);
     expect(row[0].title).toBe("updated");
     expect(row[0].status).toBe("running");
   });
 
-  test("storeDeleteSession removes from DB", () => {
-    const session = storeCreateSession({ title: "to delete" });
-    storeDeleteSession(session.id);
-    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+  test("storeDeleteSession removes from DB", async () => {
+    const session = await storeCreateSession({ title: "to delete" });
+    await storeDeleteSession(session.id);
+    const row = await db.select().from(agentSession).where(eq(agentSession.id, session.id));
     expect(row.length).toBe(0);
   });
 
-  test("storeLoadSessionsFromDB restores sessions", () => {
+  test("storeLoadSessionsFromDB restores sessions", async () => {
     // Clear DB agent_session table to avoid interference from other tests
-    db.delete(agentSession).run();
-    storeCreateSession({ title: "persist 1" });
-    storeCreateSession({ title: "persist 2" });
+    await db.delete(agentSession);
+    await storeCreateSession({ title: "persist 1" });
+    await storeCreateSession({ title: "persist 2" });
     // Simulate restart: clear memory, reload from DB
     storeReset();
     expect(storeListSessions().length).toBe(0);
-    storeLoadSessionsFromDB();
+    await storeLoadSessionsFromDB();
     expect(storeListSessions().length).toBe(2);
     const restored = storeGetSession(storeListSessions()[0].id);
     expect(restored).toBeDefined();
     expect(restored!.title).toBeDefined();
   });
 
-  test("storeDeleteEnvironment preserves sessions with null environmentId", () => {
-    const env = storeCreateEnvironment({ userId: "u1" });
-    const session = storeCreateSession({ environmentId: env.id, title: "env session" });
-    storeDeleteEnvironment(env.id);
+  test("storeDeleteEnvironment preserves sessions with null environmentId", async () => {
+    const env = await storeCreateEnvironment({ userId: "u1" });
+    const session = await storeCreateSession({ environmentId: env.id, title: "env session" });
+    await storeDeleteEnvironment(env.id);
     // Session should still exist in DB with null environmentId
-    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+    const row = await db.select().from(agentSession).where(eq(agentSession.id, session.id));
     expect(row.length).toBe(1);
     expect(row[0].environmentId).toBeNull();
   });
 
-  test("storeRefreshSessionShareMode writes to DB", () => {
-    const env = storeCreateEnvironment({ userId: "u1" });
-    const session = storeCreateSession({ environmentId: env.id });
-    // Ensure share_link table exists (storeRefreshSessionShareMode queries it)
-    const { sqlite: rawSqlite } = require("../db/index");
-    rawSqlite.exec(`CREATE TABLE IF NOT EXISTS share_link (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, environment_id TEXT NOT NULL, token TEXT NOT NULL UNIQUE, mode TEXT NOT NULL, expires_at INTEGER, created_by TEXT NOT NULL, access_count INTEGER NOT NULL DEFAULT 0, last_accessed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`);
-    storeRefreshSessionShareMode(session.id);
-    const row = db.select().from(agentSession).where(eq(agentSession.id, session.id)).all();
+  test("storeRefreshSessionShareMode writes to DB", async () => {
+    const env = await storeCreateEnvironment({ userId: "u1" });
+    const session = await storeCreateSession({ environmentId: env.id });
+    await storeRefreshSessionShareMode(session.id);
+    const row = await db.select().from(agentSession).where(eq(agentSession.id, session.id));
     expect(row.length).toBe(1);
     expect(row[0].shareMode).toBe("none");
   });

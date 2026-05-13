@@ -37,7 +37,7 @@ function adaptWs(ws: any): WsConnection {
 }
 
 /** Response shape for an ACP agent */
-function toAcpAgentResponse(env: NonNullable<ReturnType<typeof storeGetEnvironment>>) {
+function toAcpAgentResponse(env: NonNullable<Awaited<ReturnType<typeof storeGetEnvironment>>>) {
   return {
     id: env.id,
     agent_name: env.machineName,
@@ -87,7 +87,7 @@ async function resolveTokenAuth(token: string | undefined): Promise<{ userId: st
 
   // 0. Environment secret match
   const { storeGetEnvironmentBySecret } = await import("../../store");
-  const envRecord = storeGetEnvironmentBySecret(token);
+  const envRecord = await storeGetEnvironmentBySecret(token);
   if (envRecord) {
     if (envRecord.userId) {
       return { userId: envRecord.userId, envId: envRecord.id };
@@ -118,9 +118,9 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
   .use(authGuardPlugin)
 
   /** GET /acp/agents — List current user's ACP agents */
-  .get("/agents", ({ store }) => {
+  .get("/agents", async ({ store }) => {
     const currentUser = store.user!;
-    const agents = storeListAcpAgentsByUserId(currentUser.id);
+    const agents = await storeListAcpAgentsByUserId(currentUser.id);
     return agents.map((a) => toAcpAgentResponse(a));
   }, { sessionAuth: true })
 
@@ -193,7 +193,7 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
       const sessionId = ws.data.query?.sessionId as string | undefined;
 
       // Verify agent belongs to this user
-      const env = storeGetEnvironment(agentId);
+      const env = await storeGetEnvironment(agentId);
       if (!env || env.userId !== userId) {
         log(`[ACP-Relay] Upgrade rejected: agent ${agentId} not found or not owned by user ${userId}`);
         adaptWs(ws).close(4003, "unauthorized");

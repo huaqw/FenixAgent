@@ -195,7 +195,7 @@ function sanitizeExecutionLog(row: typeof taskExecutionLog.$inferSelect): TaskEx
     workspaceName: row.workspaceName ?? null,
     environmentId: row.environmentId ?? null,
     environmentName: row.environmentName ?? null,
-    taskSnapshot: row.taskSnapshot ?? null,
+    taskSnapshot: row.taskSnapshot ? JSON.stringify(row.taskSnapshot) : null,
     skipReason: row.skipReason ?? null,
     resultSummary: row.resultSummary ?? null,
     createdAt: Math.floor(row.createdAt.getTime() / 1000),

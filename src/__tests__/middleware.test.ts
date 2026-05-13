@@ -24,18 +24,18 @@ import { authGuardPlugin } from "../plugins/auth";
 import { generateWorkerJwt } from "../auth/jwt";
 
 // Ensure system user exists for apiKeyAuth's ensureSystemUser fallback
-function ensureSystemUser() {
-  const existing = db.select().from(userTable).where(eq(userTable.email, "system@rcs.local")).limit(1).all();
+async function ensureSystemUser() {
+  const existing = await db.select().from(userTable).where(eq(userTable.email, "system@rcs.local")).limit(1);
   if (existing.length > 0) return;
   const now = new Date();
   try {
-    db.insert(userTable).values({
+    await db.insert(userTable).values({
       id: "system", name: "System", email: "system@rcs.local",
       emailVerified: false, createdAt: now, updatedAt: now,
-    }).run();
+    });
   } catch {}
 }
-ensureSystemUser();
+await ensureSystemUser();
 
 function createTestApp() {
   return new Elysia()

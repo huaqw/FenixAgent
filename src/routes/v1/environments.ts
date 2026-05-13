@@ -25,9 +25,9 @@ app.post("/bridge", async ({ store, body, error }) => {
   // If authenticated via environment secret, return the existing environment
   const authEnvId = store.authEnvironmentId as string | undefined;
   if (authEnvId) {
-    const existing = storeGetEnvironment(authEnvId);
+    const existing = await storeGetEnvironment(authEnvId);
     if (existing) {
-      storeUpdateEnvironment(authEnvId, {
+      await storeUpdateEnvironment(authEnvId, {
         status: "active",
         lastPollAt: new Date(),
         capabilities: b.capabilities || undefined,
@@ -46,7 +46,7 @@ app.post("/bridge", async ({ store, body, error }) => {
 
   const workerType = b.worker_type || b.metadata?.worker_type || "acp";
 
-  const record = storeCreateEnvironment({
+  const record = await storeCreateEnvironment({
     secret: generateBridgeSecret(),
     userId: user.id,
     machineName: b.machine_name,
@@ -64,7 +64,7 @@ app.post("/bridge", async ({ store, body, error }) => {
     if (existing.length > 0) {
       sessionId = existing[0].id;
     } else {
-      const session = storeCreateSession({
+      const session = await storeCreateSession({
         environmentId: record.id,
         title: b.machine_name || "ACP Agent",
         source: "acp",
@@ -86,11 +86,11 @@ app.post("/bridge", async ({ store, body, error }) => {
 app.delete("/bridge/:id", async ({ store, params, error }) => {
   const user = store.user!;
   const envId = params.id;
-  const env = storeGetEnvironment(envId);
+  const env = await storeGetEnvironment(envId);
   if (!env || env.userId !== user.id) {
     return error(404, { error: { type: "not_found", message: "Environment not found" } });
   }
-  storeDeleteEnvironment(envId);
+  await storeDeleteEnvironment(envId);
   return { status: "ok" };
 }, { apiKeyAuth: true });
 
@@ -98,11 +98,11 @@ app.delete("/bridge/:id", async ({ store, params, error }) => {
 app.post("/:id/bridge/reconnect", async ({ store, params, error }) => {
   const user = store.user!;
   const envId = params.id;
-  const env = storeGetEnvironment(envId);
+  const env = await storeGetEnvironment(envId);
   if (!env || env.userId !== user.id) {
     return error(404, { error: { type: "not_found", message: "Environment not found" } });
   }
-  storeUpdateEnvironment(envId, { status: "active" });
+  await storeUpdateEnvironment(envId, { status: "active" });
   return { status: "ok" };
 }, { apiKeyAuth: true });
 
