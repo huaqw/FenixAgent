@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-Remote Control Server (RCS) 是一个基于 Hono + Bun 的 AI Agent 控制面板后端，配合 React + Vite 前端。核心功能包括：
+Remote Control Server (RCS) 是一个基于 Elysia + Bun 的 AI Agent 控制面板后端（package name: `mothership`），配合 React + Vite 前端，使用 PostgreSQL + Drizzle ORM 持久化。核心功能包括：
 
 - **ACP 协议支持**：通过 WebSocket 与 acp-link Agent通信，实现远程 Agent 控制和事件流转发
-- **配置管理**：Providers/Models/Agents/Skills/MCP 的动态配置，存储于 `~/.config/opencode/opencode.json`
+- **配置管理**：Providers/Models/Agents/Skills/MCP 的动态配置，存储于 PostgreSQL（`config-pg.ts` 服务层）
 - **会话管理**：通过 SSE 向前端推送会话事件（user/assistant/tool_use/permission_request 等），支持 ACP session/list 按 cwd 过滤
-- **认证授权**：better-auth (SQLite) + API Key 认证，支持用户会话和 acp-link 的 Bearer token
+- **认证授权**：better-auth (PostgreSQL) + API Key 认证，支持用户会话和 acp-link 的 Bearer token
 - **定时 HTTP 任务**：cron 调度、执行历史记录、失败重试（Drizzle ORM + node-schedule）
 - **用户文件系统**：会话级文件读写上传，支持 iframe 预览（`/web/sessions/:id/user/*`）
 - **Channel 层**：多频道通信支持（`/web/channels`）
@@ -45,7 +45,7 @@ bun run typecheck
 bun test src/__tests__
 
 # 运行特定测试文件
-bun test src/__tests__/config-service.test.ts
+bun test src/__tests__/config-providers.test.ts
 
 # 前端全部测试（从项目根目录运行）
 bun test web/src/__tests__/
@@ -73,7 +73,7 @@ cd web && bunx vite build && cd .. && ls src/
 
 ## 架构关键点
 
-### 后端架构 (Hono + Bun)
+### 后端架构 (Elysia + Bun)
 
 **入口**：`src/index.ts`
 
@@ -86,23 +86,29 @@ cd web && bunx vite build && cd .. && ls src/
 **认证层**：
 
 - `src/auth/better-auth.ts`：better-auth 实例，session + email/password
-- `src/auth/api-key-service.ts`：per-user API Key（SQLite），用于 acp-link 认证
+- `src/auth/api-key-service.ts`：per-user API Key（PostgreSQL），用于 acp-link 认证
 - `src/auth/middleware.ts`：`sessionAuth` 中间件，验证 better-auth session
 - `src/auth/jwt.ts`：JWT 工具（遗留代码，部分功能仍在使用）
 
-**配置服务**：`src/services/config.ts`
+**配置服务**：`src/services/config-pg.ts`
 
-- 存储路径：`~/.config/opencode/opencode.json`
-- 写入互斥锁：防止并发写入损坏配置
-- deep merge：`setSection` 会合并而非覆盖现有配置
+- 存储：PostgreSQL 数据库，6 张配置表（provider, model, agent_config, mcp_server, skill, user_config）
+- 多租户：所有 CRUD 函数以 `userId` 为首参数，WHERE 条件包含 user_id
+- JSONB 字段：permission、knowledge、config 等复杂结构用 JSONB 存储
+- 返回值约定：delete → boolean（`.returning()` 检查长度），get → 对象 | null，list → 数组
+- 旧 `src/services/config.ts` 已清理为空壳，无活跃导出
 - **子服务**：`skill.ts`、`instance.ts`、`task.ts`、`scheduler.ts`、`session.ts` 负责特定功能的 CRUD 和调度
 
 **传输层**：`src/transport/`
 
 - `acp-ws-handler.ts`：处理 `/acp/ws` 连接（acp-link 注册）
 - `acp-relay-handler.ts`：处理 `/acp/relay/:agentId` 连接（前端与 Agent 的中继），拦截 `list_sessions` 由服务端直接响应
+- `acp-sse-writer.ts`：ACP SSE 事件写入
 - `event-bus.ts`：事件总线，连接会话事件和 ACP 连接
 - `sse-writer.ts`：SSE 事件规范化
+- `ws-handler.ts`：通用 WebSocket 处理
+- `ws-types.ts`：WebSocket 类型定义
+- `client-payload.ts`：客户端消息载荷处理
 
 **内存存储**：`src/store.ts`
 
@@ -112,10 +118,11 @@ cd web && bunx vite build && cd .. && ls src/
 - `tokens` Map：遗留 token 存储（`storeCreateToken`、`storeGetUserByToken`）
 - 辅助查询：`storeListSessionsForAgentByCwd`（按 cwd 过滤 session）、`storeListAcpAgentsByUserId`
 
-**数据库持久化**：`src/db/schema.ts`（Drizzle ORM + SQLite）
+**数据库持久化**：`src/db/schema.ts`（Drizzle ORM + PostgreSQL）
 
 - better-auth 表：`user`、`session`、`account`、`verification`
 - 自定义表：`apiKey`、`mcpTool`、`scheduledTask`、`taskExecutionLog`、`shareLink`、`shareEventSnapshot`、`environment`
+- 配置表（F002）：`provider`、`model`、`agentConfig`、`mcpServer`、`skill`、`userConfig`
 
 ### ACP 协议要点
 
@@ -125,7 +132,7 @@ acp-link 是连接 AI Agent 和 RCS 的桥梁，通过 WebSocket 进行双向通
 
 acp-link 有两种认证方式（优先级从高到低）：
 
-1. **Per-user API Key**（SQLite）：`Authorization: Bearer rcs_xxx` 或 `?token=rcs_xxx`
+1. **Per-user API Key**（PostgreSQL）：`Authorization: Bearer rcs_xxx` 或 `?token=rcs_xxx`
 2. **全局 API Key**（环境变量）：`RCS_API_KEYS=key1,key2`，回退到系统用户
 
 #### WebSocket 端点
@@ -239,21 +246,11 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 }
 ```
 
-## 配置文件格式
+## 配置存储
 
-### `~/.config/opencode/opencode.json`
+配置数据存储在 PostgreSQL 中，通过 `src/services/config-pg.ts` 服务层统一管理。旧版文件 `~/.config/opencode/opencode.json` 已废弃。
 
-```json
-{
-  "providers": { "provider-id": { "baseURL": "...", "apiKey": "..." } },
-  "models": { "model-id": { "provider": "provider-id", "model": "..." } },
-  "agents": { "agent-id": { "model": "model-id", "prompt": "...", "permission": {...} } },
-  "skills": { "skill-name": { "description": "...", "content": "..." } },
-  "mcp": { "server-id": { "command": "...", "args": [...] } }
-}
-```
-
-**重要**：`setSection` 使用 deep merge，修改嵌套字段时需注意不会意外合并数组。
+### 配置 API 规范
 
 ### 配置 API 规范
 
@@ -290,18 +287,20 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 ### API Key 安全策略
 
-- 用户提交明文 Key 时，服务端替换为 `{env:RCS_SECRET_<provider_name>}` 存入配置文件
+- 用户提交明文 Key 时，服务端替换为 `{env:RCS_SECRET_<provider_name>}` 存入数据库
 - 实际密文存入环境变量（`.env` 或系统环境变量）
 - API 响应只返回 `keyHint`（尾 4 位），如 `***ab12`
 
 ### Skills 存储路径
 
 ```
-~/.agents/skills/           ← 启用的 skills
-~/.agents/skills/_disabled/  ← 禁用的 skills
+~/.agents/skills/           ← Skill Markdown 内容文件
 ```
 
-**历史**：旧路径为 `~/.config/opencode/skills/`，RCS 启动时自动迁移，创建 `.migrated` 标记文件防止重复迁移。
+- **元数据**（name, description, enabled 等）存储在 PostgreSQL `skill` 表中
+- **内容**（Markdown）保留在文件系统 `~/.agents/skills/<name>/SKILL.md`
+- 启用/禁用通过数据库 `enabled` 字段控制，不再通过目录移动
+- 旧路径 `~/.config/opencode/skills/` 和 `_disabled/` 目录已废弃
 
 ### Permission 权限系统
 
@@ -370,14 +369,14 @@ MCP (Model Context Protocol) 支持两种类型：
 
 ## 数据库
 
-- SQLite：`data/db.sqlite`（gitignored）
-- ORM：Drizzle ORM
+- PostgreSQL（通过 `DATABASE_URL` 环境变量连接，默认 `postgres://rcs:rcs@localhost:5432/rcs`）
+- ORM：Drizzle ORM（`drizzle-orm/postgres-js` 驱动）
 - Schema：`src/db/schema.ts`
 - 表：
   - better-auth：`user`、`session`、`account`、`verification`
   - 自定义：`apiKey`、`mcpTool`（MCP Tool 缓存）、`scheduledTask`（定时任务）、`taskExecutionLog`（执行日志）、`shareLink`（分享链接）、`shareEventSnapshot`（分享事件快照）、`environment`（环境持久化）
-
-迁移：无正式迁移系统，better-auth 自动创建表。RCS 启动时自动执行表创建（`CREATE TABLE IF NOT EXISTS`）。
+  - 配置表（F002）：`provider`、`model`、`agent_config`、`mcp_server`、`skill`、`user_config`
+- 迁移：使用 Drizzle Kit（`bunx drizzle-kit generate && bunx drizzle-kit migrate`）
 
 ## 测试策略
 
@@ -461,7 +460,7 @@ Permission 选项（`web/src/components/PermissionTab.tsx`）：
 
 1. **前端修改未生效**：后端直接挂载 `web/dist/`，修改前端代码后必须 `bun run build:web` 重新构建
 2. **前端构建后路径错误**：Vite base 设为 `/ctrl/`，部署时需确保反向Agent匹配
-3. **配置写入竞争**：多请求同时修改配置可能损坏，`services/config.ts` 有锁机制但非分布式
+3. **配置写入竞争**：`config-pg.ts` 依赖 PG 事务隔离，但未做分布式锁。并发 upsert 同一 provider 可能产生竞态
 4. **WebSocket 断连**：反向Agent timeout 需 > 30s（Bun idleTimeout 默认）
 5. **状态 Badge 混淆**：两个不同文件中的 StatusBadge，状态值不同
 6. **工作目录漂移**：Bash `cd web` 后，相对路径命令会失败
@@ -513,7 +512,7 @@ Permission 选项（`web/src/components/PermissionTab.tsx`）：
 
 - **后端**：
   - `src/routes/`：按 API 版本或功能分组（`v1/`, `v2/`, `web/`, `acp/`）
-  - `src/services/`：业务逻辑层（`config.ts`, `skill.ts`, `instance.ts`, `task.ts`, `scheduler.ts`, `session.ts`, `environment.ts`）
+  - `src/services/`：业务逻辑层（`config-pg.ts`, `skill.ts`, `instance.ts`, `task.ts`, `scheduler.ts`, `session.ts`, `environment.ts`）
   - `src/transport/`：WebSocket/传输层（`acp-ws-handler.ts`, `acp-relay-handler.ts`, `event-bus.ts`）
   - `src/auth/`：认证相关（`better-auth.ts`, `api-key-service.ts`, `middleware.ts`）
   - `src/__tests__/`：测试文件与源码同名，加 `.test.ts` 后缀
@@ -573,24 +572,19 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
 ### 后端路由模式
 
 ```typescript
-import { Hono } from "hono";
+import Elysia from "elysia";
+import { authGuardPlugin } from "../../plugins/auth";
 
-const app = new Hono();
+const app = new Elysia({ name: "web-config-resource", prefix: "/web" })
+  .use(authGuardPlugin);
 
-// GET /web/resource
-app.get("/", sessionAuth, async (c) => {
-  const user = c.get("user")!;
+// POST /web/resource（Elysia 统一用 POST + action 分发）
+app.post("/resource", async ({ store, body, error }) => {
+  const user = store.user!;
+  const b = (body as any) ?? {};
   // ... 业务逻辑
-  return c.json(data);
-});
-
-// POST /web/resource
-app.post("/", sessionAuth, async (c) => {
-  const user = c.get("user")!;
-  const body = await c.req.json();
-  // ... 业务逻辑
-  return c.json({ ok: true });
-});
+  return { success: true, data: { ... } };
+}, { sessionAuth: true });
 
 export default app;
 ```
