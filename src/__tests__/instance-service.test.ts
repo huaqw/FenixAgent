@@ -99,6 +99,7 @@ mock.module("../store", () => ({
     createdAt: new Date(),
     updatedAt: new Date(),
   })),
+  storeListSessionsByEnvironment: mock(() => []),
 }));
 
 mock.module("../utils/executable", () => ({
