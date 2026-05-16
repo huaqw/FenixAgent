@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { environmentRepo, sessionRepo } from "../repositories";
 import type { RegisterEnvironmentRequest } from "../types/api";
 import type { EnvironmentRecord } from "../repositories";
-import { NotFoundError } from "../errors";
+import { NotFoundError, AppError } from "../errors";
 import { findOrCreateForEnvironment } from "./session";
 import { toResponse, deleteEnvironment } from "./environment-core";
 import { log } from "../logger";
@@ -304,10 +304,10 @@ export async function handleAcpIdentify(params: {
 
   const record = await getEnvironment(params.agentId);
   if (!record || record.workerType !== "acp") {
-    throw Object.assign(new Error("Agent not found"), { code: "NOT_FOUND" });
+    throw new NotFoundError("Agent not found");
   }
   if (record.userId && record.userId !== params.userId) {
-    throw Object.assign(new Error("Agent not owned by you"), { code: "FORBIDDEN" });
+    throw new AppError("Agent not owned by you", "FORBIDDEN", 403);
   }
 
   await markEnvironmentActive(params.agentId);

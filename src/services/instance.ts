@@ -5,6 +5,7 @@ import { getAgentConfigById, getAgentFullConfig } from "./config-pg";
 import { environmentRepo } from "../repositories";
 import { findOrCreateForEnvironment } from "./session";
 import { log, error as logError } from "../logger";
+import { NotFoundError, AppError } from "../errors";
 import type { RuntimeInstanceSnapshot } from "@mothership/core";
 import type { AgentFullConfig } from "./config-pg";
 
@@ -288,10 +289,7 @@ export async function enterEnvironment(
     const runningInstances = getRunningInstancesByEnvironment(environmentId);
     inst = runningInstances.find((i) => i.instanceNumber === instanceNumber);
     if (!inst) {
-      throw Object.assign(
-        new Error(`实例 ${instanceNumber} 不存在或未运行`),
-        { code: "NOT_FOUND" },
-      );
+      throw new NotFoundError(`实例 ${instanceNumber} 不存在或未运行`);
     }
   } else {
     const result = await ensureRunning(userId, environmentId);
@@ -299,7 +297,7 @@ export async function enterEnvironment(
   }
 
   if (!inst) {
-    throw Object.assign(new Error("无法创建实例"), { code: "INTERNAL_ERROR" });
+    throw new AppError("无法创建实例", "INTERNAL_ERROR", 500);
   }
 
   // 为该环境查找或创建 RCS session（前端导航需要 session_id）

@@ -83,6 +83,25 @@ describe("validateMcpConfig", () => {
   it("拒绝未知 type", () => {
     expect(validateMcpConfig({ type: "unknown", url: "http://x" })).toBe("INVALID_CONFIG_TYPE");
   });
+
+  // streamable-http 类型完整配置（与 remote 共享 url 校验规则）
+  it("接受有效的 streamable-http 配置", () => {
+    expect(validateMcpConfig({
+      type: "streamable-http",
+      url: "https://api.example.com/mcp",
+      timeout: 5000,
+    })).toBeNull();
+  });
+
+  // streamable-http 缺少 url 应报错
+  it("拒绝 streamable-http 缺少 url", () => {
+    expect(validateMcpConfig({ type: "streamable-http" })).toBe("INVALID_URL");
+  });
+
+  // streamable-http 无效 headers 应报错
+  it("拒绝 streamable-http 无效 headers", () => {
+    expect(validateMcpConfig({ type: "streamable-http", url: "https://x.com", headers: "bad" })).toBe("INVALID_HEADERS");
+  });
 });
 
 // ── MCP 名称校验 ──

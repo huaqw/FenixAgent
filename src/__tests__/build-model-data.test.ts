@@ -26,6 +26,12 @@ describe("buildModelData", () => {
     expect(result.displayName).toBe("Claude 3.5");
   });
 
+  // data.name 为非字符串时不映射（类型安全守卫）
+  it("非字符串 name 不映射为 displayName", () => {
+    const result = buildModelData({ name: 123 as unknown as string });
+    expect(result.displayName).toBeUndefined();
+  });
+
   // data.limit → limitConfig 映射
   it("将 data.limit 映射为 limitConfig", () => {
     const result = buildModelData({ limit: { rpm: 100 } });
@@ -38,9 +44,9 @@ describe("buildModelData", () => {
     expect(result).toEqual({});
   });
 
-  // null 值现在能正确透传（!== undefined），允许显式清除字段
+  // null/非字符串 name 不映射，但 null modalities 能正确透传
   it("透传 null 值以支持清除字段", () => {
-    const result = buildModelData({ name: "", modalities: null });
+    const result = buildModelData({ modalities: null });
     expect(result.displayName).toBeUndefined();
     expect(result.modalities).toBeNull();
   });

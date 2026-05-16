@@ -106,7 +106,7 @@ export function buildModelData(data: Record<string, unknown>): {
   options?: unknown;
 } {
   const result: { displayName?: string; modalities?: unknown; limitConfig?: unknown; cost?: unknown; options?: unknown } = {};
-  if (data.name) result.displayName = data.name as string;
+  if (typeof data.name === "string") result.displayName = data.name;
   if (data.modalities !== undefined) result.modalities = data.modalities;
   if (data.limit !== undefined) result.limitConfig = data.limit;
   if (data.cost !== undefined) result.cost = data.cost;

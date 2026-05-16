@@ -157,3 +157,15 @@
 1. **BUG — writeLogAndReturn 错误码语义错误**：`task.ts` 执行日志写入失败返回 `"NOT_FOUND"`，改为 `"WRITE_ERROR"`，新增 `WRITE_ERROR` 错误码。
 2. **BUG — deleteSkill 删除顺序不安全**：`skill.ts` 先删文件再删 DB 记录，若 DB 删除失败则文件已丢失。改为 DB-first + 文件清理容错（catch 不抛出）。
 3. **测试** — 新增 `task-utils-edge-cases.test.ts`（10 用例）覆盖 `truncateSummary`（空串/null/2000边界/unicode）和 `toUnixTimestamp`（null/毫秒截断/epoch零点）。13 轮累计 182 个测试���
+3. **测试** — 新增 `task-utils-edge-cases.test.ts`（10 用例）覆盖 `truncateSummary`（空串/null/2000边界/unicode）和 `toUnixTimestamp`（null/毫秒截断/epoch零点）。13 轮累计 182 个测试。
+
+## 2026-05-17 第十四次审查
+
+审查范围：全量 CRUD 层 streamable-http 验证缺口、错误类一致性、类型安全收尾
+
+修复（1 BUG + 3 CLEANUP）：
+1. **BUG — validateMcpConfig 拒绝 streamable-http**：`mcp-server.ts` 的 `validateMcpConfig` 仅接受 local/remote，但 `toServerInfo` 已支持 streamable-http，导致通过验证���创建 streamable-http 类型 MCP 服务器时静默失败。修复为 streamable-http 与 remote 共享 url 校验规则。
+2. **CLEANUP — Object.assign 错误 → AppError**：`instance.ts`（enterEnvironment）和 `environment-acp.ts`（handleAcpIdentify）共 3 处 `Object.assign(new Error, { code })` 替换为标准 `NotFoundError`/`AppError`，与路由层 `err.code` 检查兼容。
+3. **CLEANUP — buildModelData 类型守卫**：`provider.ts` 的 `data.name as string` 改为 `typeof data.name === "string"` 守卫，非字符串 name 不映射。
+4. **CLEANUP — listSkillSources timer 初始化**：`skill.ts` 的 `timer` 变量从 `!` 断言改为 `| undefined` 初始化 + `if` 检查。
+5. 新增 `error-class-semantics.test.ts`（3 用例），`config-validators.test.ts` 新增 3 用例（streamable-http），`build-model-data.test.ts` 新增 1 用例（非字符串 name）。14 轮累计 189 个测试。

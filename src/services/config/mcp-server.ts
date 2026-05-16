@@ -137,7 +137,7 @@ export function validateMcpConfig(config: unknown): string | null {
     if (cfg.timeout !== undefined && (typeof cfg.timeout !== "number" || cfg.timeout <= 0)) {
       return "INVALID_TIMEOUT";
     }
-  } else if (type === "remote") {
+  } else if (type === "remote" || type === "streamable-http") {
     if (typeof cfg.url !== "string" || cfg.url.length === 0) return "INVALID_URL";
     if (cfg.headers !== undefined && (typeof cfg.headers !== "object" || cfg.headers === null)) {
       return "INVALID_HEADERS";

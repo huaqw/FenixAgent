@@ -281,7 +281,7 @@ export async function listSkillSources(userId: string): Promise<SkillSourceInfo[
 
   const results = await Promise.allSettled(
     environments.map(async (env) => {
-      let timer: ReturnType<typeof setTimeout>;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const skills = await Promise.race([
           listWorkspaceSkills(env.workspacePath),
@@ -291,7 +291,7 @@ export async function listSkillSources(userId: string): Promise<SkillSourceInfo[
         ]);
         return { env, skills };
       } finally {
-        clearTimeout(timer!);
+        if (timer) clearTimeout(timer);
       }
     }),
   );
