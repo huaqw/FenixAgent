@@ -3,7 +3,7 @@ import { getCoreRuntime } from "./core-bootstrap";
 import { buildLaunchSpec } from "./launch-spec-builder";
 import { getAgentConfigById, getAgentFullConfig } from "./config-pg";
 import { environmentRepo, sessionRepo } from "../repositories";
-import { log } from "../logger";
+import { log, error as logError } from "../logger";
 import type { RuntimeInstanceSnapshot } from "@mothership/core";
 import type { AgentFullConfig } from "./config-pg";
 
@@ -253,7 +253,9 @@ export async function stopAllInstances(): Promise<void> {
     if (snapshot.status !== "stopped") {
       try {
         await facade.stopInstance(snapshot.instanceId);
-      } catch {}
+      } catch (err: unknown) {
+        logError(`[Instance] Failed to stop ${snapshot.instanceId}:`, err);
+      }
     }
   }
   supplements.clear();

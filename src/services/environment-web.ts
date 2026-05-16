@@ -44,8 +44,9 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
   // workspace 目录初始化
   try {
     workspacePath = ensureWorkspaceDir(workspacePath);
-  } catch (err: any) {
-    throw new ConfigWriteError(`无法创建目录: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new ConfigWriteError(`无法创建目录: ${msg}`);
   }
 
   // 创建记录
@@ -63,8 +64,9 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
       autoStart: autoStart === true,
       agentConfigId: params.agentConfigId ?? null,
     });
-  } catch (err: any) {
-    if (err.message?.includes("unique") || err.message?.includes("duplicate") || err.message?.includes("UNIQUE")) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("unique") || msg.includes("duplicate") || msg.includes("UNIQUE")) {
       throw new ConflictError(`环境名称 '${name}' 已存在`);
     }
     throw err;

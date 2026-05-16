@@ -106,6 +106,23 @@ function validateTaskInput(data: CreateTaskInput, isUpdate = false): string | nu
   return null;
 }
 
+/** 安全解析 headers：兼容 jsonb 中存储的 JSON 字符串和已解析对象 */
+function parseHeaders(value: unknown): Record<string, string> | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      // 向后兼容：旧数据可能双重编码（jsonb + 手动 JSON.stringify）
+      if (typeof parsed === "string") {
+        try { return JSON.parse(parsed); } catch { return null; }
+      }
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, string> : null;
+    } catch { return null; }
+  }
+  if (typeof value === "object" && !Array.isArray(value)) return value as Record<string, string>;
+  return null;
+}
+
 function sanitizeTask(row: ScheduledTaskRow): TaskResponse {
   return {
     id: row.id,
@@ -116,13 +133,13 @@ function sanitizeTask(row: ScheduledTaskRow): TaskResponse {
     enabled: row.enabled,
     url: row.url,
     method: row.method ?? "POST",
-    headers: row.headers as Record<string, string> | null ?? null,
+    headers: parseHeaders(row.headers),
     body: row.body ?? null,
     lastRunAt: toUnixTimestamp(row.lastRunAt),
     nextRunAt: toUnixTimestamp(row.nextRunAt),
     lastStatus: row.lastStatus ?? null,
-    createdAt: Math.floor(row.createdAt.getTime() / 1000),
-    updatedAt: Math.floor(row.updatedAt.getTime() / 1000),
+    createdAt: toUnixTimestamp(row.createdAt) ?? 0,
+    updatedAt: toUnixTimestamp(row.updatedAt) ?? 0,
   };
 }
 
@@ -137,7 +154,7 @@ function sanitizeExecutionLog(row: TaskExecutionLogRow): TaskExecutionLogRespons
     statusCode: null,
     skipReason: row.skipReason ?? null,
     resultSummary: row.resultSummary ?? null,
-    createdAt: Math.floor(row.createdAt.getTime() / 1000),
+    createdAt: toUnixTimestamp(row.createdAt) ?? 0,
   };
 }
 
@@ -159,7 +176,7 @@ export async function createTask(userId: string, data: CreateTaskInput): Promise
     enabled: true,
     url: data.url.trim(),
     method: data.method?.toUpperCase() ?? "POST",
-    headers: data.headers ? JSON.stringify(data.headers) : null,
+    headers: data.headers ?? null,
     body: data.body ?? null,
     lastRunAt: null,
     nextRunAt: null,
@@ -204,14 +221,15 @@ export async function updateTask(userId: string, taskId: string, data: UpdateTas
   if (data.timezone !== undefined) updates.timezone = normalizeTimezone(data.timezone);
   if (data.url !== undefined) updates.url = data.url.trim();
   if (data.method !== undefined) updates.method = data.method.toUpperCase();
-  if (data.headers !== undefined) updates.headers = data.headers ? JSON.stringify(data.headers) : null;
+  if (data.headers !== undefined) updates.headers = data.headers ?? null;
   if (data.body !== undefined) updates.body = data.body;
   if (data.enabled !== undefined) updates.enabled = data.enabled;
 
   await scheduledTaskRepo.update(taskId, updates);
 
   const row = await scheduledTaskRepo.getById(taskId);
-  const result = sanitizeTask(row!);
+  if (!row) return { success: false, error: { code: "NOT_FOUND", message: "任务不存在（更新后未找到）" } };
+  const result = sanitizeTask(row);
   rescheduleTask({ id: result.id, cron: result.cron, timezone: result.timezone, enabled: result.enabled });
 
   return { success: true, data: result };
@@ -289,7 +307,8 @@ export async function executeTaskById(
     await scheduledTaskRepo.update(task.id, { lastRunAt: now, lastStatus: status, updatedAt: now });
 
     const logRow = await taskExecutionLogRepo.getById(logId);
-    return { success: true, data: sanitizeExecutionLog(logRow!) };
+    if (!logRow) return { success: false, error: { code: "NOT_FOUND", message: "执行日志未找到" } };
+    return { success: true, data: sanitizeExecutionLog(logRow) };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     const duration = Date.now() - startTime;
@@ -309,7 +328,8 @@ export async function executeTaskById(
     await scheduledTaskRepo.update(task.id, { lastRunAt: now, lastStatus: "failed", updatedAt: now });
 
     const logRow = await taskExecutionLogRepo.getById(logId);
-    return { success: true, data: sanitizeExecutionLog(logRow!) };
+    if (!logRow) return { success: false, error: { code: "NOT_FOUND", message: "执行日志未找到" } };
+    return { success: true, data: sanitizeExecutionLog(logRow) };
   }
 }
 

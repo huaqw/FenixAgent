@@ -136,6 +136,44 @@ describe("Task Service", () => {
       expect(result.data.enabled).toBe(false);
       expect(result.data.url).toBe("https://example.com/updated");
     });
+
+    // 验证 headers 字段从 jsonb 正确解析为对象（非字符串）
+    it("createTask 返回的 headers 为解析后的对象", async () => {
+      const result = await createTask(USER_A, getValidInput({
+        headers: { "X-Custom": "value", "Authorization": "Bearer abc" },
+      }));
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(typeof result.data.headers).toBe("object");
+      expect(result.data.headers).not.toBeNull();
+      expect(result.data.headers!["X-Custom"]).toBe("value");
+      expect(result.data.headers!["Authorization"]).toBe("Bearer abc");
+    });
+
+    // 验证 getTask 返回的 headers 也是解析后的对象
+    it("getTask 返回的 headers 为解析后的对象", async () => {
+      const created = await createTask(USER_A, getValidInput({
+        headers: { "Content-Type": "application/xml" },
+      }));
+      if (!created.success) return;
+
+      const result = await getTask(USER_A, created.data.id);
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(typeof result.data.headers).toBe("object");
+      expect(result.data.headers).not.toBeNull();
+      expect(result.data.headers!["Content-Type"]).toBe("application/xml");
+    });
+
+    // headers 为 null 时正确处理
+    it("createTask 不传 headers 时返回 null", async () => {
+      const result = await createTask(USER_A, getValidInput({ headers: undefined }));
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.headers).toBeNull();
+    });
   });
 
   describe("deleteTask/toggleTask", () => {
