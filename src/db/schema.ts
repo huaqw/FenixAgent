@@ -224,11 +224,8 @@ export const scheduledTask = pgTable("scheduled_task", {
   method: varchar("method", { length: 10 }).notNull().default("POST"),
   headers: jsonb("headers"),
   body: text("body"),
-  // 遗留字段（过渡期保留，deprecated）
   environmentId: varchar("environment_id")
     .references(() => environment.id, { onDelete: "cascade" }),
-  task: text("task"),
-  timeoutMinutes: integer("timeout_minutes").default(30),
   lastRunAt: timestamp("last_run_at", { withTimezone: true }),
   nextRunAt: timestamp("next_run_at", { withTimezone: true }),
   lastStatus: varchar("last_status"),

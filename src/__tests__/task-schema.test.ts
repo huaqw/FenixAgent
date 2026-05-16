@@ -47,8 +47,6 @@ function createBaseTables(db: Database) {
       timezone TEXT,
       enabled INTEGER NOT NULL DEFAULT 1,
       environment_id TEXT NOT NULL REFERENCES environment(id) ON DELETE CASCADE,
-      task TEXT NOT NULL,
-      timeout_minutes INTEGER NOT NULL DEFAULT 30,
       last_run_at INTEGER,
       next_run_at INTEGER,
       last_status TEXT,
@@ -81,8 +79,6 @@ describe("Task Schema", () => {
     const columns = getColumnNames(scheduledTask);
     expect(columns).toContain("id");
     expect(columns).toContain("environmentId");
-    expect(columns).toContain("task");
-    expect(columns).toContain("timeoutMinutes");
     expect(columns).toContain("lastRunAt");
     expect(columns).toContain("enabled");
   });
@@ -119,7 +115,7 @@ describe("Task Schema", () => {
       const info = db.query("PRAGMA table_info(scheduled_task)").all() as Array<{ name: string }>;
       const colNames = info.map((column) => column.name);
 
-      expect(info.length).toBe(15);
+      expect(info.length).toBe(13);
       expect(colNames).toEqual([
         "id",
         "user_id",
@@ -129,8 +125,6 @@ describe("Task Schema", () => {
         "timezone",
         "enabled",
         "environment_id",
-        "task",
-        "timeout_minutes",
         "last_run_at",
         "next_run_at",
         "last_status",
