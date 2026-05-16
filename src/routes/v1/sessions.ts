@@ -45,7 +45,8 @@ app.post("/", async ({ store, body }) => {
   // Publish initial events if provided
   if (b.events && Array.isArray(b.events)) {
     for (const evt of b.events) {
-      publishSessionEvent(session.id, (evt.type as string) || "init", evt, "outbound");
+      const evtType = typeof evt.type === "string" ? evt.type : "init";
+      publishSessionEvent(session.id, evtType, evt, "outbound");
     }
   }
 
@@ -108,7 +109,8 @@ app.post("/:id/events", async ({ params, body, error }) => {
     : [];
   const published = [];
   for (const evt of events) {
-    const result = publishSessionEvent(sessionId, (evt.type as string) || "message", evt, "inbound");
+    const evtType = typeof evt.type === "string" ? evt.type : "message";
+    const result = publishSessionEvent(sessionId, evtType, evt, "inbound");
     published.push(result);
   }
 
