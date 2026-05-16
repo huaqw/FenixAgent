@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { scheduledTaskRepo, taskExecutionLogRepo } from "../repositories/task";
-import type { ScheduledTaskRow, TaskExecutionLogRow } from "../repositories/task";
+import type { ScheduledTaskRow, TaskExecutionLogRow, ScheduledTaskInsert } from "../repositories/task";
 import { scheduleTask, rescheduleTask, unscheduleTask } from "./scheduler";
 import { parseJsonb } from "./config/jsonb";
 import { error as logError } from "../logger";
@@ -207,7 +207,7 @@ export async function updateTask(userId: string, taskId: string, data: UpdateTas
   const validationError = validateTaskInput(data as CreateTaskInput, true);
   if (validationError) return { success: false, error: { code: "VALIDATION_ERROR", message: validationError } };
 
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  const updates: Partial<ScheduledTaskInsert> = { updatedAt: new Date() };
   if (data.name !== undefined) updates.name = data.name.trim();
   if (data.description !== undefined) updates.description = data.description?.trim() ?? null;
   if (data.cron !== undefined) updates.cron = data.cron.trim();

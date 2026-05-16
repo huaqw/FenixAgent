@@ -16,6 +16,7 @@ import type {
   CreateWebEnvironmentParams,
   UpdateWebEnvironmentParams,
 } from "./environment-core";
+import type { EnvironmentUpdateParams } from "../repositories";
 
 export type { CreateWebEnvironmentParams, UpdateWebEnvironmentParams };
 
@@ -78,7 +79,7 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
 /** 更新 Web 控制面板 Environment — 包含参数校验、Agent 配置解析 */
 export async function updateWebEnvironment(envId: string, userId: string, params: UpdateWebEnvironmentParams) {
   await getOwnedEnvironment(envId, userId);
-  const patch: Record<string, unknown> = {};
+  const patch: EnvironmentUpdateParams = {};
 
   if (params.name !== undefined) {
     if (!KEBAB_CASE_RE.test(params.name)) {

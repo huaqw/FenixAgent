@@ -38,10 +38,10 @@ export async function createAgentConfig(
   name: string,
   data: Record<string, unknown>,
 ) {
-  const values: Record<string, unknown> = { userId, name };
+  const values: Partial<typeof agentConfig.$inferInsert> = { userId, name };
   for (const field of AGENT_SETTABLE_FIELDS) {
     if (data[field] !== undefined) {
-      values[field] = data[field] ?? null;
+      (values as Record<string, unknown>)[field] = data[field] ?? null;
     }
   }
   await db.insert(agentConfig).values(values as typeof agentConfig.$inferInsert);
@@ -52,10 +52,10 @@ export async function updateAgentConfig(
   name: string,
   data: Record<string, unknown>,
 ) {
-  const set: Record<string, unknown> = { updatedAt: new Date() };
+  const set: Partial<typeof agentConfig.$inferInsert> = { updatedAt: new Date() };
   for (const field of AGENT_SETTABLE_FIELDS) {
     if (data[field] !== undefined) {
-      set[field] = data[field] ?? null;
+      (set as Record<string, unknown>)[field] = data[field] ?? null;
     }
   }
   await db.update(agentConfig).set(set)

@@ -68,10 +68,10 @@ export function sanitizeResponse(row: EnvironmentRecord) {
     branch: row.branch ?? null,
     auto_start: row.autoStart ?? false,
     last_poll_at: row.lastPollAt
-      ? Math.floor(new Date(row.lastPollAt).getTime() / 1000)
+      ? Math.floor(row.lastPollAt.getTime() / 1000)
       : null,
-    created_at: Math.floor(new Date(row.createdAt).getTime() / 1000),
-    updated_at: Math.floor(new Date(row.updatedAt).getTime() / 1000),
+    created_at: Math.floor(row.createdAt.getTime() / 1000),
+    updated_at: Math.floor(row.updatedAt.getTime() / 1000),
   };
 }
 

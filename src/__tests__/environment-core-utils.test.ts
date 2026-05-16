@@ -145,4 +145,29 @@ describe("sanitizeResponse", () => {
     expect(result.auto_start).toBe(false);
     expect(result.last_poll_at).toBeNull();
   });
+
+  // 时间戳精度：带毫秒的 Date 不丢失精度
+  it("毫秒精度时间戳正确转换为整数秒", () => {
+    const ts = new Date("2026-05-17T08:30:45.678Z");
+    const result = sanitizeResponse({
+      id: "env_ms",
+      name: "test",
+      description: null,
+      workspacePath: "/tmp",
+      agentName: null,
+      agentConfigId: null,
+      status: "idle",
+      machineName: null,
+      branch: null,
+      autoStart: false,
+      lastPollAt: ts,
+      createdAt: ts,
+      updatedAt: ts,
+    } as any);
+
+    const expected = Math.floor(ts.getTime() / 1000);
+    expect(result.last_poll_at).toBe(expected);
+    expect(result.created_at).toBe(expected);
+    expect(result.updated_at).toBe(expected);
+  });
 });

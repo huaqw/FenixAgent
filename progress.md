@@ -136,3 +136,15 @@
 6. **CLEANUP — registerEnvironment 类型欺骗**：`environment-acp.ts` 移除 `as "active"` 强制转换，使用实际 record.status。
 7. **CLEANUP — Record<string, unknown> 类型安全**：`user-config.ts` 和 `model.ts` 的 `values`/`set` 变量从 `Record<string, unknown>` 改为 `Partial<...$inferInsert>`，移除 `as` 断言。
 8. 新增 `skill-source-error-status.test.ts`（5 用例），`mcp-server-info.test.ts` 新增 3 用例，`task-validators.test.ts` 新增 3 用例。11 轮累计 164 个测试。
+
+## 2026-05-17 第十二次审查
+
+审查范围：全量 CRUD 层 Record<string,unknown> 类型安全收尾 + environment-core 时间戳一致性
+
+修复（1 BUG + 5 CLEANUP）：
+1. **BUG — sanitizeResponse 冗余 Date 包装**：`environment-core.ts` 的 `sanitizeResponse` 对已是 Date 的字段调用 `new Date(row.createdAt)`，���为直接 `.getTime()`，与 `toResponse` 行为对齐，消除无意义的对象创建。
+2. **CLEANUP — agent-config 类型安全**：`createAgentConfig`/`updateAgentConfig` 的 `values`/`set` 从 `Record<string, unknown>` 改为 `Partial<...$inferInsert>`。
+3. **CLEANUP — updateWebEnvironment patch 类型**：从 `Record<string, unknown>` 改为 `EnvironmentUpdateParams`。
+4. **CLEANUP — updateTask updates 类型**：从 `Record<string, unknown>` 改为 `Partial<ScheduledTaskInsert>`。
+5. **CLEANUP — updateMcpServer updates 类型**：从 `Record<string, unknown>` 改为 `Partial<...$inferInsert>`。
+6. **测试** — 新增 `agent-config-validators.test.ts`（19 用例）覆盖 validateAgentData/isBuiltInAgent/toolsToPermission/AGENT_SETTABLE_FIELDS；`environment-core-utils.test.ts` 新增 1 用例验证毫秒精度。确认 `top_p` vs `topP` 命名不匹配为已知问题。12 轮累计 172 个测试。
