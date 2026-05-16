@@ -39,11 +39,12 @@ app.post("/instances/from-environment", async ({ store, body, error }) => {
     const inst = await spawnInstanceFromEnvironment(user.id, b.environmentId);
     return toResponse(inst);
   } catch (err: any) {
-    const status = err.message === "Environment not found" ? 404
-      : err.message === "Not your environment" ? 403
-      : err.message.startsWith("Workspace directory does not exist") ? 400
+    const status = err.code === "NOT_FOUND" ? 404
+      : err.code === "FORBIDDEN" ? 403
+      : err.code === "VALIDATION_ERROR" ? 400
+      : err.code === "MAX_SESSIONS_REACHED" ? 409
       : 500;
-    return error(status, { error: { type: "spawn_failed", message: err.message } });
+    return error(status, { error: { type: err.code ?? "spawn_failed", message: err.message } });
   }
 }, { sessionAuth: true, body: "spawn-instance-request" });
 

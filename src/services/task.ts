@@ -293,7 +293,7 @@ async function writeLogAndReturn(
       duration,
       triggeredBy,
       skipReason: null,
-      resultSummary: truncateSummary(resultSummary),
+      resultSummary,
       createdAt: Math.floor(now.getTime() / 1000),
     },
   };

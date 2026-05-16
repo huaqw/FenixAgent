@@ -117,11 +117,11 @@ export async function spawnInstanceFromEnvironment(
   environmentId: string,
 ): Promise<SpawnedInstance> {
   const env = await environmentRepo.getById(environmentId);
-  if (!env) throw new Error("Environment not found");
-  if (env.userId !== userId) throw new Error("Not your environment");
+  if (!env) throw new NotFoundError("Environment not found");
+  if (env.userId !== userId) throw new AppError("Not your environment", "FORBIDDEN", 403);
 
   const cwd = env.workspacePath || env.directory;
-  if (!cwd) throw new Error(`Workspace directory not set for environment: ${environmentId}`);
+  if (!cwd) throw new AppError(`Workspace directory not set for environment: ${environmentId}`, "VALIDATION_ERROR", 400);
 
   // 解析 AgentConfig：有则加载完整配置，无则用默认 "general" agent
   let agentName = "general";
@@ -132,7 +132,7 @@ export async function spawnInstanceFromEnvironment(
   if (env.agentConfigId) {
     const resolvedAgentConfig = await getAgentConfigById(env.agentConfigId);
     if (!resolvedAgentConfig) {
-      throw new Error(`AgentConfig '${env.agentConfigId}' not found`);
+      throw new NotFoundError(`AgentConfig '${env.agentConfigId}' not found`);
     }
     fullConfig = await getAgentFullConfig(env.userId, resolvedAgentConfig.id);
     const ac = fullConfig.agentConfig as Record<string, unknown> | null;
@@ -255,11 +255,11 @@ export async function ensureRunning(userId: string, environmentId: string): Prom
   if (existing) return { instance: existing, status: "reused" };
 
   const env = await environmentRepo.getById(environmentId);
-  if (!env) throw new Error("Environment not found");
+  if (!env) throw new NotFoundError("Environment not found");
 
   const runningCount = getRunningInstancesByEnvironment(environmentId).length;
   if (runningCount >= env.maxSessions) {
-    throw new Error(`max_sessions_reached: 已达到最大实例数 ${env.maxSessions}`);
+    throw new AppError(`已达到最大实例数 ${env.maxSessions}`, "MAX_SESSIONS_REACHED", 409);
   }
 
   const instance = await spawnInstanceFromEnvironment(userId, environmentId);

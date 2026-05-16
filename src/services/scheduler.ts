@@ -133,7 +133,11 @@ export async function startScheduler(): Promise<void> {
 export function stopScheduler(): void {
   const count = activeJobs.size;
   for (const [, entry] of activeJobs) {
-    entry.job.cancel();
+    try {
+      entry.job.cancel();
+    } catch (err) {
+      error(`[Scheduler] Failed to cancel job ${entry.taskId}:`, err);
+    }
   }
   activeJobs.clear();
   runningTasks.clear();

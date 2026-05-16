@@ -169,3 +169,13 @@
 3. **CLEANUP — buildModelData 类型守卫**：`provider.ts` 的 `data.name as string` 改为 `typeof data.name === "string"` 守卫，非字符串 name 不映射。
 4. **CLEANUP — listSkillSources timer 初始化**：`skill.ts` 的 `timer` 变量从 `!` 断言改为 `| undefined` 初始化 + `if` 检查。
 5. 新增 `error-class-semantics.test.ts`（3 用例），`config-validators.test.ts` 新增 3 用例（streamable-http），`build-model-data.test.ts` 新增 1 用例（非字符串 name）。14 轮累计 189 个测试。
+
+## 2026-05-17 第十五次审查
+
+审查范围：instance 错误传播链路、task 冗余操作、scheduler 容错
+
+修复（1 BUG + 3 CLEANUP）：
+1. **BUG — instances.ts 路由错误码路由失效**：`spawnInstanceFromEnvironment` 路由通过 `err.message` 字符串匹配 HTTP status，但 workspace 路径错误消息不匹配（"does not exist" vs "not set"），导致始终返回 500。改为 code-based routing：`spawnInstanceFromEnvironment` 抛出 `NotFoundError`/`AppError(FORBIDDEN/VALIDATION_ERROR/MAX_SESSIONS_REACHED)`，路由层用 `err.code` 映射 status。
+2. **CLEANUP — writeLogAndReturn 双重截断**：`task.ts` 的 `writeLogAndReturn` 对 `resultSummary` 调用 `truncateSummary`，但 2 个调用方已截断。移除冗余调用。
+3. **CLEANUP — stopScheduler 容错**：`scheduler.ts` 的 `job.cancel()` 包裹 try-catch，避免单个 job 取消失败阻断后续清理。
+4. 新增 `instance-error-codes.test.ts`（6 用例）覆盖 code→status 映射。15 轮累计 195 个测试。
