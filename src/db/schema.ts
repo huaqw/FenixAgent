@@ -307,29 +307,6 @@ export const channelBinding = pgTable("channel_binding", {
   agentIdx: index("idx_channel_binding_agent_id").on(table.agentId),
 }));
 
-/**
- * @deprecated Session 管理已下沉到 Agent 进程（acp-link），RCS 不再写入此表。
- * 保留表结构以兼容现有数据，新代码不应依赖此表。
- */
-export const agentSession = pgTable("agent_session", {
-  id: varchar("id").primaryKey(),
-  environmentId: varchar("environment_id")
-    .references(() => environment.id, { onDelete: "set null" }),
-  title: varchar("title"),
-  status: varchar("status").notNull(),
-  source: varchar("source").notNull(),
-  permissionMode: varchar("permission_mode"),
-  workerEpoch: integer("worker_epoch").notNull().default(0),
-  username: varchar("username"),
-  userId: text("user_id"),
-  cwd: varchar("cwd"),
-  shareMode: varchar("share_mode", { length: 20 }).notNull().default("none"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  envIdx: index("idx_agent_session_env").on(table.environmentId),
-}));
-
 // ——————————————————————————
 // F002: 配置存储迁移 (fs → pg)
 // ——————————————————————————

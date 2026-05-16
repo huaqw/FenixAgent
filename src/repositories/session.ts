@@ -1,7 +1,4 @@
 import { v4 as uuid } from "uuid";
-import { db } from "../db";
-import { agentSession } from "../db/schema";
-import { eq } from "drizzle-orm";
 
 /** Session 持久化记录 */
 export interface SessionRecord {
@@ -31,7 +28,7 @@ export interface SessionCreateParams {
   cwd?: string | null;
 }
 
-/** Session 仓储接口 — 内存 Map + PostgreSQL 双写 */
+/** Session 仓储接口 — 纯内存 Map */
 export interface ISessionRepo {
   create(params: SessionCreateParams): Promise<SessionRecord>;
   getById(id: string): Promise<SessionRecord | undefined>;
@@ -44,7 +41,6 @@ export interface ISessionRepo {
   listByOwnerUuid(uuid: string): Promise<SessionRecord[]>;
   listByUsername(username: string): Promise<SessionRecord[]>;
   dissociateFromEnvironment(environmentId: string): Promise<void>;
-  loadFromDB(): Promise<void>;
   bindOwner(sessionId: string, uuid: string): Promise<void>;
   isOwner(sessionId: string, uuid: string): Promise<boolean>;
   getOwners(sessionId: string): Promise<Set<string> | undefined>;
@@ -75,19 +71,6 @@ class SessionRepo implements ISessionRepo {
       updatedAt: now,
     };
     this.sessions.set(id, record);
-    await db.insert(agentSession).values({
-      id,
-      environmentId: record.environmentId,
-      title: record.title,
-      status: record.status,
-      source: record.source,
-      permissionMode: record.permissionMode,
-      workerEpoch: record.workerEpoch,
-      username: record.username,
-      userId: record.userId,
-      cwd: record.cwd,
-      shareMode: record.shareMode,
-    });
     return record;
   }
 
@@ -99,17 +82,10 @@ class SessionRepo implements ISessionRepo {
     const rec = this.sessions.get(id);
     if (!rec) return false;
     Object.assign(rec, patch, { updatedAt: new Date() });
-    const dbSet: Record<string, unknown> = { updatedAt: new Date() };
-    if (patch.title !== undefined) dbSet.title = patch.title;
-    if (patch.status !== undefined) dbSet.status = patch.status;
-    if (patch.workerEpoch !== undefined) dbSet.workerEpoch = patch.workerEpoch;
-    if (patch.shareMode !== undefined) dbSet.shareMode = patch.shareMode;
-    await db.update(agentSession).set(dbSet).where(eq(agentSession.id, id));
     return true;
   }
 
   async delete(id: string): Promise<boolean> {
-    await db.delete(agentSession).where(eq(agentSession.id, id));
     return this.sessions.delete(id);
   }
 
@@ -145,29 +121,7 @@ class SessionRepo implements ISessionRepo {
     for (const s of this.sessions.values()) {
       if (s.environmentId === environmentId) {
         s.environmentId = null;
-        await db.update(agentSession).set({ environmentId: null, updatedAt: new Date() }).where(eq(agentSession.id, s.id));
       }
-    }
-  }
-
-  async loadFromDB(): Promise<void> {
-    const rows = await db.select().from(agentSession);
-    for (const row of rows) {
-      this.sessions.set(row.id, {
-        id: row.id,
-        environmentId: row.environmentId,
-        title: row.title,
-        status: row.status,
-        source: row.source,
-        permissionMode: row.permissionMode,
-        workerEpoch: row.workerEpoch,
-        username: row.username,
-        userId: row.userId,
-        cwd: row.cwd,
-        shareMode: (row.shareMode as "none" | "readonly" | "writable") ?? "none",
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      });
     }
   }
 
