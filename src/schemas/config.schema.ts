@@ -3,7 +3,7 @@ import * as z from "zod/v4";
 // ── Config 通用结构 ──
 
 const ConfigActionValues = [
-  "list", "get", "set", "create", "delete",
+  "list", "get", "set", "create", "delete", "update",
   "enable", "disable", "test", "test_url",
   "add_model", "update_model", "remove_model",
   "set_default", "refresh", "inspect", "list_tools",

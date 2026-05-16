@@ -42,19 +42,24 @@ mock.module("../services/config-pg", () => ({
   },
 }));
 
-// db mock for toolsCount
-const _mockDbState: { tools: any[] } = { tools: [] };
-mock.module("../db", () => ({
-  db: {
-    select: () => ({ from: () => ({ where: async () => _mockDbState.tools }) }),
-    delete: () => ({ where: async () => {} }),
+// mcp-server service mock for tool operations
+const _mockToolsState: { tools: any[] } = { tools: [] };
+mock.module("../services/config/mcp-server", () => ({
+  countToolsByServer: async (_serverName: string) => _mockToolsState.tools.length,
+  deleteToolsByServer: async (serverName: string) => {
+    _mockToolsState.tools = _mockToolsState.tools.filter((t: any) => t.serverName !== serverName);
   },
-}));
-mock.module("../db/schema", () => ({
-  mcpTool: { id: "id", serverName: "server_name" },
-}));
-mock.module("drizzle-orm", () => ({
-  eq: (_col: string, _val: string) => ({ col: _col, val: _val }),
+  replaceToolsForServer: async (serverName: string, tools: any[]) => {
+    _mockToolsState.tools = tools.map((t) => ({
+      serverName,
+      toolName: t.name,
+      description: t.description ?? null,
+      inputSchema: t.inputSchema ? JSON.stringify(t.inputSchema) : null,
+      inspectedAt: new Date(),
+    }));
+  },
+  listToolsByServer: async (serverName: string) =>
+    _mockToolsState.tools.filter((t: any) => t.serverName === serverName),
 }));
 
 const mcpRoute = (await import("../routes/web/config/mcp")).default;
@@ -66,7 +71,7 @@ describe("MCP Config Route", () => {
       "another-local": { type: "local", config: { type: "local", command: ["node", "server.js"] }, enabled: true },
       "my-remote": { type: "remote", config: { type: "remote", url: "https://example.com/mcp", headers: { Auth: "Bearer t" } }, enabled: true },
     };
-    _mockDbState.tools = [];
+    _mockToolsState.tools = [];
   });
 
   test("handleList 空配置", async () => {
@@ -336,15 +341,16 @@ describe("MCP Config Route", () => {
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
-  test("未知 action", async () => {
+  // 未知 action 被 Elysia body schema 验证拦截
+  test("未知 action 返回验证错误", async () => {
     const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "unknown" }),
     }));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(422);
     const json = await res.json();
-    expect(json.error.code).toBe("VALIDATION_ERROR");
+    expect(json.type).toBe("validation");
   });
 
   describe("isValidMcpName 边界", () => {
@@ -404,14 +410,15 @@ describe("MCP Config Route", () => {
     });
   });
 
+  // config: null 被 Elysia body schema 验证拦截（config 字段定义为 record）
   test("validateMcpConfig 非对象输入 null", async () => {
     const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "create", name: "test", config: null }),
     }));
+    expect(res.status).toBe(422);
     const json = await res.json();
-    expect(json.success).toBe(false);
-    expect(json.error.message).toBe("INVALID_CONFIG");
+    expect(json.type).toBe("validation");
   });
 });
