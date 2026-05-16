@@ -149,7 +149,7 @@ app.delete("/tasks/:id/logs", async ({ store, params, error }) => {
     return error(404, { error: { type: "not_found", message: "任务不存在" } });
   }
 
-  const result = await clearExecutionLogs(taskId);
+  const result = await clearExecutionLogs(user.id, taskId);
   return result;
 }, { sessionAuth: true });
 

@@ -395,7 +395,9 @@ export async function listExecutionLogs(
   };
 }
 
-export async function clearExecutionLogs(taskId: string): Promise<ServiceSuccess<undefined>> {
+export async function clearExecutionLogs(userId: string, taskId: string): Promise<ServiceResult<undefined>> {
+  const task = await scheduledTaskRepo.getByUserAndId(userId, taskId);
+  if (!task) return { success: false, error: { code: "NOT_FOUND", message: "任务不存在" } };
   await taskExecutionLogRepo.deleteByTask(taskId);
   return { success: true, data: undefined };
 }

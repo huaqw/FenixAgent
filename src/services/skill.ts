@@ -328,12 +328,16 @@ export async function listSkillSources(userId: string): Promise<SkillSourceInfo[
 
   if (environments.length === 0) return sources;
 
+  // 仅扫描拥有 workspacePath 的环境，避免 ACP 环境传入 null 导致 path.join 异常
+  const workspaceEnvs = environments.filter((env) => !!env.workspacePath);
+  if (workspaceEnvs.length === 0) return sources;
+
   const results = await Promise.allSettled(
-    environments.map(async (env) => {
+    workspaceEnvs.map(async (env) => {
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const skills = await Promise.race([
-          listWorkspaceSkills(env.workspacePath),
+          listWorkspaceSkills(env.workspacePath!),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new Error("TIMEOUT")), WORKSPACE_SCAN_TIMEOUT_MS);
           }),
@@ -346,7 +350,7 @@ export async function listSkillSources(userId: string): Promise<SkillSourceInfo[
   );
 
   for (let i = 0; i < results.length; i++) {
-    const env = environments[i];
+    const env = workspaceEnvs[i];
     const result = results[i];
     if (result.status === "fulfilled") {
       sources.push({

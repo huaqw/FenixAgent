@@ -234,7 +234,7 @@ describe("Task Service", () => {
       await createExecutionLog({ taskId: created.data.id, status: "success", resultSummary: "one" });
       await createExecutionLog({ taskId: created.data.id, status: "failed", resultSummary: "two" });
 
-      await clearExecutionLogs(created.data.id);
+      await clearExecutionLogs(USER_A, created.data.id);
 
       const logs = await listExecutionLogs(created.data.id);
       expect(logs.data.total).toBe(0);

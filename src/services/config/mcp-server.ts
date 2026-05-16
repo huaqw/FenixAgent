@@ -49,14 +49,16 @@ export async function updateMcpServer(
   userId: string,
   name: string,
   config: Record<string, unknown>,
-) {
+): Promise<boolean> {
   const updates: Partial<typeof mcpServer.$inferInsert> = { config, updatedAt: new Date() };
   if (typeof config.type === "string" && VALID_MCP_TYPES.includes(config.type)) {
     updates.type = config.type;
   }
-  await db.update(mcpServer)
+  const result = await db.update(mcpServer)
     .set(updates)
-    .where(and(eq(mcpServer.userId, userId), eq(mcpServer.name, name)));
+    .where(and(eq(mcpServer.userId, userId), eq(mcpServer.name, name)))
+    .returning({ id: mcpServer.id });
+  return result.length > 0;
 }
 
 export async function deleteMcpServer(userId: string, name: string): Promise<boolean> {

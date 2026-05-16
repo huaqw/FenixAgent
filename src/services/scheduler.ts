@@ -120,9 +120,9 @@ export function unscheduleTask(taskId: string): void {
   runningTasks.delete(taskId);
 }
 
-export function rescheduleTask(task: { id: string; cron: string; timezone?: string | null; enabled?: boolean }): void {
+export function rescheduleTask(task: { id: string; cron: string; timezone?: string | null; enabled?: boolean }): boolean {
   unscheduleTask(task.id);
-  scheduleTask(task);
+  return scheduleTask(task);
 }
 
 export async function startScheduler(): Promise<void> {
