@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { environmentRepo } from "../repositories/environment";
@@ -7,6 +7,8 @@ import { resolveExecutable } from "../utils/executable";
 
 const SUMMARY_LIMIT = 2000;
 
+export type SpawnFunction = (command: string, args: string[], options: import("node:child_process").SpawnOptions) => ChildProcess;
+
 export interface RunAgentTaskInput {
   userId: string;
   environmentId: string;
@@ -14,6 +16,7 @@ export interface RunAgentTaskInput {
   taskText: string;
   timeoutMinutes: number;
   logId: string;
+  spawnFn?: SpawnFunction;
 }
 
 export interface AgentTaskRunResult {
@@ -35,7 +38,7 @@ function formatRunTimestamp(date: Date): string {
   return `${year}${month}${day}-${hours}${minutes}${seconds}`;
 }
 
-function buildRunWorkspacePath(baseWorkspacePath: string, taskId: string, logId: string, now = new Date()): string {
+export function buildRunWorkspacePath(baseWorkspacePath: string, taskId: string, logId: string, now = new Date()): string {
   return join(baseWorkspacePath, ".scheduled-runs", taskId, `${formatRunTimestamp(now)}-${logId}`);
 }
 
@@ -47,32 +50,46 @@ function summarizeOutput(output: string): string | null {
   return trimmed.length > SUMMARY_LIMIT ? trimmed.slice(-SUMMARY_LIMIT) : trimmed;
 }
 
+export async function prepareRunWorkspace(
+  baseWorkspacePath: string,
+  taskId: string,
+  logId: string,
+  agentName: string | null,
+): Promise<{ runDir: string; workspaceName: string }> {
+  const runDir = buildRunWorkspacePath(baseWorkspacePath, taskId, logId);
+  const opencodeConfigDir = join(runDir, ".opencode");
+  const workspaceName = basename(runDir);
+  const config = agentName ? { default_agent: agentName } : {};
+
+  await mkdir(runDir, { recursive: true });
+  await mkdir(opencodeConfigDir, { recursive: true });
+  await writeFile(join(opencodeConfigDir, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
+
+  return { runDir, workspaceName };
+}
+
 export async function runAgentTask(input: RunAgentTaskInput): Promise<AgentTaskRunResult> {
   const env = await environmentRepo.getById(input.environmentId);
   if (!env || env.userId !== input.userId) {
     throw new Error("Environment not found");
   }
 
-  const runDir = buildRunWorkspacePath(env.workspacePath, input.taskId, input.logId);
-  const opencodeConfigDir = join(runDir, ".opencode");
-  const workspaceName = basename(runDir);
-
   let defaultAgent = env.agentName;
   if (!defaultAgent && env.agentConfigId) {
     const agentConfig = await getAgentConfigById(env.agentConfigId);
     defaultAgent = agentConfig?.name ?? null;
   }
-  const config = defaultAgent ? { default_agent: defaultAgent } : {};
 
-  await mkdir(runDir, { recursive: true });
-  await mkdir(opencodeConfigDir, { recursive: true });
-  await writeFile(join(opencodeConfigDir, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
+  const { runDir, workspaceName } = await prepareRunWorkspace(
+    env.workspacePath, input.taskId, input.logId, defaultAgent,
+  );
 
   const opencodePath = resolveExecutable("opencode");
   const startedAt = Date.now();
+  const doSpawn = input.spawnFn ?? spawn;
 
   return await new Promise<AgentTaskRunResult>((resolve, reject) => {
-    const proc = spawn(opencodePath, ["run", input.taskText], {
+    const proc = doSpawn(opencodePath, ["run", input.taskText], {
       cwd: runDir,
       env: { ...process.env, OPENCODE_DISABLE_TELEMETRY: "1" },
       stdio: ["ignore", "pipe", "pipe"],
