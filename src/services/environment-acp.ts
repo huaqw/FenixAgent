@@ -174,7 +174,7 @@ export async function registerBridge(input: BridgeRegistrationInput): Promise<Br
       await environmentRepo.update(authEnvironmentId, {
         status: "active",
         lastPollAt: new Date(),
-        capabilities: capabilities || undefined,
+        capabilities: capabilities ?? undefined,
         maxSessions: max_sessions,
       });
 

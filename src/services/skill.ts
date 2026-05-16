@@ -62,8 +62,7 @@ export interface SkillSourceInfo {
 }
 
 export async function migrateSkillsDir(): Promise<void> {
-  const { cp, mkdtemp } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
+  const { cp } = await import("node:fs/promises");
   const MIGRATED_MARKER = join(OLD_SKILLS_DIR, ".migrated");
 
   if (existsSync(SKILLS_DIR)) return;

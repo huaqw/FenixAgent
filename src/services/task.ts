@@ -67,7 +67,6 @@ interface TaskExecutionLogResponse {
   error: string | null;
   duration: number | null;
   triggeredBy: string;
-  statusCode: number | null;
   skipReason: string | null;
   resultSummary: string | null;
   createdAt: number;
@@ -141,7 +140,6 @@ function sanitizeExecutionLog(row: TaskExecutionLogRow): TaskExecutionLogRespons
     error: row.error ?? null,
     duration: row.duration ?? null,
     triggeredBy: row.triggeredBy,
-    statusCode: null,
     skipReason: row.skipReason ?? null,
     resultSummary: row.resultSummary ?? null,
     createdAt: toUnixTimestamp(row.createdAt) ?? 0,

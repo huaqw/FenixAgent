@@ -96,3 +96,14 @@
 3. **BUG — getAgentFullConfig skills 丢失**：agentConfig 不存在时回退全局 skills，而非返回空数组。
 4. **类型安全 — toServerInfo command 守卫**：`config.command` 添加 `Array.isArray` 检查，防止非数组输入导致崩溃。
 5. 新增 `mcp-server-info.test.ts`（7 用例）、`capabilities-coalescing.test.ts`（5 用例），更新 `build-model-data.test.ts`。8 轮累计 143 个测试。
+
+## 2026-05-17 第九次审查
+
+审查范围：全量 CRUD 层（task、skill、instance、environment-acp）
+
+修复：
+1. **死字段清理** — 移除 `TaskExecutionLogResponse.statusCode`（DB 无此列、前端未使用、始终为 null）。
+2. **日志一致性** — `stopInstance` catch 块补充 `logError`，与 `stopAllInstances` 行为对齐。
+3. **null 语义遗漏** — `registerBridge` 中 `capabilities || undefined` 改为 `?? undefined`（第8轮遗漏的最后一处）。
+4. **废弃导入** — `migrateSkillsDir` 移除未使用的 `mkdtemp`、`tmpdir` 动态导入。
+5. 新增 `sanitize-execution-log.test.ts`（3 用例）。9 轮累计 146 个测试。

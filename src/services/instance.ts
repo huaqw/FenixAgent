@@ -228,6 +228,7 @@ export async function stopInstance(id: string, userId: string): Promise<{ ok: bo
     return { ok: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    logError(`[Instance] Failed to stop instance ${id}:`, err);
     return { ok: false, error: message };
   }
 }
