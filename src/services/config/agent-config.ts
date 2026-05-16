@@ -67,10 +67,12 @@ export async function updateAgentConfig(
   userId: string,
   name: string,
   data: Record<string, unknown>,
-) {
+): Promise<boolean> {
   const set = buildSetFromData(data);
-  await db.update(agentConfig).set(set)
-    .where(and(eq(agentConfig.userId, userId), eq(agentConfig.name, name)));
+  const result = await db.update(agentConfig).set(set)
+    .where(and(eq(agentConfig.userId, userId), eq(agentConfig.name, name)))
+    .returning({ id: agentConfig.id });
+  return result.length > 0;
 }
 
 export async function deleteAgentConfig(userId: string, name: string): Promise<boolean> {

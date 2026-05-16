@@ -53,7 +53,7 @@ export async function updateModel(
     cost?: unknown;
     options?: unknown;
   },
-) {
+): Promise<boolean> {
   const set: Partial<typeof model.$inferInsert> = { updatedAt: new Date() };
   if (data.displayName !== undefined) set.displayName = data.displayName;
   if (data.modalities !== undefined) set.modalities = data.modalities;
@@ -61,8 +61,10 @@ export async function updateModel(
   if (data.cost !== undefined) set.cost = data.cost;
   if (data.options !== undefined) set.options = data.options;
 
-  await db.update(model).set(set)
-    .where(and(eq(model.providerId, providerId), eq(model.modelId, modelId)));
+  const result = await db.update(model).set(set)
+    .where(and(eq(model.providerId, providerId), eq(model.modelId, modelId)))
+    .returning({ id: model.id });
+  return result.length > 0;
 }
 
 export async function removeModel(providerId: string, modelId: string): Promise<boolean> {

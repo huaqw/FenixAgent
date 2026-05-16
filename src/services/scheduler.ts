@@ -129,10 +129,16 @@ export async function startScheduler(): Promise<void> {
   try {
     const tasks = await scheduledTaskRepo.listEnabled();
     log(`[Scheduler] Starting scheduler, found ${tasks.length} enabled tasks`);
+    let failed = 0;
     for (const task of tasks) {
-      scheduleTask(task);
+      const ok = scheduleTask(task);
+      if (!ok) failed++;
     }
-    log("[Scheduler] Scheduler started successfully");
+    if (failed > 0) {
+      log(`[Scheduler] Scheduler started with ${failed} failed job(s) (invalid cron expression)`);
+    } else {
+      log("[Scheduler] Scheduler started successfully");
+    }
   } catch (err) {
     error("[Scheduler] Failed to start scheduler:", err);
   }
