@@ -403,6 +403,45 @@ export const skill = pgTable("skill", {
   agentIdx: index("idx_skill_agent_config").on(table.agentConfigId),
 }));
 
+// ────────────────────────────────────────────
+// Workflow 独立领域模块
+// ────────────────────────────────────────────
+
+// Workflow 定义
+export const workflow = pgTable("workflow", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  steps: jsonb("steps").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userNameIdx: index("idx_workflow_user_name").on(table.userId, table.name),
+}));
+
+// Workflow 执行记录
+export const workflowRun = pgTable("workflow_run", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workflowId: uuid("workflow_id")
+    .notNull()
+    .references(() => workflow.id, { onDelete: "cascade" }),
+  status: varchar("status").notNull().default("running"),
+  input: jsonb("input"),
+  output: jsonb("output"),
+  stepResults: jsonb("step_results"),
+  triggeredBy: varchar("triggered_by").notNull().default("manual"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workflowIdx: index("idx_workflow_run_workflow").on(table.workflowId),
+  statusIdx: index("idx_workflow_run_status").on(table.status),
+}));
+
 // 用户偏好（单行）
 export const userConfig = pgTable("user_config", {
   userId: text("user_id")
