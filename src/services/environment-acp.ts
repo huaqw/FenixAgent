@@ -270,7 +270,7 @@ export async function handleAcpRegister(params: {
   if (params.boundEnvId) {
     await markEnvironmentActive(params.boundEnvId);
     await updateEnvironmentCapabilities(params.boundEnvId, {
-      capabilities: params.capabilities || null,
+      capabilities: params.capabilities ?? null,
       maxSessions: params.maxSessions,
     });
     return { envId: params.boundEnvId, isNew: false };
@@ -299,7 +299,7 @@ export async function handleAcpIdentify(params: {
   if (params.boundEnvId) {
     await markEnvironmentActive(params.boundEnvId);
     const env = await getEnvironment(params.boundEnvId);
-    return { envId: params.boundEnvId, capabilities: env?.capabilities || null };
+    return { envId: params.boundEnvId, capabilities: env?.capabilities ?? null };
   }
 
   const record = await getEnvironment(params.agentId);
@@ -311,7 +311,7 @@ export async function handleAcpIdentify(params: {
   }
 
   await markEnvironmentActive(params.agentId);
-  return { envId: record.id, capabilities: record.capabilities || null };
+  return { envId: record.id, capabilities: record.capabilities ?? null };
 }
 
 /**

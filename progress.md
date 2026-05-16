@@ -1,0 +1,98 @@
+# CRUD 业务逻辑层 Code Review 进度
+
+## 2026-05-16 第一次审查
+
+审查范围：src/services/config/*.ts, skill.ts, instance.ts, task.ts, scheduler.ts, session.ts, environment-*.ts
+
+发现问题与修复：
+
+1. **BUG — task.ts headers 双重编码**：`createTask`/`updateTask` 对 jsonb 列手动 `JSON.stringify`，导致 Drizzle 二次编码。新增 `parseHeaders()` 兼容旧数据（支持双重编码字符串自动解析）。移除手动序列化，由 Drizzle jsonb 列自动处理。
+2. **BUG — task.ts 非空断言**：`updateTask` 和 `executeTaskById` 中 `row!` 强制断言改为 null 检查 + 返回 NOT_FOUND 错误。
+3. **类��安全**：`environment-web.ts` 两处 `catch (err: any)` 改为 `catch (err: unknown)` + 类型收窄。
+4. **日志缺失**：`instance.ts stopAllInstances` 空 catch 块添加错误日志。
+5. **一致性**：`sanitizeTask`/`sanitizeExecutionLog` 时间戳统一使用 `toUnixTimestamp()`。
+
+测试：新增 `task-headers.test.ts`（9 用例）+ `task-core.test.ts`（3 用例），全部通过。TypeScript 类型检查通过。
+
+## 2026-05-16 第二次审查
+
+审查范围：config/*.ts 验证函数、environment-core.ts、instance.ts、scheduler.ts
+
+修复：
+1. **BUG — toResponse 浮点时间戳**：`last_poll_at` 返回浮点秒数，改为 `Math.floor` 与 `sanitizeResponse` 一致。
+2. **DRY — enterEnvironment 重复逻辑**：会话创建逻辑提取为复用 `findOrCreateForEnvironment`，消除 14 行重复代码。
+3. **scheduler 日志修正**：移除 `rescheduleTask` 在 disabled 任务上打印 "Rescheduled" 的误导日志。
+4. **测试覆盖**：新增 `config-validators.test.ts`（39 用例）覆盖 MCP/Agent/Workspace 全部纯验证函数。
+
+待处理：~~provider/model/agent-config/mcp-server/user-config 中 jsonb 列存在与 task.ts 相同的手动 JSON.stringify 双重编码问题，需单独 PR 搭配迁移脚本。~~ 已在第三次审查中修复。
+
+## 2026-05-16 第三次审查
+
+审查范围：config 层 6 个文件的 jsonb 双重编码系统性修复
+
+修复：
+1. **BUG — 全量 jsonb 双重编码**：provider（extraOptions）、model（modalities/limitConfig/cost/options）、agent-config（permission/knowledge）、mcp-server（config/inputSchema）、user-config（permission）、skill（metadata）共 7 张表的 jsonb 列移除手动 `JSON.stringify`，共 16 处。
+2. **新增 parseJsonb 工具**：`config/jsonb.ts` 提供向后兼容读取，自动处理旧双重编码数据和新正确编码数据。
+3. **toServerInfo 安全读取**：改用 `parseJsonb` 解析 config 字段，消除 `as Record<string, unknown>` 类型欺骗。
+4. **agent-config 简化**：create/update 字段遍历逻辑统一为 `val ?? null`，消除 if/else 分支。
+
+测试：新增 `jsonb-utils.test.ts`（14 用例）。累计 3 轮新增 75 个测试用例。
+
+## 2026-05-16 第四次审查
+
+审查范围：task.ts、skill.ts、instance.ts、scheduler.ts 的 DRY 和代码清洁度
+
+修复：
+1. **DRY — task.ts parseHeaders**：复用 `parseJsonb` 消除 14 行重复解析逻辑，`executeTaskById` 统一使用 `parseHeaders`。
+2. **DRY — skill.ts**：移除 4 个未使用的 import，提取 `stripNameAndDescription` 消除 2 处重复 metadata 过滤。
+3. **DRY — instance.ts**：提取 `filterInstances` 辅助函数，3 个列表函数共用（减少约 30 行），清理多余注释分隔符。
+4. **scheduler.ts**：`scheduleTask` 的 nextRunAt 更新从静默吞错改为 error 日志。
+5. **jsonb-utils.test.ts 类型修复**：补充泛型参数消除 TypeScript `toBe` 重载歧义。
+
+净减少 26 行代码，TypeScript 类型检查通过，62 个测试全部通过。
+
+## 2026-05-16 第五次审查
+
+审查范围：mcp-server.ts、instance.ts、skill.ts 的遗漏问题和类型安全
+
+修复：
+1. **BUG — updateMcpServer 遗漏 JSON.stringify**：第三轮修复 createMcpServer 时漏掉了 update 路径，config 字段仍双重编码。
+2. **类型安全 — toSpawnedInstance**：pluginMetadata 中的 port/pid/token 从 `as` 断言改为 `typeof` 守卫，防止外部输入类型不匹配。
+3. **类型安全 — agentConfig 字段**：prompt/model 提取改用 `typeof === "string"` 守卫。
+4. **mcp-server toServerInfo**：移除冗余的 `as Record<string, unknown>` 转换。
+5. **skill.ts 清理日志**：importSkillDirectories 错误回滚的空 catch 改为 console.error。
+
+测试：新增 `instance-meta.test.ts`（13 用例）。5 轮累计新增 88 个测试用例。
+
+## 2026-05-17 第六次审查
+
+审查范围：environment-web.ts、task.ts、skill.ts、instance.ts、environment-acp.ts
+
+修复：
+1. **null 安全** — `updateWebEnvironment` 更新后 re-fetch 添加 null 检查，未找到时抛 NotFoundError。
+2. **日志规范** — `executeTaskById` catch 块补充 `logError`；`skill.ts` 的 `console.log`/`console.error` 统一替换为 logger 模块；`stopInstance` 成功路径补充日志；`registerBridge` authEnvironmentId 未找到时补充 warning。
+3. **测试** — 新增 `task-validators.test.ts`（20 用例）覆盖 validateCron/normalizeTimezone/validateTaskInput；新增 `environment-core-utils.test.ts`（7 用例）覆盖 generateEnvSecret/toResponse/sanitizeResponse。6 轮累计 115 个测试用例。
+
+## 2026-05-17 第七次审查
+
+审查范围：全量 CRUD 层（config/*.ts、task、scheduler、skill、instance、session、environment）
+
+修复：
+1. **性能** — `countToolsByServer` 改用 SQL COUNT 聚合，避免全量 SELECT。
+2. **原子性** — `replaceToolsForServer` 用 `db.transaction()` 包裹 delete+insert。
+3. **DRY** — `executeTaskById` 提取 `writeLogAndReturn` 消除成功/错误路径重复代码，净减 16 行。
+4. **类型安全** — `validateAgentData` 移除 5 处 `as` 断言，先 typeof 守卫再使用。
+5. **内存泄漏** — `unscheduleTask` 同时清理 `runningTasks` 残留。
+6. **可观测性** — `migrateSkillsDir` rename 失败补充日志。
+7. 新增 `build-model-data.test.ts`（10 用例），`config-validators.test.ts` 新增 5 用例。7 轮累计 130 个测试。
+
+## 2026-05-17 第八次审查
+
+审查范围：environment-acp.ts、config/provider.ts、config/aggregate.ts、config/mcp-server.ts
+
+修复：
+1. **null 语义** — `capabilities || null` 改为 `?? null`（3 处），精确表达 nullish 语义，避免未来 falsy 值被意外吞掉。
+2. **BUG — buildModelData null 透传**：falsy 检查改为 `!== undefined`，允许前端显式传 `null` 清除 modalities/cost 等字段。
+3. **BUG — getAgentFullConfig skills 丢失**：agentConfig 不存在时回退全局 skills，而非返回空数组。
+4. **类型安全 — toServerInfo command 守卫**：`config.command` 添加 `Array.isArray` 检查，防止非数组输入导致崩溃。
+5. 新增 `mcp-server-info.test.ts`（7 用例）、`capabilities-coalescing.test.ts`（5 用例），更新 `build-model-data.test.ts`。8 轮累计 143 个测试。

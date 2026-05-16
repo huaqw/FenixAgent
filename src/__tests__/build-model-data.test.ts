@@ -38,10 +38,16 @@ describe("buildModelData", () => {
     expect(result).toEqual({});
   });
 
-  // falsy 值不映射（if (data.name) 过滤空字符串，if (data.modalities) 过滤 null）
-  it("跳过 falsy 值的字段", () => {
+  // null 值现在能正确透传（!== undefined），允许显式清除字段
+  it("透传 null 值以支持清除字段", () => {
     const result = buildModelData({ name: "", modalities: null });
     expect(result.displayName).toBeUndefined();
+    expect(result.modalities).toBeNull();
+  });
+
+  // undefined 值不映射（字段未提供）
+  it("跳过 undefined 值的��段", () => {
+    const result = buildModelData({ modalities: undefined });
     expect(result.modalities).toBeUndefined();
   });
 });

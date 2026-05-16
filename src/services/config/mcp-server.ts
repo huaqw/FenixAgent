@@ -157,7 +157,7 @@ export function toServerInfo(name: string, row: { type: string; config: unknown;
   }
   const cfgType = config.type as string;
   if (cfgType === "local") {
-    const command = config.command as string[];
+    const command = Array.isArray(config.command) ? config.command as string[] : [];
     return {
       name,
       type: "local" as const,
