@@ -1,7 +1,34 @@
 import { randomBytes } from "node:crypto";
+import { isAbsolute, resolve } from "node:path";
+import { mkdirSync, realpathSync } from "node:fs";
 import { environmentRepo } from "../repositories";
 import type { RegisterEnvironmentRequest, EnvironmentResponse } from "../types/api";
 import type { EnvironmentRecord } from "../repositories";
+
+const BLOCKED_PATHS = [
+  "/", "/etc", "/usr", "/bin", "/sbin", "/var", "/sys", "/proc",
+  "/dev", "/boot", "/lib", "/root",
+];
+
+/** 校验 workspace 路径是否安全（不在系统目录下） */
+export function validateWorkspacePath(p: string): string | null {
+  if (!isAbsolute(p)) return "workspace 路径必须是绝对路径";
+  const normalized = resolve(p);
+  if (BLOCKED_PATHS.includes(normalized))
+    return `不允许使用系统目录: ${normalized}`;
+  for (const blocked of BLOCKED_PATHS) {
+    if (blocked !== "/" && normalized.startsWith(blocked + "/")) {
+      return `不允许使用系统目录下的路径: ${normalized}`;
+    }
+  }
+  return null;
+}
+
+/** 确保 workspace 目录存在，返回真实路径 */
+export function ensureWorkspaceDir(workspacePath: string): string {
+  mkdirSync(workspacePath, { recursive: true });
+  return realpathSync(workspacePath);
+}
 
 function toResponse(row: EnvironmentRecord): EnvironmentResponse {
   return {
