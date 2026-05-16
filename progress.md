@@ -251,3 +251,14 @@
 3. **WARNING — mcp-server.ts updateMcpServer 未校验 type**：`config.type` 从任意字符串改为 `VALID_MCP_TYPES` 白名单校验，防止无效类型写入 DB。
 4. **CLEANUP — task.ts validateTaskInput 泛型签名**：参数从 `CreateTaskInput` 改为 `Partial<CreateTaskInput>`，消除 `updateTask` 中的 `as CreateTaskInput` 类型断言。
 5. 新增 `mcp-server-type-validation.test.ts`（7 用例）、`validate-task-partial.test.ts`（6 用例）。22 轮累计 246 个测试。
+
+## 2026-05-17 第二十三次审查
+
+审查范围：全量 CRUD 层（scheduler、instance、config/skill、config/model）
+
+修复（2 PERF + 1 DRY + 1 CLEANUP）：
+1. **PERF — instance.ts ensureRunning 双查询消除**：`spawnInstanceFromEnvironment` 新增 `prefetchedEnv` 可选参数，`ensureRunning` 传入已获取的 env 记录，避免同一 environment 重复 DB 查询。
+2. **PERF — config/model.ts addModel 原子化 upsert**：从原始 INSERT 改为 `onConflictDoUpdate`，利用 `idx_model_provider_model` uniqueIndex 实现幂等操作，消除并发重复 model 导致的 unique violation 错误。
+3. **DRY — config/skill.ts upsertSkill 字段映射合并**：提取 `commonFields` 消除 insert/update 路径的重复字段映射（description/contentPath/metadata/enabled/agentConfigId/updatedAt）。
+4. **CLEANUP — scheduler.ts 冗余表达式**：移除 `task ?? undefined`（null check 后 `task` 必然非空）。
+5. 新增 `instance-prefetch-env.test.ts`（4 用例）、`model-upsert-conflict.test.ts`（5 用例）。23 轮累计 255 个测试。
