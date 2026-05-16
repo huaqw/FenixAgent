@@ -18,6 +18,7 @@ describe("Dashboard Environment Management - Exports", () => {
       description: null,
       workspace_path: "/tmp",
       agent_name: null,
+      agent_config_id: null,
       status: "idle",
       machine_name: null,
       branch: null,
@@ -39,11 +40,13 @@ describe("Dashboard Environment Management - Exports", () => {
     const createReq: CreateEnvironmentRequest = {
       name: "new-env",
       workspacePath: "/tmp/new",
+      agentConfigId: "agent-config-uuid",
     };
     expect(createReq.name).toBe("new-env");
 
     const updateReq: UpdateEnvironmentRequest = {
       description: "updated",
+      agentConfigId: null,
     };
     expect(updateReq.description).toBe("updated");
   });

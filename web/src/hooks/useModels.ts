@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { ACPClient } from "../acp/client";
 import type { ModelInfo, SessionModelState } from "../acp/types";
-import { client } from "../api/client";
+import { client as edenClient } from "../api/client";
 import { unwrapConfigData } from "../api/config-response";
 import type { ModelEntry } from "../types/config";
 import { filterConfiguredAcpModels } from "../lib/acp-model-filter";
@@ -29,7 +29,7 @@ export function useModels(client: ACPClient): UseModelsResult {
   useEffect(() => {
     let cancelled = false;
 
-    client.web.config.models.post({ action: "get" })
+    edenClient.web.config.models.post({ action: "get" })
       .then(({ data, error }) => {
         if (!cancelled) {
           if (error) return;

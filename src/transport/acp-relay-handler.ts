@@ -136,8 +136,7 @@ function openInstanceRelay(ws: WsConnection, relayWsId: string, agentId: string,
       });
     }
 
-    // Notify frontend that agent is connected
-    sendToRelayWs(ws, { type: "status", payload: { connected: true } });
+    // 不再主动发 status，由 acp-link 的 connect 响应自然推送给前端
     log(`[ACP-Relay] Core relay connected for instance ${instanceId}`);
   }).catch((err) => {
     logError(`[ACP-Relay] Core relay connect failed for instance ${instanceId}: ${err instanceof Error ? err.message : String(err)}`);

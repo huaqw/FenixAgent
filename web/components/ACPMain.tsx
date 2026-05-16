@@ -26,6 +26,7 @@ export function ACPMain({ client, agentId, initialCwd, readonly, rcsSessionId }:
   const [cwdReady, setCwdReady] = useState(!agentId || !!initialCwd);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const [initialActiveSessionId, setInitialActiveSessionId] = useState<string | null>(null);
+  const BOOTSTRAP_MAX_ATTEMPTS = 10;
   const chatRef = useRef<ChatInterfaceHandle>(null);
   const bootstrappedRef = useRef(false);
   const bootstrapRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,12 +96,19 @@ export function ACPMain({ client, agentId, initialCwd, readonly, rcsSessionId }:
     const bootstrap = async () => {
       try {
         if (!client.supportsSessionList) {
-          console.log("[ACPMain] Session list capability not ready yet, retrying bootstrap...");
-          if (!cancelled) {
-            bootstrapRetryTimerRef.current = setTimeout(() => {
-              setBootstrapAttempt((prev) => prev + 1);
-            }, 500);
+          if (bootstrapAttempt < BOOTSTRAP_MAX_ATTEMPTS) {
+            console.log("[ACPMain] Session list capability not ready yet, retrying bootstrap...");
+            if (!cancelled) {
+              bootstrapRetryTimerRef.current = setTimeout(() => {
+                setBootstrapAttempt((prev) => prev + 1);
+              }, 500);
+            }
+            return;
           }
+          // capabilities 始终不可用，跳过 session list 直接创建新会话
+          console.log("[ACPMain] Session list not supported, creating new session directly");
+          bootstrappedRef.current = true;
+          chatRef.current?.newSession();
           return;
         }
 

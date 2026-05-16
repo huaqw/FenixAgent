@@ -33,12 +33,13 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
   const pathError = validateWorkspacePath(workspacePath);
   if (pathError) throw new ValidationError(pathError);
 
-  // Agent 配置解析：必须提供 agentConfigId
-  if (!params.agentConfigId) {
-    throw new ValidationError("agentConfigId 为必填字段");
+  // Agent 配置解析：可选，提供时需验证存在性
+  let agentName: string | undefined = undefined;
+  if (params.agentConfigId) {
+    const agent = await configPg.getAgentConfigById(params.agentConfigId);
+    if (!agent) throw new ValidationError(`AgentConfig '${params.agentConfigId}' 不存在`);
+    agentName = agent.name;
   }
-  const agent = await configPg.getAgentConfigById(params.agentConfigId);
-  if (!agent) throw new ValidationError(`AgentConfig '${params.agentConfigId}' 不存在`);
 
   // workspace 目录初始化
   try {
@@ -55,12 +56,12 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
       name,
       description,
       workspacePath,
-      agentName: agent.name,
+      agentName,
       status: "idle",
       secret,
       userId,
       autoStart: autoStart === true,
-      agentConfigId: params.agentConfigId,
+      agentConfigId: params.agentConfigId ?? null,
     });
   } catch (err: any) {
     if (err.message?.includes("unique") || err.message?.includes("duplicate") || err.message?.includes("UNIQUE")) {

@@ -104,6 +104,16 @@ mock.module("../repositories", () => ({
     listAll: mock(async () => []),
     listByUserId: mock(async () => []),
   },
+  sessionRepo: {
+    listByEnvironment: mock(async () => []),
+    create: mock(async (params: any) => ({
+      id: `session_${Date.now()}`,
+      ...params,
+      status: "idle",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+  },
 }));
 
 // ────────────────────────────────────────────

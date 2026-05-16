@@ -41,35 +41,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AgentsPage } from "./AgentsPage";
-
-interface Environment {
-  id: string;
-  name: string;
-  description: string | null;
-  workspace_path: string;
-  agent_name: string | null;
-  status: string;
-  machine_name: string | null;
-  branch: string | null;
-  auto_start: boolean;
-  last_poll_at: number | null;
-  created_at: number;
-  updated_at: number;
-  session_id?: string;
-  instance_status?: string | null;
-  instance_id?: string | null;
-  instances?: EnvironmentInstance[];
-  instances_count?: number;
-}
-
-interface EnvironmentInstance {
-  id: string;
-  instance_number: number;
-  status: "starting" | "running" | "stopped" | "error";
-  session_id: string | null;
-  port: number;
-  created_at: number;
-}
+import type { Environment, EnvironmentInstance } from "../types";
 
 interface EnvironmentsPageProps {
     onNavigateToSession?: (
@@ -91,13 +63,13 @@ export function EnvironmentsPage({
     const [formName, setFormName] = useState("");
     const [formDescription, setFormDescription] = useState("");
     const [formWorkspacePath, setFormWorkspacePath] = useState("");
-    const [formAgentName, setFormAgentName] = useState("");
+    const [formAgentConfigId, setFormAgentConfigId] = useState("");
     const [formAutoStart, setFormAutoStart] = useState(false);
     const [formError, setFormError] = useState("");
     const [secretDialogOpen, setSecretDialogOpen] = useState(false);
     const [currentSecret, setCurrentSecret] = useState<string | null>(null);
     const [secretCopied, setSecretCopied] = useState(false);
-    const [agentOptions, setAgentOptions] = useState<string[]>([]);
+    const [agentOptions, setAgentOptions] = useState<{ id: string; name: string }[]>([]);
     const [enteringEnvId, setEnteringEnvId] = useState<string | null>(null);
     const [instancesMap, setInstancesMap] = useState<
         Record<string, EnvironmentInstance[]>
@@ -132,8 +104,8 @@ export function EnvironmentsPage({
                 const newMap: Record<string, EnvironmentInstance[]> = {};
                 activeEnvs.forEach((env, i) => {
                     const result = instanceEntries[i];
-                    if (result.status === "fulfilled" && !result.reason?.error) {
-                        const instData = result.value.data as { instances?: unknown[] } | null;
+                    if (result.status === "fulfilled") {
+                        const instData = result.value.data as { instances?: EnvironmentInstance[] } | null;
                         newMap[env.id] = instData?.instances ?? [];
                     }
                 });
@@ -151,8 +123,8 @@ export function EnvironmentsPage({
         client.web.config.agents.post({ action: "list" })
             .then(({ data, error: err }) => {
                 if (err || !data) return;
-                const result = data as { data?: { agents?: Array<{ name: string }> } } | null;
-                setAgentOptions((result?.data?.agents ?? []).map((a) => a.name));
+                const result = data as { data?: { agents?: Array<{ id: string; name: string }> } } | null;
+                setAgentOptions((result?.data?.agents ?? []).map((a) => ({ id: a.id, name: a.name })));
             })
             .catch(() => {});
     }, [loadEnvs]);
@@ -162,7 +134,7 @@ export function EnvironmentsPage({
         setFormName("");
         setFormDescription("");
         setFormWorkspacePath("");
-        setFormAgentName("");
+        setFormAgentConfigId("");
         setFormAutoStart(false);
         setFormError("");
         setDialogOpen(true);
@@ -173,7 +145,7 @@ export function EnvironmentsPage({
         setFormName(env.name);
         setFormDescription(env.description || "");
         setFormWorkspacePath(env.workspace_path);
-        setFormAgentName(env.agent_name || "");
+        setFormAgentConfigId(env.agent_config_id || "");
         setFormAutoStart(env.auto_start ?? false);
         setFormError("");
         setDialogOpen(true);
@@ -199,7 +171,7 @@ export function EnvironmentsPage({
                     name: formName,
                     description: formDescription || undefined,
                     workspacePath: formWorkspacePath,
-                    agentName: formAgentName || undefined,
+                    agentConfigId: formAgentConfigId || null,
                     autoStart: formAutoStart,
                 });
                 if (err) throw new Error(err.message ?? "更新失败");
@@ -208,12 +180,12 @@ export function EnvironmentsPage({
                     name: formName,
                     description: formDescription || undefined,
                     workspacePath: formWorkspacePath,
-                    agentName: formAgentName || undefined,
+                    agentConfigId: formAgentConfigId || undefined,
                     autoStart: formAutoStart,
                 });
                 if (err) throw new Error(err.message ?? "创建失败");
                 const result = data as { secret?: string } | null;
-                setCurrentSecret(result?.secret);
+                setCurrentSecret(result?.secret ?? null);
                 setSecretDialogOpen(true);
             }
             setDialogOpen(false);
@@ -229,7 +201,7 @@ export function EnvironmentsPage({
         formName,
         formDescription,
         formWorkspacePath,
-        formAgentName,
+        formAgentConfigId,
         formAutoStart,
         loadEnvs,
     ]);
@@ -303,21 +275,6 @@ export function EnvironmentsPage({
         [onNavigateToSession, loadEnvs],
     );
 
-    const handleStopInstance = useCallback(
-        async (instanceId: string) => {
-            try {
-                const { error: err } = await client.web.instances({ id: instanceId }).delete();
-                if (err) throw new Error(err.message ?? "停止失败");
-                await new Promise((r) => setTimeout(r, 500));
-                await loadEnvs();
-            } catch (err) {
-                console.error("停止实例失败", err);
-                toast.error("停止实例失败: " + (err as Error).message);
-            }
-        },
-        [loadEnvs],
-    );
-
     const confirmStopInstance = useCallback(async () => {
         if (!stopTarget) return;
         try {
@@ -362,7 +319,7 @@ export function EnvironmentsPage({
             const { data, error: err } = await client.web.environments({ id }).get();
             if (err) { console.error("Failed to get secret:", err); return; }
             const detail = data as { secret?: string } | null;
-            setCurrentSecret(detail?.secret);
+            setCurrentSecret(detail?.secret ?? null);
             setSecretDialogOpen(true);
         } catch (err) {
             console.error("Failed to get secret:", err);
@@ -849,7 +806,7 @@ export function EnvironmentsPage({
                                     className="group relative flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-1 transition-all duration-200 hover:border-border-default hover:shadow-elevated hover:-translate-y-0.5">
                                     {/* Left accent bar */}
                                     <div
-                                        className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl ${statusColors.bar}`}
+                                        className={`absolute left-0 top-0 bottom-0 w-0.75 rounded-l-xl ${statusColors.bar}`}
                                     />
 
                                     {/* Top: icon + name/model + status pill */}
@@ -1027,15 +984,15 @@ export function EnvironmentsPage({
                             <div className="grid gap-2">
                                 <Label htmlFor="agentName">关联 Agent</Label>
                                 <Select
-                                    value={formAgentName}
-                                    onValueChange={setFormAgentName}>
+                                    value={formAgentConfigId}
+                                    onValueChange={setFormAgentConfigId}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="选择 Agent（可选）" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {agentOptions.map((name) => (
-                                            <SelectItem key={name} value={name}>
-                                                {name}
+                                        {agentOptions.map((opt) => (
+                                            <SelectItem key={opt.id} value={opt.id}>
+                                                {opt.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

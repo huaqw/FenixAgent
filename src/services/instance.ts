@@ -2,9 +2,10 @@ import { randomBytes } from "node:crypto";
 import { getCoreRuntime } from "./core-bootstrap";
 import { buildLaunchSpec } from "./launch-spec-builder";
 import { getAgentConfigById, getAgentFullConfig } from "./config-pg";
-import { environmentRepo } from "../repositories";
+import { environmentRepo, sessionRepo } from "../repositories";
 import { log } from "../logger";
 import type { RuntimeInstanceSnapshot } from "@mothership/core";
+import type { AgentFullConfig } from "./config-pg";
 
 // ────────────────────────────────────────────
 // ────────────────────────────────────────────
@@ -108,25 +109,32 @@ export async function spawnInstanceFromEnvironment(
   const cwd = env.workspacePath || env.directory;
   if (!cwd) throw new Error(`Workspace directory not set for environment: ${environmentId}`);
 
-  // 解析 AgentConfig：必须通过 agentConfigId
-  if (!env.agentConfigId) {
-    throw new Error(`No agent config bound to environment: ${environmentId}`);
-  }
-  const resolvedAgentConfig = await getAgentConfigById(env.agentConfigId);
-  if (!resolvedAgentConfig) {
-    throw new Error(`AgentConfig '${env.agentConfigId}' not found`);
-  }
+  // 解析 AgentConfig：有则加载完整配置，无则用默认 "general" agent
+  let agentName = "general";
+  let agentPrompt: string | null = null;
+  let modelRef: string | null = null;
+  let fullConfig: AgentFullConfig;
 
-  // 获取完整配置（providers、skills、mcpServers）
-  const fullConfig = await getAgentFullConfig(env.userId, resolvedAgentConfig.id);
+  if (env.agentConfigId) {
+    const resolvedAgentConfig = await getAgentConfigById(env.agentConfigId);
+    if (!resolvedAgentConfig) {
+      throw new Error(`AgentConfig '${env.agentConfigId}' not found`);
+    }
+    fullConfig = await getAgentFullConfig(env.userId, resolvedAgentConfig.id);
+    const ac = fullConfig.agentConfig as Record<string, unknown> | null;
+    agentName = resolvedAgentConfig.name;
+    agentPrompt = (ac?.prompt as string) ?? null;
+    modelRef = (ac?.model as string) ?? null;
+  } else {
+    fullConfig = await getAgentFullConfig(env.userId, null);
+  }
 
   // 组装 AgentLaunchSpec
-  const ac = fullConfig.agentConfig as Record<string, unknown> | null;
   const launchSpec = await buildLaunchSpec({
     workspacePath: cwd,
-    agentName: resolvedAgentConfig.name,
-    agentPrompt: (ac?.prompt as string) ?? null,
-    modelRef: (ac?.model as string) ?? null,
+    agentName,
+    agentPrompt,
+    modelRef,
     fullConfig,
     environmentSecret: env.secret,
   });
@@ -305,8 +313,22 @@ export async function enterEnvironment(
     throw Object.assign(new Error("无法创建实例"), { code: "INTERNAL_ERROR" });
   }
 
+  // 为该环境查找或创建 RCS session（前端导航需要 session_id）
+  const existing = await sessionRepo.listByEnvironment(environmentId);
+  let sessionId: string;
+  if (existing.length > 0) {
+    sessionId = existing[0].id;
+  } else {
+    const session = await sessionRepo.create({
+      environmentId,
+      source: "acp",
+      userId,
+    });
+    sessionId = session.id;
+  }
+
   return {
-    session_id: inst.sessionId ?? null,
+    session_id: sessionId,
     instance_id: inst.id,
     instance_number: inst.instanceNumber,
     instance_status: inst.status,

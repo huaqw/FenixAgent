@@ -219,7 +219,7 @@ export function createOpencodeRuntime(
 
     async connectRelay(input) {
       const state = getOrCreateState(states, input.instanceId);
-      if (state.status !== "running" || !state.port || !state.token) {
+      if (state.status !== "running" || !state.port || state.token == null) {
         throw new Error(`Instance ${input.instanceId} is not running`);
       }
       if (state.relay && state.relay.state === "open") {

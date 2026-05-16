@@ -146,11 +146,10 @@ console.log(`[RCS] WebSocket keepalive interval: ${config.wsKeepaliveInterval}s`
 
 export type App = typeof app;
 
-export default {
-  port,
-  hostname: host,
-  fetch: app.fetch,
-};
+// app.listen() 设置 app.server（WebSocket 升级需要），同时 export default
+// 供 Eden Treaty treaty<App>() 做类型推断
+app.listen({ port, hostname: host });
+export default app;
 
 // Graceful shutdown
 async function gracefulShutdown(signal: string) {

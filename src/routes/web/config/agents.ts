@@ -43,6 +43,7 @@ async function handleList(userId: string) {
   const uc = await configPg.getUserConfig(userId);
   const defaultAgent = uc.defaultAgent ?? null;
   const list = await Promise.all(agents.map(async (a) => ({
+    id: a.id,
     name: a.name,
     builtIn: isBuiltInAgent(a.name),
     model: a.model ?? null,

@@ -90,6 +90,8 @@ export function createRelayHandle(
   }, keepAliveIntervalMs);
 
   socket.onopen = () => {
+    // acp-link 要求客户端先发 connect 才启动 agent 并推送 capabilities
+    socket.send(JSON.stringify({ type: "connect" }));
     if (readySettled) {
       return;
     }
