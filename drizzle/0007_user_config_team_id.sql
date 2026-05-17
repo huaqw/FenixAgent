@@ -25,3 +25,7 @@ DROP INDEX IF EXISTS "idx_agent_config_team_name";
 CREATE UNIQUE INDEX "idx_agent_config_team_name" ON "agent_config" ("team_id", "name");
 DROP INDEX IF EXISTS "idx_mcp_server_team_name";
 CREATE UNIQUE INDEX "idx_mcp_server_team_name" ON "mcp_server" ("team_id", "name");
+
+-- Environment: change name from global unique to team-scoped unique
+ALTER TABLE "environment" DROP CONSTRAINT IF EXISTS "environment_name_unique";
+CREATE UNIQUE INDEX "idx_environment_team_name" ON "environment" ("team_id", "name");

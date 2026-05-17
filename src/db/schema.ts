@@ -134,7 +134,7 @@ export const shareEventSnapshot = pgTable("share_event_snapshot", {
 // Environment 持久化表
 export const environment = pgTable("environment", {
   id: varchar("id").primaryKey(),
-  name: varchar("name").notNull().unique(),
+  name: varchar("name").notNull(),
   description: text("description"),
   workspacePath: varchar("workspace_path").notNull(),
   agentName: varchar("agent_name"),
@@ -158,7 +158,9 @@ export const environment = pgTable("environment", {
   lastPollAt: timestamp("last_poll_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  teamNameIdx: uniqueIndex("idx_environment_team_name").on(table.teamId, table.name),
+}));
 
 export const knowledgeBase = pgTable("knowledge_base", {
   id: uuid("id").primaryKey().defaultRandom(),
