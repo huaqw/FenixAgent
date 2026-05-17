@@ -15,6 +15,11 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test_user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 const mockScheduleTask = mock(() => {});
 const mockUnscheduleTask = mock(() => {});
 const mockRescheduleTask = mock(() => {});

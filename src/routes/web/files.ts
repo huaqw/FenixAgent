@@ -15,6 +15,7 @@ import {
   deleteFile,
   createFileStream,
 } from "../../services/workspace-fs";
+import { getOwnedEnvironment } from "../../services/environment-core";
 import {
   FileListResponseSchema,
   FileContentSchema,
@@ -22,6 +23,7 @@ import {
   FileWriteResultSchema,
   WriteFileRequestSchema,
 } from "../../schemas/file.schema";
+import { loadTeamContext } from "../../services/team-context";
 
 const app = new Elysia({ name: "web-files", prefix: "/web/environments" })
   .use(authGuardPlugin)
@@ -34,8 +36,10 @@ const app = new Elysia({ name: "web-files", prefix: "/web/environments" })
   });
 
 // GET /:id/user — List directory
-app.get("/:id/user", async ({ params, query, error }) => {
+app.get("/:id/user", async ({ store, params, query, error, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const envId = params.id;
+  await getOwnedEnvironment(envId, authCtx.teamId);
   const queryPath = (query as any)?.path || "";
   const result = await resolveWorkspacePath(envId, queryPath);
   if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });
@@ -49,8 +53,10 @@ app.get("/:id/user", async ({ params, query, error }) => {
 }, { sessionAuth: true });
 
 // GET /:id/user/* — Read file
-app.get("/:id/user/*", async ({ params, query, error, set }) => {
+app.get("/:id/user/*", async ({ store, params, query, error, set, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const envId = params.id;
+  await getOwnedEnvironment(envId, authCtx.teamId);
   const filePath = normalizeUserRoutePath((params as any)["*"]);
   const preview = (query as any)?.preview === "true";
 
@@ -89,8 +95,10 @@ app.get("/:id/user/*", async ({ params, query, error, set }) => {
 }, { sessionAuth: true });
 
 // POST /:id/user/* — Upload files
-app.post("/:id/user/*", async ({ params, request, error }) => {
+app.post("/:id/user/*", async ({ store, params, request, error }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const envId = params.id;
+  await getOwnedEnvironment(envId, authCtx.teamId);
   const dirPath = normalizeUserRoutePath((params as any)["*"] || "");
 
   if (!isUserPath(dirPath)) return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
@@ -126,8 +134,10 @@ app.post("/:id/user/*", async ({ params, request, error }) => {
 }, { sessionAuth: true });
 
 // PUT /:id/user/* — Write file content
-app.put("/:id/user/*", async ({ params, body, error }) => {
+app.put("/:id/user/*", async ({ store, params, body, error, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const envId = params.id;
+  await getOwnedEnvironment(envId, authCtx.teamId);
   const filePath = normalizeUserRoutePath((params as any)["*"]);
 
   if (!isUserPath(filePath)) return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
@@ -150,8 +160,10 @@ app.put("/:id/user/*", async ({ params, body, error }) => {
 }, { sessionAuth: true, body: "write-file-request" });
 
 // DELETE /:id/user/* — Delete file
-app.delete("/:id/user/*", async ({ params, error }) => {
+app.delete("/:id/user/*", async ({ store, params, error, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const envId = params.id;
+  await getOwnedEnvironment(envId, authCtx.teamId);
   const filePath = normalizeUserRoutePath((params as any)["*"]);
 
   if (!isUserPath(filePath)) return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });

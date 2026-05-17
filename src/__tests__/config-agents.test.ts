@@ -17,18 +17,23 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/config-pg", () => ({
-  listAgentConfigs: async (_userId: string) => {
+  listAgentConfigs: async (_ctx: any) => {
     return Object.entries(_agentStore).map(([name, cfg]) => ({ name, ...cfg }));
   },
-  getAgentConfig: async (_userId: string, name: string) => {
+  getAgentConfig: async (_ctx: any, name: string) => {
     const cfg = _agentStore[name];
     return cfg ? { name, ...cfg } : null;
   },
-  createAgentConfig: async (_userId: string, name: string, data: Record<string, unknown>) => {
+  createAgentConfig: async (_ctx: any, name: string, data: Record<string, unknown>) => {
     _agentStore[name] = { ...data };
   },
-  updateAgentConfig: async (_userId: string, name: string, data: Record<string, unknown>) => {
+  updateAgentConfig: async (_ctx: any, name: string, data: Record<string, unknown>) => {
     if (!_agentStore[name]) return;
     const existing = { ..._agentStore[name] };
     for (const [key, value] of Object.entries(data)) {
@@ -41,13 +46,13 @@ mock.module("../services/config-pg", () => ({
     delete existing.tools;
     _agentStore[name] = existing;
   },
-  deleteAgentConfig: async (_userId: string, name: string) => {
+  deleteAgentConfig: async (_ctx: any, name: string) => {
     if (!(name in _agentStore)) return false;
     delete _agentStore[name];
     return true;
   },
-  getUserConfig: async (_userId: string) => ({ ..._userConfig }),
-  setUserConfig: async (_userId: string, patch: any) => {
+  getUserConfig: async (_ctx: any) => ({ ..._userConfig }),
+  setUserConfig: async (_ctx: any, patch: any) => {
     if (patch.defaultAgent !== undefined) _userConfig.defaultAgent = patch.defaultAgent;
     if (patch.currentModel !== undefined) _userConfig.currentModel = patch.currentModel;
     if (patch.smallModel !== undefined) _userConfig.smallModel = patch.smallModel;
@@ -59,7 +64,7 @@ mock.module("../services/agent-knowledge", () => ({
   InvalidKnowledgeBindingError: class InvalidKnowledgeBindingError extends Error {
     code = "INVALID_KNOWLEDGE_BINDINGS";
   },
-  syncAgentKnowledgeBindings: async (_userId: string, agentName: string, knowledge: { knowledgeBaseIds: string[] } | null | undefined) => {
+  syncAgentKnowledgeBindings: async (_ctx: any, agentName: string, knowledge: { knowledgeBaseIds: string[] } | null | undefined) => {
     const missingIds = (knowledge?.knowledgeBaseIds ?? []).filter((id) => id === "kb_missing");
     if (missingIds.length > 0) {
       const error = new Error(`知识库不存在或无权限访问: ${missingIds.join(", ")}`) as Error & { code: string };

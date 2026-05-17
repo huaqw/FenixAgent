@@ -16,18 +16,23 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/config-pg", () => ({
-  listAgentConfigs: async (_userId: string) => {
+  listAgentConfigs: async (_ctx: any) => {
     return Object.entries(_agentStore).map(([name, cfg]) => ({ name, ...cfg }));
   },
-  getAgentConfig: async (_userId: string, name: string) => {
+  getAgentConfig: async (_ctx: any, name: string) => {
     const cfg = _agentStore[name];
     return cfg ? { name, ...cfg } : null;
   },
-  createAgentConfig: async (_userId: string, name: string, data: Record<string, unknown>) => {
+  createAgentConfig: async (_ctx: any, name: string, data: Record<string, unknown>) => {
     _agentStore[name] = { ...data };
   },
-  updateAgentConfig: async (_userId: string, name: string, data: Record<string, unknown>) => {
+  updateAgentConfig: async (_ctx: any, name: string, data: Record<string, unknown>) => {
     if (!_agentStore[name]) return;
     const existing = { ..._agentStore[name] };
     for (const [key, value] of Object.entries(data)) {
@@ -41,8 +46,8 @@ mock.module("../services/config-pg", () => ({
     _agentStore[name] = existing;
   },
   deleteAgentConfig: async () => [],
-  getUserConfig: async (_userId: string) => ({ ..._userConfig }),
-  setUserConfig: async (_userId: string, patch: any) => {
+  getUserConfig: async (_ctx: any) => ({ ..._userConfig }),
+  setUserConfig: async (_ctx: any, patch: any) => {
     if (patch.defaultAgent !== undefined) _userConfig.defaultAgent = patch.defaultAgent;
     if (patch.currentModel !== undefined) _userConfig.currentModel = patch.currentModel;
     if (patch.smallModel !== undefined) _userConfig.smallModel = patch.smallModel;

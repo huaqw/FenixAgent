@@ -1,6 +1,7 @@
 import Elysia from "elysia";
 import { auth } from "../auth/better-auth";
 import { verifyWorkerJwt } from "../auth/jwt";
+import { AppError } from "../errors";
 
 interface UserInfo {
   id: string;
@@ -12,6 +13,13 @@ interface AuthSessionInfo {
   id: string;
   userId: string;
   token: string;
+}
+
+/** 统一认证上下文：替代散参数 userId */
+export interface AuthContext {
+  teamId: string;
+  userId: string;
+  role: "owner" | "admin" | "member";
 }
 
 function extractToken(request: Request): string | undefined {
@@ -51,6 +59,20 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
     authSession: null as AuthSessionInfo | null,
     authEnvironmentId: null as string | null,
     uuid: null as string | null,
+    authContext: null as AuthContext | null,
+  })
+  .onError(({ error, set }) => {
+    if (error instanceof AppError) {
+      set.status = error.statusCode;
+      return { error: { type: error.code, message: error.message } };
+    }
+    // DrizzleQueryError wrapping PostgreSQL errors
+    const msg = error instanceof Error ? (error.cause as any)?.message || error.message : "";
+    // PostgreSQL invalid UUID format → treat as not found
+    if (msg.includes("invalid input syntax for type uuid")) {
+      set.status = 404;
+      return { error: { type: "NOT_FOUND", message: "Resource not found" } };
+    }
   })
   .macro({
     sessionAuth(enabled: boolean) {
@@ -67,6 +89,12 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
             userId: session.session.userId,
             token: session.session.token,
           };
+          // 加载团队上下文
+          const { loadTeamContext } = await import("../services/team-context");
+          const ctx = await loadTeamContext(store.user, request);
+          if (ctx) {
+            store.authContext = ctx;
+          }
         },
       };
     },
@@ -87,6 +115,10 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
             if (user) {
               store.user = user;
               store.authEnvironmentId = envRecord.id;
+              // 加载团队上下文（environment 有关联 teamId）
+              const teamId = envRecord.teamId ?? envRecord.userId;
+              const role = envRecord.teamId && envRecord.teamId !== envRecord.userId ? "member" : "owner";
+              store.authContext = { teamId, userId: user.id, role: role as "owner" | "admin" | "member" };
               return;
             }
           }
@@ -98,6 +130,12 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
             const user = await lookupUserById(result.userId);
             if (user) {
               store.user = user;
+              // 加载团队上下文（API Key 关联 teamId）
+              if (result.teamId) {
+                const { getAuthContextByTeamId } = await import("../services/team");
+                const ctx = await getAuthContextByTeamId(user.id, result.teamId);
+                if (ctx) store.authContext = ctx;
+              }
               return;
             }
           }

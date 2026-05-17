@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
+import type { AuthContext } from "../../plugins/auth";
 import {
   createWebEnvironment,
   updateWebEnvironment,
@@ -20,6 +21,13 @@ import {
   UpdateEnvironmentRequestSchema,
   EnterEnvironmentRequestSchema,
 } from "../../schemas/environment.schema";
+import { loadTeamContext } from "../../services/team-context";
+
+async function requireAuthContext(store: any, request: Request, error: any): Promise<AuthContext | Response> {
+  const ctx = await loadTeamContext(store.user!, request);
+  if (!ctx) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+  return ctx;
+}
 
 const app = new Elysia({ name: "web-environments", prefix: "/web" })
   .use(authGuardPlugin)
@@ -31,15 +39,16 @@ const app = new Elysia({ name: "web-environments", prefix: "/web" })
     "enter-environment-request": EnterEnvironmentRequestSchema,
   });
 
-/** GET /web/environments — List environments for the current user */
-app.get("/environments", async ({ store }) => {
-  const user = store.user!;
-  return listEnvironmentsWithInstances(user.id);
+/** GET /web/environments — List environments for the current team */
+app.get("/environments", async ({ store, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
+  return listEnvironmentsWithInstances(authCtx.teamId);
 }, { sessionAuth: true });
 
 /** POST /web/environments — Register a new environment */
-app.post("/environments", async ({ store, body }) => {
+app.post("/environments", async ({ store, body, request }) => {
   const user = store.user!;
+  const authCtx = (await loadTeamContext(user, request))!;
   const b = body as { name: string; description?: string; agentConfigId?: string; autoStart?: boolean; workspacePath: string };
 
   const record = await createWebEnvironment({
@@ -49,6 +58,7 @@ app.post("/environments", async ({ store, body }) => {
     workspacePath: b.workspacePath,
     autoStart: b.autoStart,
     userId: user.id,
+    teamId: authCtx.teamId,
   });
 
   if (b.autoStart && record.userId) {
@@ -61,31 +71,48 @@ app.post("/environments", async ({ store, body }) => {
 }, { sessionAuth: true, body: "create-environment-request" });
 
 /** GET /web/environments/:id — Get environment detail (with secret) */
-app.get("/environments/:id", async ({ store, params }) => {
-  const user = store.user!;
-  const env = await getOwnedEnvironment(params.id, user.id);
-  return { ...sanitizeResponse(env), secret: env.secret };
+app.get("/environments/:id", async ({ store, params, request, error }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
+  try {
+    const env = await getOwnedEnvironment(params.id, authCtx.teamId);
+    return { ...sanitizeResponse(env), secret: env.secret };
+  } catch (err: any) {
+    if (err.code === "NOT_FOUND") return error(404, { error: { type: "NOT_FOUND", message: err.message } });
+    throw err;
+  }
 }, { sessionAuth: true });
 
 /** PUT /web/environments/:id — Update environment metadata */
-app.put("/environments/:id", async ({ store, params, body }) => {
-  const user = store.user!;
+app.put("/environments/:id", async ({ store, params, body, request, error }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const b = body as { name?: string; description?: string | null; workspacePath?: string; agentConfigId?: string | null; autoStart?: boolean };
 
-  const updated = await updateWebEnvironment(params.id, user.id, {
+  let updated;
+  try {
+    updated = await updateWebEnvironment(params.id, authCtx.teamId, {
     name: b.name,
     description: b.description,
     workspacePath: b.workspacePath,
     agentConfigId: b.agentConfigId,
     autoStart: b.autoStart,
   });
+  } catch (err: any) {
+    if (err.code === "NOT_FOUND") return error(404, { error: { type: "NOT_FOUND", message: err.message } });
+    throw err;
+  }
   return sanitizeResponse(updated!);
 }, { sessionAuth: true, body: "update-environment-request" });
 
 /** POST /web/environments/:id/enter — Enter an environment */
-app.post("/environments/:id/enter", async ({ store, params, body, error }) => {
+app.post("/environments/:id/enter", async ({ store, params, body, error, request }) => {
   const user = store.user!;
-  await getOwnedEnvironment(params.id, user.id);
+  const authCtx = (await loadTeamContext(user, request))!;
+  try {
+    await getOwnedEnvironment(params.id, authCtx.teamId);
+  } catch (err: any) {
+    if (err.code === "NOT_FOUND") return error(404, { error: { type: "NOT_FOUND", message: err.message } });
+    throw err;
+  }
 
   const b = body as { instance_number?: number };
   try {
@@ -99,16 +126,26 @@ app.post("/environments/:id/enter", async ({ store, params, body, error }) => {
 }, { sessionAuth: true, body: "enter-environment-request" });
 
 /** GET /web/environments/:id/instances — List active instances for an environment */
-app.get("/environments/:id/instances", async ({ store, params }) => {
-  const user = store.user!;
-  await getOwnedEnvironment(params.id, user.id);
+app.get("/environments/:id/instances", async ({ store, params, request, error }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
+  try {
+    await getOwnedEnvironment(params.id, authCtx.teamId);
+  } catch (err: any) {
+    if (err.code === "NOT_FOUND") return error(404, { error: { type: "NOT_FOUND", message: err.message } });
+    throw err;
+  }
   return listInstancesResponse(params.id);
 }, { sessionAuth: true });
 
 /** DELETE /web/environments/:id — Delete environment */
-app.delete("/environments/:id", async ({ store, params }) => {
-  const user = store.user!;
-  await getOwnedEnvironment(params.id, user.id);
+app.delete("/environments/:id", async ({ store, params, request, error }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
+  try {
+    await getOwnedEnvironment(params.id, authCtx.teamId);
+  } catch (err: any) {
+    if (err.code === "NOT_FOUND") return error(404, { error: { type: "NOT_FOUND", message: err.message } });
+    throw err;
+  }
   await deleteEnvironment(params.id);
   return { ok: true as const };
 }, { sessionAuth: true });

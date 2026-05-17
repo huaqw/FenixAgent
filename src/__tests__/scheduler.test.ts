@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { scheduledTask, taskExecutionLog, user } from "../db/schema";
+import { scheduledTask, taskExecutionLog, team, user } from "../db/schema";
 
 const mockCancel = mock(() => {});
 const mockNextInvocation = mock(() => ({ toJSDate: mock(() => new Date(Date.now() + 60000)) }));
@@ -31,6 +31,33 @@ const scheduler = await import("../services/scheduler");
 mock.restore();
 
 const TEST_USER_ID = "user_scheduler_test";
+const TEST_TEAM_SLUG = "scheduler-test-team";
+
+let TEST_TEAM_ID: string | undefined;
+
+async function ensureTeam() {
+  // Ensure team exists for the test user
+  const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
+  const now = new Date();
+  await db.insert(user).values({
+    id: TEST_USER_ID,
+    name: "Scheduler Test",
+    email: "scheduler-test@rcs.local",
+    emailVerified: false,
+    createdAt: now,
+    updatedAt: now,
+  });
+  const [created] = await db.insert(team).values({
+    name: "Scheduler Test Team",
+    slug: TEST_TEAM_SLUG,
+    createdBy: TEST_USER_ID,
+  }).returning();
+  TEST_TEAM_ID = created.id;
+}
 
 async function ensureUser() {
   const existing = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
@@ -46,36 +73,36 @@ async function ensureUser() {
   });
 }
 
-async function insertTask(id: string, enabled: boolean, timezone: string | null, cron = "* * * * *") {
+async function insertTask(enabled: boolean, timezone: string | null, cron = "* * * * *") {
   const now = new Date();
-  try {
-    await db.insert(scheduledTask).values({
-      id,
-      userId: TEST_USER_ID,
-      name: id,
-      description: null,
-      cron,
-      timezone,
-      enabled,
-      url: "https://httpbin.org/post",
-      method: "POST",
-      headers: null,
-      body: null,
-      lastRunAt: null,
-      nextRunAt: null,
-      lastStatus: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-  } catch {}
+  const [row] = await db.insert(scheduledTask).values({
+    userId: TEST_USER_ID,
+    teamId: TEST_TEAM_ID!,
+    name: `task_${Date.now()}`,
+    description: null,
+    cron,
+    timezone,
+    enabled,
+    url: "https://httpbin.org/post",
+    method: "POST",
+    headers: null,
+    body: null,
+    lastRunAt: null,
+    nextRunAt: null,
+    lastStatus: null,
+  }).returning();
+  return row;
 }
 
 async function cleanupRows() {
   try { await db.delete(taskExecutionLog); } catch {}
-  try { await db.delete(scheduledTask).where(eq(scheduledTask.userId, TEST_USER_ID)); } catch {}
+  if (TEST_TEAM_ID) {
+    try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
+  }
 }
 
 await ensureUser();
+await ensureTeam();
 
 describe("Scheduler", () => {
   beforeEach(async () => {
@@ -89,6 +116,9 @@ describe("Scheduler", () => {
     scheduler.stopScheduler();
     await cleanupRows();
     try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    if (TEST_TEAM_ID) {
+      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+    }
   });
 
   describe("scheduleTask", () => {
@@ -111,8 +141,8 @@ describe("Scheduler", () => {
 
   describe("startScheduler", () => {
     it("只为 enabled 任务调度", async () => {
-      await insertTask("task_s1", true, "UTC", "1 * * * *");
-      await insertTask("task_s2", false, "UTC", "2 * * * *");
+      const task1 = await insertTask(true, "UTC", "1 * * * *");
+      const task2 = await insertTask(false, "UTC", "2 * * * *");
 
       await scheduler.startScheduler();
 
@@ -124,9 +154,9 @@ describe("Scheduler", () => {
 
   describe("并发执行保护", () => {
     it("同一任务重复触发时写入 skipped 日志", async () => {
-      await insertTask("task_skip", true, "UTC");
+      const task = await insertTask(true, "UTC");
 
-      scheduler.scheduleTask({ id: "task_skip", cron: "* * * * *", timezone: "UTC", enabled: true });
+      scheduler.scheduleTask({ id: task.id, cron: "* * * * *", timezone: "UTC", enabled: true });
       const handler = (mockScheduleJob.mock.results.at(-1)?.value as { __handler: () => void }).__handler;
 
       handler();
@@ -134,7 +164,7 @@ describe("Scheduler", () => {
       handler();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const logs = await db.select().from(taskExecutionLog).where(eq(taskExecutionLog.taskId, "task_skip"));
+      const logs = await db.select().from(taskExecutionLog).where(eq(taskExecutionLog.taskId, task.id));
       expect(logs.some((row) => row.status === "skipped" && row.skipReason === "previous_run_still_active")).toBe(true);
     });
   });

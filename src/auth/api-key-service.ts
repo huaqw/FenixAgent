@@ -41,22 +41,21 @@ function sanitize(record: ApiKeyRecord): ApiKeySanitized {
   };
 }
 
-export async function createApiKey(userId: string, label: string): Promise<{ record: ApiKeySanitized; fullKey: string }> {
+export async function createApiKey(userId: string, label: string, teamId: string): Promise<{ record: ApiKeySanitized; fullKey: string }> {
   const fullKey = generateApiKey();
-  const id = generateId();
   const now = new Date();
 
-  await db.insert(apiKey).values({
-    id,
+  const [row] = await db.insert(apiKey).values({
     userId,
+    teamId,
     key: fullKey,
     label: label || "Default",
     createdAt: now,
     lastUsedAt: null,
-  });
+  }).returning();
 
   const record: ApiKeyRecord = {
-    id,
+    id: row.id,
     userId,
     key: fullKey,
     label: label || "Default",
@@ -67,7 +66,7 @@ export async function createApiKey(userId: string, label: string): Promise<{ rec
   return { record: sanitize(record), fullKey };
 }
 
-export async function validateApiKeyAndGetUser(key: string): Promise<{ userId: string; keyId: string } | null> {
+export async function validateApiKeyAndGetUser(key: string): Promise<{ userId: string; keyId: string; teamId: string | null } | null> {
   const rows = await db
     .select()
     .from(apiKey)
@@ -85,14 +84,14 @@ export async function validateApiKeyAndGetUser(key: string): Promise<{ userId: s
     .then(() => {})
     .catch(() => {});
 
-  return { userId: row.userId, keyId: row.id };
+  return { userId: row.userId, keyId: row.id, teamId: row.teamId ?? null };
 }
 
-export async function listApiKeysByUser(userId: string): Promise<ApiKeySanitized[]> {
+export async function listApiKeysByUser(teamId: string): Promise<ApiKeySanitized[]> {
   const rows = await db
     .select()
     .from(apiKey)
-    .where(eq(apiKey.userId, userId));
+    .where(eq(apiKey.teamId, teamId));
 
   return rows.map((r) => sanitize({
     id: r.id,
@@ -104,27 +103,27 @@ export async function listApiKeysByUser(userId: string): Promise<ApiKeySanitized
   }));
 }
 
-export async function deleteApiKey(userId: string, keyId: string): Promise<boolean> {
+export async function deleteApiKey(teamId: string, keyId: string): Promise<boolean> {
   const [existing] = await db
     .select({ id: apiKey.id })
     .from(apiKey)
-    .where(and(eq(apiKey.id, keyId), eq(apiKey.userId, userId)));
+    .where(and(eq(apiKey.id, keyId), eq(apiKey.teamId, teamId)));
 
   if (!existing) return false;
 
-  await db.delete(apiKey).where(and(eq(apiKey.id, keyId), eq(apiKey.userId, userId)));
+  await db.delete(apiKey).where(and(eq(apiKey.id, keyId), eq(apiKey.teamId, teamId)));
   return true;
 }
 
-export async function updateApiKeyLabel(userId: string, keyId: string, label: string): Promise<boolean> {
+export async function updateApiKeyLabel(teamId: string, keyId: string, label: string): Promise<boolean> {
   const [existing] = await db
     .select({ id: apiKey.id })
     .from(apiKey)
-    .where(and(eq(apiKey.id, keyId), eq(apiKey.userId, userId)));
+    .where(and(eq(apiKey.id, keyId), eq(apiKey.teamId, teamId)));
 
   if (!existing) return false;
 
-  await db.update(apiKey).set({ label }).where(and(eq(apiKey.id, keyId), eq(apiKey.userId, userId)));
+  await db.update(apiKey).set({ label }).where(and(eq(apiKey.id, keyId), eq(apiKey.teamId, teamId)));
   return true;
 }
 

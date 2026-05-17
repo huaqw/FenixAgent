@@ -15,27 +15,32 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/config-pg", () => ({
-  listMcpServers: async (_userId: string) => {
+  listMcpServers: async (_ctx: any) => {
     return Object.entries(_mcpStore).map(([name, row]) => ({ name, ...row }));
   },
-  getMcpServer: async (_userId: string, name: string) => {
+  getMcpServer: async (_ctx: any, name: string) => {
     const row = _mcpStore[name];
     return row ? { name, ...row } : null;
   },
-  createMcpServer: async (_userId: string, name: string, type: string, config: Record<string, unknown>) => {
+  createMcpServer: async (_ctx: any, name: string, type: string, config: Record<string, unknown>) => {
     _mcpStore[name] = { type, config, enabled: true };
   },
-  updateMcpServer: async (_userId: string, name: string, config: Record<string, unknown>) => {
+  updateMcpServer: async (_ctx: any, name: string, config: Record<string, unknown>) => {
     if (!_mcpStore[name]) return;
     _mcpStore[name].config = config;
   },
-  deleteMcpServer: async (_userId: string, name: string) => {
+  deleteMcpServer: async (_ctx: any, name: string) => {
     if (!(name in _mcpStore)) return false;
     delete _mcpStore[name];
     return true;
   },
-  setMcpServerEnabled: async (_userId: string, name: string, enabled: boolean) => {
+  setMcpServerEnabled: async (_ctx: any, name: string, enabled: boolean) => {
     if (!_mcpStore[name]) return false;
     _mcpStore[name].enabled = enabled;
     return true;

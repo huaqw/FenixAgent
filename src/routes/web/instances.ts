@@ -2,10 +2,12 @@ import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
 import { listInstances, stopInstance, spawnInstanceFromEnvironment } from "../../services/instance";
 import type { SpawnedInstance } from "../../services/instance";
+import { getOwnedEnvironment } from "../../services/environment-core";
 import {
   InstanceInfoSchema,
   SpawnInstanceFromEnvironmentRequestSchema,
 } from "../../schemas/instance.schema";
+import { loadTeamContext } from "../../services/team-context";
 
 const app = new Elysia({ name: "web-instances", prefix: "/web" })
   .use(authGuardPlugin)
@@ -29,12 +31,15 @@ function toResponse(inst: SpawnedInstance) {
   };
 }
 
-app.post("/instances/from-environment", async ({ store, body, error }) => {
+app.post("/instances/from-environment", async ({ store, body, error, request }: any) => {
   const user = store.user!;
+  const authCtx = (await loadTeamContext(user, request))!;
   const b = body as { environmentId: string };
   if (!b.environmentId) {
     return error(400, { error: { type: "VALIDATION_ERROR", message: "environmentId is required" } });
   }
+  // 验证 environment 归属当前团队
+  await getOwnedEnvironment(b.environmentId, authCtx.teamId);
   try {
     const inst = await spawnInstanceFromEnvironment(user.id, b.environmentId);
     return toResponse(inst);
@@ -48,16 +53,17 @@ app.post("/instances/from-environment", async ({ store, body, error }) => {
   }
 }, { sessionAuth: true, body: "spawn-instance-request" });
 
-app.get("/instances", ({ store }) => {
-  const user = store.user!;
-  const insts = listInstances(user.id);
+app.get("/instances", async ({ store, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
+  const insts = listInstances(authCtx.teamId);
   return insts.map(toResponse);
 }, { sessionAuth: true, response: "instance-info-list" });
 
-app.delete("/instances/:id", async ({ store, params, error }) => {
+app.delete("/instances/:id", async ({ store, params, error, request }) => {
   const user = store.user!;
+  const authCtx = (await loadTeamContext(user, request))!;
   const id = params.id;
-  const result = await stopInstance(id, user.id);
+  const result = await stopInstance(id, authCtx.teamId);
   if (!result.ok) {
     const statusCode = result.error === "Instance not found" ? 404
       : result.error === "Not your instance" ? 403

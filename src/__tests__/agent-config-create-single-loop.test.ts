@@ -52,7 +52,7 @@ describe("createAgentConfig 单循环 values/set 构建", () => {
     capturedValues.length = 0;
     capturedSet.length = 0;
 
-    await createAgentConfig("user_1", "test-agent", {
+    await createAgentConfig({ teamId: "test-team", userId: "user_1", role: "owner" }, "test-agent", {
       model: "gpt-4",
       prompt: "test prompt",
       steps: 10,
@@ -84,7 +84,7 @@ describe("createAgentConfig 单循环 values/set 构建", () => {
     capturedValues.length = 0;
     capturedSet.length = 0;
 
-    await createAgentConfig("user_1", "minimal", {});
+    await createAgentConfig({ teamId: "test-team", userId: "user_1", role: "owner" }, "minimal", {});
 
     const values = capturedValues[0] as Record<string, unknown>;
     expect(values.userId).toBe("user_1");
@@ -101,7 +101,7 @@ describe("createAgentConfig 单循环 values/set 构建", () => {
     capturedValues.length = 0;
     capturedSet.length = 0;
 
-    await createAgentConfig("user_1", "null-agent", {
+    await createAgentConfig({ teamId: "test-team", userId: "user_1", role: "owner" }, "null-agent", {
       model: null,
       prompt: null,
     });

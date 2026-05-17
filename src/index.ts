@@ -25,6 +25,7 @@ import webFiles from "./routes/web/files";
 import webS3Files from "./routes/web/s3-files";
 import webControl from "./routes/web/control";
 import webAuth from "./routes/web/auth";
+import webTeams from "./routes/web/teams";
 import { workflowStaticApp } from "./routes/web/workflow-proxy";
 import knowledgeMcpRoutes from "./routes/mcp/knowledge";
 import { stopAllInstances, spawnInstanceFromEnvironment, findRunningInstanceByEnvironment } from "./services/instance";
@@ -127,6 +128,7 @@ const app = new Elysia()
   .use(webS3Files)
   .use(webControl)
   .use(webAuth)
+  .use(webTeams)
   // Workflow proxy
   .use(workflowStaticApp)
   // MCP routes

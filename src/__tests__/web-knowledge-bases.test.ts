@@ -11,6 +11,14 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+// 固定的测试团队 UUID，与 mock getAuthContext 返回一致
+const TEST_TEAM_ID = "a0000000-0000-0000-0000-000000000001";
+
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: TEST_TEAM_ID, userId: "kb-user-1", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 const { default: Elysia } = await import("elysia");
 const { db } = await import("../db");
 const {
@@ -18,6 +26,7 @@ const {
   knowledgeBase,
   knowledgeResource,
   user,
+  team,
 } = await import("../db/schema");
 const { eq } = await import("drizzle-orm");
 const webKnowledgeBases = (await import("../routes/web/knowledge-bases")).default;
@@ -71,6 +80,22 @@ async function ensureUser() {
   }
 }
 
+/** 确保测试团队存在 */
+async function ensureTeam() {
+  const [existing] = await db.select().from(team).where(eq(team.id, TEST_TEAM_ID));
+  if (!existing) {
+    const now = new Date();
+    await db.insert(team).values({
+      id: TEST_TEAM_ID,
+      name: "KB Test Team",
+      slug: "kb-test-team",
+      createdBy: "kb-user-1",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+}
+
 describe("Knowledge base routes", () => {
   beforeEach(async () => {
     setKnowledgeProviderForTesting(fakeProvider as any);
@@ -80,9 +105,10 @@ describe("Knowledge base routes", () => {
     await db.delete(user).where(eq(user.id, "kb-user-1"));
     await db.delete(user).where(eq(user.id, "other-user"));
     await ensureUser();
+    await ensureTeam();
   });
 
-  test("POST /web/knowledgeBases returns 201 with kb_ id", async () => {
+  test("POST /web/knowledgeBases returns 201 with UUID id", async () => {
     const response = await request("/web/knowledgeBases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -95,7 +121,8 @@ describe("Knowledge base routes", () => {
 
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.id).toMatch(/^kb_/);
+    // id 现在是 UUID 格式
+    expect(body.id).toMatch(/^[0-9a-f]{8}-/);
     expect(body.remoteId).toBe("viking://resources/kb/kb-user-1/project-docs/");
   });
 
@@ -109,57 +136,54 @@ describe("Knowledge base routes", () => {
       createdAt: now,
       updatedAt: now,
     });
-    await db.insert(knowledgeBase).values([
-      {
-        id: "kb_a",
-        userId: "kb-user-1",
-        name: "Docs A",
-        slug: "docs-a",
-        description: null,
-        provider: "openviking",
-        remoteId: "remote-a",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "kb_b",
-        userId: "other-user",
-        name: "Docs B",
-        slug: "docs-b",
-        description: null,
-        provider: "openviking",
-        remoteId: "remote-b",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
+    const [kbA] = await db.insert(knowledgeBase).values({
+      userId: "kb-user-1",
+      teamId: TEST_TEAM_ID,
+      name: "Docs A",
+      slug: "docs-a",
+      description: null,
+      provider: "openviking",
+      remoteId: "remote-a",
+      status: "ready",
+      lastError: null,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+    const [kbB] = await db.insert(knowledgeBase).values({
+      userId: "other-user",
+      teamId: TEST_TEAM_ID,
+      name: "Docs B",
+      slug: "docs-b",
+      description: null,
+      provider: "openviking",
+      remoteId: "remote-b",
+      status: "ready",
+      lastError: null,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
     await db.insert(agentKnowledgeBinding).values({
-      id: "bind_1",
       agentName: "build",
-      knowledgeBaseId: "kb_a",
+      knowledgeBaseId: kbA.id,
       priority: 0,
       enabled: true,
       createdAt: now,
       updatedAt: now,
-    });
+    }).returning();
 
     const response = await request("/web/knowledgeBases");
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveLength(1);
-    expect(body[0].id).toBe("kb_a");
+    expect(body[0].id).toBe(kbA.id);
     expect(body[0].bindingsCount).toBe(1);
   });
 
   test("PATCH /web/knowledgeBases/:id updates description and preserves other fields", async () => {
     const now = new Date("2026-01-01T00:00:00Z");
-    await db.insert(knowledgeBase).values({
-      id: "kb_patch",
+    const [kb] = await db.insert(knowledgeBase).values({
       userId: "kb-user-1",
+      teamId: TEST_TEAM_ID,
       name: "Docs",
       slug: "docs",
       description: "before",
@@ -169,9 +193,9 @@ describe("Knowledge base routes", () => {
       lastError: null,
       createdAt: now,
       updatedAt: now,
-    });
+    }).returning();
 
-    const response = await request("/web/knowledgeBases/kb_patch", {
+    const response = await request(`/web/knowledgeBases/${kb.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description: "after" }),
@@ -193,9 +217,9 @@ describe("Knowledge base routes", () => {
       },
     } as any);
     const now = new Date();
-    await db.insert(knowledgeBase).values({
-      id: "kb_delete",
+    const [kb] = await db.insert(knowledgeBase).values({
       userId: "kb-user-1",
+      teamId: TEST_TEAM_ID,
       name: "Docs",
       slug: "docs",
       description: null,
@@ -205,9 +229,9 @@ describe("Knowledge base routes", () => {
       lastError: null,
       createdAt: now,
       updatedAt: now,
-    });
+    }).returning();
 
-    const deleteResponse = await request("/web/knowledgeBases/kb_delete", {
+    const deleteResponse = await request(`/web/knowledgeBases/${kb.id}`, {
       method: "DELETE",
     });
     expect(deleteResponse.status).toBe(200);
@@ -215,7 +239,7 @@ describe("Knowledge base routes", () => {
       { remoteId: "viking://resources/kb/kb-user-1/docs/", recursive: true },
     ]);
 
-    const detailResponse = await request("/web/knowledgeBases/kb_delete");
+    const detailResponse = await request(`/web/knowledgeBases/${kb.id}`);
     expect(detailResponse.status).toBe(404);
   });
 
@@ -227,9 +251,9 @@ describe("Knowledge base routes", () => {
       },
     } as any);
     const now = new Date();
-    await db.insert(knowledgeBase).values({
-      id: "kb_delete_busy",
+    const [kb] = await db.insert(knowledgeBase).values({
       userId: "kb-user-1",
+      teamId: TEST_TEAM_ID,
       name: "Docs Busy",
       slug: "docs-busy",
       description: null,
@@ -239,9 +263,9 @@ describe("Knowledge base routes", () => {
       lastError: null,
       createdAt: now,
       updatedAt: now,
-    });
+    }).returning();
 
-    const response = await request("/web/knowledgeBases/kb_delete_busy", {
+    const response = await request(`/web/knowledgeBases/${kb.id}`, {
       method: "DELETE",
     });
 

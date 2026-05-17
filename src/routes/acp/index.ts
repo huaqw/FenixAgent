@@ -69,11 +69,14 @@ async function resolveTokenAuth(token: string | undefined): Promise<{ userId: st
 const app = new Elysia({ name: "acp", prefix: "/acp" })
   .use(authGuardPlugin)
 
-  /** GET /acp/agents — List current user's ACP agents */
-  .get("/agents", async ({ store }) => {
-    const currentUser = store.user!;
-    const agents = await environmentRepo.listAcpAgentsByUserId(currentUser.id);
-    return agents.map((a) => toAcpAgentResponse(a));
+  /** GET /acp/agents — List current user's team ACP agents */
+  .get("/agents", async ({ store, request }) => {
+    const { loadTeamContext } = await import("../../services/team-context");
+    const authCtx = await loadTeamContext(store.user!, request);
+    const teamId = authCtx?.teamId ?? store.user!.id;
+    const teamEnvs = await environmentRepo.listByTeamId(teamId);
+    const acpEnvs = teamEnvs.filter((e) => e.workerType === "acp");
+    return acpEnvs.map((a) => toAcpAgentResponse(a));
   }, { sessionAuth: true })
 
   /** WS /acp/ws — WebSocket endpoint for acp-link connections */
@@ -141,10 +144,18 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
       const agentId = ws.data.params.agentId;
       const sessionId = ws.data.query?.sessionId as string | undefined;
 
-      // Verify agent belongs to this user
+      // Verify agent belongs to this user's team
       const env = await environmentRepo.getById(agentId);
-      if (!env || env.userId !== userId) {
-        log(`[ACP-Relay] Upgrade rejected: agent ${agentId} not found or not owned by user ${userId}`);
+      if (!env) {
+        log(`[ACP-Relay] Upgrade rejected: agent ${agentId} not found`);
+        adaptWs(ws).close(4003, "unauthorized");
+        return;
+      }
+      // 验证团队归属：env.teamId 或 env.userId 必须匹配
+      const { loadTeamContext } = await import("../../services/team-context");
+      const authCtx = await loadTeamContext({ id: userId }, ws.data.request);
+      if (!authCtx || (env.teamId !== authCtx.teamId && env.userId !== userId)) {
+        log(`[ACP-Relay] Upgrade rejected: agent ${agentId} not owned by user ${userId}'s team`);
         adaptWs(ws).close(4003, "unauthorized");
         return;
       }

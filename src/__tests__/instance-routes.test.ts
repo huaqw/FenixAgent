@@ -50,7 +50,7 @@ const mockListInstances = mock<(userId: string) => Array<{
   apiKey: string;
   createdAt: Date;
   instanceNumber: number;
-}>>((_userId: string) => [
+}>>((_ctx: any) => [
   {
     id: "inst_abc123",
     userId: "test-user-id",

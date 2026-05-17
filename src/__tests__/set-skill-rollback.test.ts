@@ -49,7 +49,7 @@ describe("setSkill partial write rollback", () => {
 
   // PG upsert 成功时正常返回
   test("returns SkillInfo when PG upsert succeeds", async () => {
-    const result = await setSkill("user_1", "my-skill", {
+    const result = await setSkill({ teamId: "test-team", userId: "user_1", role: "owner" }, "my-skill", {
       description: "desc",
       content: "content",
     });
@@ -63,7 +63,7 @@ describe("setSkill partial write rollback", () => {
     mockUpsertSkill.mockRejectedValueOnce(new Error("PG connection lost"));
 
     try {
-      await setSkill("user_1", "broken-skill", {
+      await setSkill({ teamId: "test-team", userId: "user_1", role: "owner" }, "broken-skill", {
         description: "desc",
         content: "content",
       });
@@ -82,7 +82,7 @@ describe("setSkill partial write rollback", () => {
     mockDeleteSkillDir.mockRejectedValueOnce(new Error("Permission denied"));
 
     try {
-      await setSkill("user_1", "doom-skill", {
+      await setSkill({ teamId: "test-team", userId: "user_1", role: "owner" }, "doom-skill", {
         description: "desc",
         content: "content",
       });

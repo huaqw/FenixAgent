@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import { userConfig } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import type { AuthContext } from "../../plugins/auth";
 
 // ────────────────────────────────────────────
 // UserConfig 操作
@@ -13,9 +14,9 @@ export interface UserConfigData {
   permission?: unknown;
 }
 
-export async function getUserConfig(userId: string): Promise<UserConfigData> {
+export async function getUserConfig(ctx: AuthContext): Promise<UserConfigData> {
   const rows = await db.select().from(userConfig)
-    .where(eq(userConfig.userId, userId))
+    .where(eq(userConfig.teamId, ctx.teamId))
     .limit(1);
   if (rows.length === 0) {
     return { defaultAgent: null, currentModel: null, smallModel: null, permission: null };
@@ -29,7 +30,7 @@ export async function getUserConfig(userId: string): Promise<UserConfigData> {
   };
 }
 
-export async function setUserConfig(userId: string, patch: UserConfigData) {
+export async function setUserConfig(ctx: AuthContext, patch: UserConfigData) {
   const set: Partial<typeof userConfig.$inferInsert> = { updatedAt: new Date() };
   if (patch.defaultAgent !== undefined) set.defaultAgent = patch.defaultAgent;
   if (patch.currentModel !== undefined) set.currentModel = patch.currentModel;
@@ -39,11 +40,12 @@ export async function setUserConfig(userId: string, patch: UserConfigData) {
   }
 
   await db.insert(userConfig).values({
-    userId,
+    teamId: ctx.teamId,
+    userId: ctx.userId,
     ...set,
   })
     .onConflictDoUpdate({
-      target: [userConfig.userId],
+      target: [userConfig.teamId],
       set,
     });
 }

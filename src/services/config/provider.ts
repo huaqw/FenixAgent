@@ -1,12 +1,13 @@
 import { db } from "../../db";
 import { provider, model } from "../../db/schema";
 import { eq, and, sql } from "drizzle-orm";
+import type { AuthContext } from "../../plugins/auth";
 
 // ────────────────────────────────────────────
 // Provider 操作
 // ────────────────────────────────────────────
 
-export async function listProviders(userId: string) {
+export async function listProviders(ctx: AuthContext) {
   const rows = await db.select({
     id: provider.id,
     name: provider.name,
@@ -20,7 +21,7 @@ export async function listProviders(userId: string) {
     modelCount: sql<number>`(SELECT COUNT(*) FROM ${model} WHERE ${model.providerId} = ${provider.id})`,
   })
     .from(provider)
-    .where(eq(provider.userId, userId));
+    .where(eq(provider.teamId, ctx.teamId));
 
   return rows.map((r) => ({
     id: r.id,
@@ -36,9 +37,9 @@ export async function listProviders(userId: string) {
   }));
 }
 
-export async function getProvider(userId: string, name: string) {
+export async function getProvider(ctx: AuthContext, name: string) {
   const rows = await db.select().from(provider)
-    .where(and(eq(provider.userId, userId), eq(provider.name, name)))
+    .where(and(eq(provider.teamId, ctx.teamId), eq(provider.name, name)))
     .limit(1);
   if (rows.length === 0) return null;
   const p = rows[0];
@@ -50,7 +51,7 @@ export async function getProvider(userId: string, name: string) {
 }
 
 export async function upsertProvider(
-  userId: string,
+  ctx: AuthContext,
   name: string,
   data: {
     displayName?: string;
@@ -70,12 +71,13 @@ export async function upsertProvider(
   };
 
   const [row] = await db.insert(provider).values({
-    userId,
+    teamId: ctx.teamId,
+    userId: ctx.userId,
     name,
     ...set,
   })
     .onConflictDoUpdate({
-      target: [provider.userId, provider.name],
+      target: [provider.teamId, provider.name],
       set,
     })
     .returning({ id: provider.id });
@@ -83,9 +85,9 @@ export async function upsertProvider(
   return row.id;
 }
 
-export async function deleteProvider(userId: string, name: string): Promise<boolean> {
+export async function deleteProvider(ctx: AuthContext, name: string): Promise<boolean> {
   const result = await db.delete(provider)
-    .where(and(eq(provider.userId, userId), eq(provider.name, name)))
+    .where(and(eq(provider.teamId, ctx.teamId), eq(provider.name, name)))
     .returning({ id: provider.id });
   return result.length > 0;
 }

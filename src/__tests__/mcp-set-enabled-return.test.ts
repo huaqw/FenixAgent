@@ -32,13 +32,13 @@ const { setMcpServerEnabled } = await import("../services/config/mcp-server");
 describe("setMcpServerEnabled boolean return", () => {
   test("returns true when server exists", async () => {
     mockWhere.mockImplementation(() => ({ returning: () => [{ id: "s1" }] }));
-    const result = await setMcpServerEnabled("u1", "my-server", true);
+    const result = await setMcpServerEnabled({ teamId: "test-team", userId: "u1", role: "owner" }, "my-server", true);
     expect(result).toBe(true);
   });
 
   test("returns false when server does not exist", async () => {
     mockWhere.mockImplementation(() => ({ returning: () => [] }));
-    const result = await setMcpServerEnabled("u1", "nonexistent", false);
+    const result = await setMcpServerEnabled({ teamId: "test-team", userId: "u1", role: "owner" }, "nonexistent", false);
     expect(result).toBe(false);
   });
 });

@@ -3,31 +3,33 @@ import { mcpServer, mcpTool } from "../../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { parseJsonb } from "./jsonb";
 import { randomUUID } from "node:crypto";
+import type { AuthContext } from "../../plugins/auth";
 
 // ────────────────────────────────────────────
 // MCP Server 操作
 // ────────────────────────────────────────────
 
-export async function listMcpServers(userId: string) {
+export async function listMcpServers(ctx: AuthContext) {
   return db.select().from(mcpServer)
-    .where(eq(mcpServer.userId, userId));
+    .where(eq(mcpServer.teamId, ctx.teamId));
 }
 
-export async function getMcpServer(userId: string, name: string) {
+export async function getMcpServer(ctx: AuthContext, name: string) {
   const rows = await db.select().from(mcpServer)
-    .where(and(eq(mcpServer.userId, userId), eq(mcpServer.name, name)))
+    .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .limit(1);
   return rows[0] ?? null;
 }
 
 export async function createMcpServer(
-  userId: string,
+  ctx: AuthContext,
   name: string,
   type: string,
   config: Record<string, unknown>,
 ) {
   const values = {
-    userId,
+    teamId: ctx.teamId,
+    userId: ctx.userId,
     name,
     type,
     config,
@@ -36,7 +38,7 @@ export async function createMcpServer(
   };
   await db.insert(mcpServer).values(values)
     .onConflictDoUpdate({
-      target: [mcpServer.userId, mcpServer.name],
+      target: [mcpServer.teamId, mcpServer.name],
       set: {
         type,
         config,
@@ -46,7 +48,7 @@ export async function createMcpServer(
 }
 
 export async function updateMcpServer(
-  userId: string,
+  ctx: AuthContext,
   name: string,
   config: Record<string, unknown>,
 ): Promise<boolean> {
@@ -56,22 +58,22 @@ export async function updateMcpServer(
   }
   const result = await db.update(mcpServer)
     .set(updates)
-    .where(and(eq(mcpServer.userId, userId), eq(mcpServer.name, name)))
+    .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .returning({ id: mcpServer.id });
   return result.length > 0;
 }
 
-export async function deleteMcpServer(userId: string, name: string): Promise<boolean> {
+export async function deleteMcpServer(ctx: AuthContext, name: string): Promise<boolean> {
   const result = await db.delete(mcpServer)
-    .where(and(eq(mcpServer.userId, userId), eq(mcpServer.name, name)))
+    .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .returning({ id: mcpServer.id });
   return result.length > 0;
 }
 
-export async function setMcpServerEnabled(userId: string, name: string, enabled: boolean): Promise<boolean> {
+export async function setMcpServerEnabled(ctx: AuthContext, name: string, enabled: boolean): Promise<boolean> {
   const result = await db.update(mcpServer)
     .set({ enabled, updatedAt: new Date() })
-    .where(and(eq(mcpServer.userId, userId), eq(mcpServer.name, name)))
+    .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .returning({ id: mcpServer.id });
   return result.length > 0;
 }

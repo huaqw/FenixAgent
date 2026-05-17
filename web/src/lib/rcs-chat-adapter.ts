@@ -1,6 +1,6 @@
 import type { SetStateAction } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { client } from "../api/client";
+import { client, getUuid } from "../api/client";
 import type { SessionEvent, EventPayload } from "../types";
 import type {
   ThreadEntry,
@@ -28,7 +28,10 @@ class SSEBus {
   connect(sessionId: string): void {
     this.disconnect();
     const uuid = getUuid();
-    const url = `/web/sessions/${sessionId}/events?uuid=${encodeURIComponent(uuid)}`;
+    const activeTeamId = localStorage.getItem("active_team_id");
+    const params = new URLSearchParams({ uuid: uuid });
+    if (activeTeamId) params.set("activeTeamId", activeTeamId);
+    const url = `/web/sessions/${sessionId}/events?${params}`;
     const es = new EventSource(url);
     this.eventSource = es;
 

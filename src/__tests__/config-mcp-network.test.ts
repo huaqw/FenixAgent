@@ -24,8 +24,13 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/config-pg", () => ({
-  getMcpServer: async (_userId: string, name: string) => {
+  getMcpServer: async (_ctx: any, name: string) => {
     const row = _mcpStore[name];
     return row ? { name, ...row } : null;
   },

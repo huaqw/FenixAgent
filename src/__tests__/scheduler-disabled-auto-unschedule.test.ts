@@ -18,7 +18,7 @@ mock.module("../logger", () => ({
 }));
 
 // mock task module — getTaskById 返回 disabled 任务
-const mockGetTaskById = mock(() => Promise.resolve(null));
+const mockGetTaskById = mock(() => Promise.resolve(null as any));
 mock.module("../services/task", () => ({
   getTaskById: mockGetTaskById,
   executeTaskById: mock(() => Promise.resolve({ success: true })),
@@ -37,13 +37,13 @@ mock.module("../repositories/task", () => ({
 const { scheduleTask, unscheduleTask } = await import("../services/scheduler");
 
 // 重置 mock 调用记录
-mockCancel.mock?.clear?.();
-mockScheduleJob.mock?.clear?.();
+mockCancel.mockClear();
+mockScheduleJob.mockClear();
 
 describe("scheduler disabled task auto-unschedule", () => {
   it("disabled 任务执行时自动 unschedule cron job", async () => {
-    mockScheduleJob.mock?.clear?.();
-    mockCancel.mock?.clear?.();
+    mockScheduleJob.mockClear();
+    mockCancel.mockClear();
 
     // 先 schedule 一个 enabled 任务
     scheduleTask({ id: "test-auto-unschedule", cron: "* * * * *", enabled: true });
@@ -69,8 +69,8 @@ describe("scheduler disabled task auto-unschedule", () => {
   });
 
   it("disabled 任务后续不再触发 cron（unschedule 后 job 被移除）", async () => {
-    mockScheduleJob.mock?.clear?.();
-    mockCancel.mock?.clear?.();
+    mockScheduleJob.mockClear();
+    mockCancel.mockClear();
 
     // schedule 一个 enabled 任务
     scheduleTask({ id: "test-unschedule-verify", cron: "*/5 * * * *", enabled: true });

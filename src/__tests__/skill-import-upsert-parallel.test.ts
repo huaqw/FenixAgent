@@ -2,7 +2,7 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test";
 
 const upsertSkillMock = mock(async () => "skill_1");
-const getSkillMock = mock<(_userId: string, _name: string) => Promise<unknown>>(async () => null);
+const getSkillMock = mock<(_ctx: any, _name: string) => Promise<unknown>>(async () => null);
 
 mock.module("../services/config-pg", () => ({
   deleteSkill: mock(async () => true),
@@ -56,7 +56,7 @@ describe("importSkillDirectories upsertSkill 并行化", () => {
 
   test("多个 skill 导入时 upsertSkill 应被并行调用（非 for 循环顺序）", async () => {
     getSkillMock.mockImplementation(async () => null);
-    await importSkillDirectories("user_1", [makeFile("a"), makeFile("b"), makeFile("c")]);
+    await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("a"), makeFile("b"), makeFile("c")]);
 
     // 应调用 3 次
     expect(upsertSkillMock).toHaveBeenCalledTimes(3);
@@ -66,7 +66,7 @@ describe("importSkillDirectories upsertSkill 并行化", () => {
 
   test("每个 upsertSkill 调用应包含正确的 description 和 contentPath", async () => {
     getSkillMock.mockImplementation(async () => null);
-    await importSkillDirectories("user_1", [makeFile("my-skill")]);
+    await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("my-skill")]);
 
     const calls = (upsertSkillMock.mock.calls as unknown as [string, string, Record<string, unknown>][]);
     const [userId, name, data] = calls[0];

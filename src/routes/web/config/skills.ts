@@ -1,5 +1,5 @@
 import Elysia from "elysia";
-import { authGuardPlugin } from "../../../plugins/auth";
+import { authGuardPlugin, type AuthContext } from "../../../plugins/auth";
 import { environmentRepo } from "../../../repositories";
 import { ConfigBodySchema } from "../../../schemas/config.schema";
 import { configSuccess, configError, configValidationError, configNotFound } from "../../../services/config-utils";
@@ -18,6 +18,7 @@ import {
   deleteWorkspaceSkill,
   type ImportConflictStrategy,
 } from "../../../services/skill";
+import { loadTeamContext } from "../../../services/team-context";
 
 const app = new Elysia({ name: "web-config-skills", prefix: "/web" })
   .use(authGuardPlugin)
@@ -25,35 +26,35 @@ const app = new Elysia({ name: "web-config-skills", prefix: "/web" })
     "config-body": ConfigBodySchema,
   });
 
-async function handleList(user: { id: string }) {
-  const skills = await listSkills(user.id);
+async function handleList(ctx: AuthContext) {
+  const skills = await listSkills(ctx);
   return configSuccess({ skills });
 }
 
-async function handleWorkspaceList(user: { id: string }) {
-  const sources = await listSkillSources(user.id);
+async function handleWorkspaceList(ctx: AuthContext) {
+  const sources = await listSkillSources(ctx);
   return configSuccess({ sources });
 }
 
-async function handleGet(user: { id: string }, body: { name?: string; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleGet(ctx: AuthContext, body: { name?: string; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
   if (body.source === "workspace" && body.workspaceId) {
     const env = await environmentRepo.getById(body.workspaceId);
-    if (!env) return errorFn(404, configNotFound("Workspace not found"));
+    if (!env || env.teamId !== ctx.teamId) return errorFn(404, configNotFound("Workspace not found"));
     const skill = await getWorkspaceSkill(env.workspacePath, body.name);
     if (!skill) return errorFn(404, configNotFound(`Skill '${body.name}' not found`));
     return configSuccess(skill);
   }
-  const skill = await getSkill(user.id, body.name);
+  const skill = await getSkill(ctx, body.name);
   if (!skill) {
     return errorFn(404, configNotFound(`Skill '${body.name}' not found`));
   }
   return configSuccess(skill);
 }
 
-async function handleSet(user: { id: string }, body: { name?: string; data?: { description: string; content: string; metadata?: Record<string, string> }; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleSet(ctx: AuthContext, body: { name?: string; data?: { description: string; content: string; metadata?: Record<string, string> }; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -62,48 +63,48 @@ async function handleSet(user: { id: string }, body: { name?: string; data?: { d
   }
   if (body.source === "workspace" && body.workspaceId) {
     const env = await environmentRepo.getById(body.workspaceId);
-    if (!env) return errorFn(404, configNotFound("Workspace not found"));
+    if (!env || env.teamId !== ctx.teamId) return errorFn(404, configNotFound("Workspace not found"));
     const result = await setWorkspaceSkill(env.workspacePath, body.name, body.data);
     return configSuccess({ name: result.name, enabled: result.enabled });
   }
-  const result = await setSkill(user.id, body.name, body.data);
+  const result = await setSkill(ctx, body.name, body.data);
   return configSuccess({ name: result.name, enabled: result.enabled });
 }
 
-async function handleDelete(user: { id: string }, body: { name?: string; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleDelete(ctx: AuthContext, body: { name?: string; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
   if (body.source === "workspace" && body.workspaceId) {
     const env = await environmentRepo.getById(body.workspaceId);
-    if (!env) return errorFn(404, configNotFound("Workspace not found"));
+    if (!env || env.teamId !== ctx.teamId) return errorFn(404, configNotFound("Workspace not found"));
     const deleted = await deleteWorkspaceSkill(env.workspacePath, body.name);
     if (!deleted) return errorFn(404, configNotFound(`Skill '${body.name}' not found`));
     return configSuccess(null);
   }
-  const deleted = await deleteSkill(user.id, body.name);
+  const deleted = await deleteSkill(ctx, body.name);
   if (!deleted) {
     return errorFn(404, configNotFound(`Skill '${body.name}' not found`));
   }
   return configSuccess(null);
 }
 
-async function handleEnable(user: { id: string }, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleEnable(ctx: AuthContext, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
-  const enabled = await enableSkill(user.id, body.name);
+  const enabled = await enableSkill(ctx, body.name);
   if (!enabled) {
     return errorFn(404, configNotFound(`Skill '${body.name}' not found`));
   }
   return configSuccess({ name: body.name, enabled: true });
 }
 
-async function handleDisable(user: { id: string }, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleDisable(ctx: AuthContext, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
-  const disabled = await disableSkill(user.id, body.name);
+  const disabled = await disableSkill(ctx, body.name);
   if (!disabled) {
     return errorFn(404, configNotFound(`Skill '${body.name}' not found`));
   }
@@ -115,7 +116,7 @@ interface UploadManifestEntry {
   relativePath: string;
 }
 
-async function handleUpload(user: { id: string }, request: Request, errorFn: (status: number, body: unknown) => any) {
+async function handleUpload(ctx: AuthContext, request: Request, errorFn: (status: number, body: unknown) => any) {
   let formData: globalThis.FormData | null;
   try {
     formData = await request.formData() as globalThis.FormData;
@@ -171,7 +172,7 @@ async function handleUpload(user: { id: string }, request: Request, errorFn: (st
 
     if (isWorkspaceUpload) {
       const env = await environmentRepo.getById(workspaceIdValue);
-      if (!env) return errorFn(404, configNotFound("Workspace not found"));
+      if (!env || env.teamId !== ctx.teamId) return errorFn(404, configNotFound("Workspace not found"));
       const result = await importWorkspaceSkillDirectories(env.workspacePath, uploadFiles, conflictStrategy);
       if (result.conflicts.length > 0) {
         return errorFn(
@@ -185,7 +186,7 @@ async function handleUpload(user: { id: string }, request: Request, errorFn: (st
       return configSuccess(result);
     }
 
-    const result = await importSkillDirectories(user.id, uploadFiles, conflictStrategy);
+    const result = await importSkillDirectories(ctx, uploadFiles, conflictStrategy);
     if (result.conflicts.length > 0) {
       return errorFn(
         409,
@@ -206,30 +207,34 @@ async function handleUpload(user: { id: string }, request: Request, errorFn: (st
 
 type SkillBody = { action: string; name?: string; data?: { description: string; content: string; metadata?: Record<string, string> }; source?: string; workspaceId?: string };
 
-app.post("/config/skills", async ({ store, body, error }) => {
+app.post("/config/skills", async ({ store, body, error, request }: any) => {
+  const authContext = await loadTeamContext(store.user!, request);
+  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+  const authCtx = authContext;
   const b = (body as any) ?? {};
   const payload: SkillBody = { action: b.action ?? "", name: b.name, data: b.data, source: b.source, workspaceId: b.workspaceId };
   const { action } = payload;
-  const user = store.user!;
 
   const errFn = (status: number, data: unknown) => error(status, data);
 
   switch (action) {
-    case "workspace_list": return await handleWorkspaceList(user);
-    case "list": return await handleList(user);
-    case "get": return await handleGet(user, payload, errFn);
-    case "set": return await handleSet(user, payload, errFn);
-    case "delete": return await handleDelete(user, payload, errFn);
-    case "enable": return await handleEnable(user, payload, errFn);
-    case "disable": return await handleDisable(user, payload, errFn);
+    case "workspace_list": return await handleWorkspaceList(authCtx);
+    case "list": return await handleList(authCtx);
+    case "get": return await handleGet(authCtx, payload, errFn);
+    case "set": return await handleSet(authCtx, payload, errFn);
+    case "delete": return await handleDelete(authCtx, payload, errFn);
+    case "enable": return await handleEnable(authCtx, payload, errFn);
+    case "disable": return await handleDisable(authCtx, payload, errFn);
     default:
       return error(400, configValidationError(`Unknown action: ${action}`));
   }
 }, { sessionAuth: true, body: "config-body" });
 
-app.post("/config/skills/upload", async ({ store, request, error }) => {
-  const user = store.user!;
-  return await handleUpload(user, request, (status, data) => error(status, data));
+app.post("/config/skills/upload", async ({ store, request, error }: any) => {
+  const authContext = await loadTeamContext(store.user!, request);
+  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+  const authCtx = authContext;
+  return await handleUpload(authCtx, request, (status, data) => error(status, data));
 }, { sessionAuth: true });
 
 export default app;

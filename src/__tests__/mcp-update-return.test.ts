@@ -41,14 +41,14 @@ describe("updateMcpServer returns boolean", () => {
   // 存在的 MCP server 返回 true
   test("returns true when server exists", async () => {
     updateResults.push({ returning: () => [{ id: "mcp-1" }] });
-    const result = await updateMcpServer("user-1", "github", { type: "remote", url: "https://api.github.com" });
+    const result = await updateMcpServer({ teamId: "test-team", userId: "user-1", role: "owner" }, "github", { type: "remote", url: "https://api.github.com" });
     expect(result).toBe(true);
   });
 
   // 不存在的 MCP server 返回 false
   test("returns false when server does not exist", async () => {
     updateResults.push({ returning: () => [] });
-    const result = await updateMcpServer("user-1", "nonexistent", { type: "remote", url: "https://example.com" });
+    const result = await updateMcpServer({ teamId: "test-team", userId: "user-1", role: "owner" }, "nonexistent", { type: "remote", url: "https://example.com" });
     expect(result).toBe(false);
   });
 });

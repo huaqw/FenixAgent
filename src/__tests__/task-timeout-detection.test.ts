@@ -10,7 +10,7 @@ const mockFetch = mock(async () => { throw new DOMException("The operation was a
 const originalFetch = globalThis.fetch;
 
 mock.module("../repositories/task", () => ({
-  scheduledTaskRepo: { update: mockTaskUpdate, getById: mock(async () => null), listByUser: mock(async () => []) },
+  scheduledTaskRepo: { update: mockTaskUpdate, getById: mock(async () => null), listByUser: mock(async () => []), listByTeam: mock(async () => []) },
   taskExecutionLogRepo: { create: mockLogCreate, listByTaskPaged: mock(async () => ({ rows: [], total: 0 })), deleteByTask: mock(async () => {}) },
 }));
 
@@ -33,7 +33,7 @@ const { executeTaskById } = await import("../services/task");
 
 describe("executeTaskById timeout detection", () => {
   test("detects AbortError as timeout", async () => {
-    globalThis.fetch = mock(async () => { throw new DOMException("aborted", "AbortError"); });
+    globalThis.fetch = mock(async () => { throw new DOMException("aborted", "AbortError"); }) as unknown as typeof fetch;
 
     const result = await executeTaskById("t1", "manual", {
       id: "t1", userId: "u1", name: "test", cron: "* * * * *", timezone: null,
@@ -51,7 +51,7 @@ describe("executeTaskById timeout detection", () => {
   });
 
   test("detects TimeoutError as timeout", async () => {
-    globalThis.fetch = mock(async () => { throw new DOMException("timeout", "TimeoutError"); });
+    globalThis.fetch = mock(async () => { throw new DOMException("timeout", "TimeoutError"); }) as unknown as typeof fetch;
 
     const result = await executeTaskById("t1", "manual", {
       id: "t1", userId: "u1", name: "test", cron: "* * * * *", timezone: null,
@@ -69,7 +69,7 @@ describe("executeTaskById timeout detection", () => {
   });
 
   test("generic error is not timeout", async () => {
-    globalThis.fetch = mock(async () => { throw new Error("connection refused"); });
+    globalThis.fetch = mock(async () => { throw new Error("connection refused"); }) as unknown as typeof fetch;
 
     const result = await executeTaskById("t1", "manual", {
       id: "t1", userId: "u1", name: "test", cron: "* * * * *", timezone: null,

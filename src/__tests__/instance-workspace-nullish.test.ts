@@ -22,14 +22,10 @@ mock.module("../services/config-pg", () => ({
 }));
 
 // mock repositories
-const mockEnvGetById = mock(() => Promise.resolve(undefined));
+const mockEnvGetById = mock(() => Promise.resolve(undefined as any));
 mock.module("../repositories", () => ({
   environmentRepo: { getById: mockEnvGetById },
-}));
-
-// mock session
-mock.module("../services/session", () => ({
-  findOrCreateForEnvironment: mock(() => Promise.resolve({ id: "session_xxx" })),
+  sessionRepo: {},
 }));
 
 // mock errors
@@ -40,16 +36,25 @@ mock.module("../errors", () => ({
 
 const { spawnInstanceFromEnvironment } = await import("../services/instance");
 
+// 补充 supplement 中 teamId 的默认值：env.teamId ?? userId
+// mockEnvGetById 需要返回含 teamId 的记录
+function makeEnv(overrides: Record<string, unknown>) {
+  return {
+    userId: "user-1",
+    teamId: "user-1",
+    ...overrides,
+  };
+}
+
 describe("instance workspacePath ?? vs || 语义", () => {
   it("workspacePath 为 null 时 fallback 到 directory", async () => {
     mockEnvGetById.mockImplementation(() =>
-      Promise.resolve({
+      Promise.resolve(makeEnv({
         id: "env-test",
-        userId: "user-1",
         workspacePath: null,
         directory: "/home/user/project",
         secret: "secret",
-      }),
+      })),
     );
     // workspacePath=null, directory="/home/user/project" → cwd="/home/user/project"
     // 不应抛 "Workspace directory not set" 错误（会因 launchInstance mock 缺失抛其他错误）
@@ -63,13 +68,12 @@ describe("instance workspacePath ?? vs || 语义", () => {
 
   it("workspacePath 和 directory 都为 null 时抛 VALIDATION_ERROR", async () => {
     mockEnvGetById.mockImplementation(() =>
-      Promise.resolve({
+      Promise.resolve(makeEnv({
         id: "env-test2",
-        userId: "user-1",
         workspacePath: null,
         directory: null,
         secret: "secret",
-      }),
+      })),
     );
     try {
       await spawnInstanceFromEnvironment("user-1", "env-test2");
@@ -84,13 +88,12 @@ describe("instance workspacePath ?? vs || 语义", () => {
     // ?? 语义：空字符串不被 fallback 到 directory，保留 ""
     // 然后 !cwd（!""）为 true → VALIDATION_ERROR
     mockEnvGetById.mockImplementation(() =>
-      Promise.resolve({
+      Promise.resolve(makeEnv({
         id: "env-test3",
-        userId: "user-1",
         workspacePath: "",
         directory: "/home/user/project",
         secret: "secret",
-      }),
+      })),
     );
     try {
       await spawnInstanceFromEnvironment("user-1", "env-test3");

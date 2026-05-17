@@ -4,11 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { environment, user } from "../db/schema";
+import { environment, team, user } from "../db/schema";
 import { runAgentTask } from "../services/agent-task-runner";
 
 const TEST_USER_ID = "user_agent_runner_test";
 const TEST_ENV_ID = "env_agent_runner_test";
+let TEST_TEAM_ID = "";
 
 let workspaceRoot = "";
 let toolDir = "";
@@ -26,6 +27,19 @@ async function upsertUser() {
     createdAt: now,
     updatedAt: now,
   });
+}
+
+async function ensureTeam() {
+  if (TEST_TEAM_ID) return;
+  const now = new Date();
+  const [t] = await db.insert(team).values({
+    name: "runner-team",
+    slug: `runner-team-${Date.now()}`,
+    createdBy: TEST_USER_ID,
+    createdAt: now,
+    updatedAt: now,
+  }).returning();
+  TEST_TEAM_ID = t.id;
 }
 
 async function upsertEnvironment(agentName: string | null) {
@@ -55,6 +69,7 @@ async function upsertEnvironment(agentName: string | null) {
     capabilities: null,
     secret: "runner-secret",
     userId: TEST_USER_ID,
+    teamId: TEST_TEAM_ID,
     lastPollAt: null,
     createdAt: now,
     updatedAt: now,
@@ -105,11 +120,13 @@ describe("agent-task-runner", () => {
     originalPath = process.env.PATH ?? "";
     await createFakeOpencode();
     await upsertUser();
+    await ensureTeam();
     await upsertEnvironment("agent-alpha");
   });
 
   afterAll(async () => {
     process.env.PATH = originalPath;
+    try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
     try { await db.delete(environment).where(eq(environment.id, TEST_ENV_ID)); } catch {}
     try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
     if (workspaceRoot) {

@@ -9,6 +9,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { log, error as logError } from "../logger";
+import type { AuthContext } from "../plugins/auth";
 import { environmentRepo } from "../repositories";
 import * as configPg from "./config-pg";
 import {
@@ -109,8 +110,8 @@ function stripNameAndDescription(metadata: Record<string, string>): Record<strin
   );
 }
 
-export async function listSkills(userId: string): Promise<SkillInfo[]> {
-  const rows = await configPg.listSkills(userId);
+export async function listSkills(ctx: AuthContext): Promise<SkillInfo[]> {
+  const rows = await configPg.listSkills(ctx);
   return rows.map((r) => ({
     name: r.name,
     enabled: r.enabled,
@@ -119,8 +120,8 @@ export async function listSkills(userId: string): Promise<SkillInfo[]> {
   }));
 }
 
-export async function getSkill(userId: string, name: string): Promise<SkillDetail | null> {
-  const meta = await configPg.getSkill(userId, name);
+export async function getSkill(ctx: AuthContext, name: string): Promise<SkillDetail | null> {
+  const meta = await configPg.getSkill(ctx, name);
   if (!meta) return null;
 
   const contentPath = meta.contentPath ?? skillContentPath(name);
@@ -137,7 +138,7 @@ export async function getSkill(userId: string, name: string): Promise<SkillDetai
 }
 
 export async function setSkill(
-  userId: string,
+  ctx: AuthContext,
   name: string,
   data: { description: string; content: string; metadata?: Record<string, string> },
 ): Promise<SkillInfo> {
@@ -145,7 +146,7 @@ export async function setSkill(
   const contentPath = await writeSkillMd(skillDir, name, data.description, data.content, data.metadata);
 
   try {
-    await configPg.upsertSkill(userId, name, {
+    await configPg.upsertSkill(ctx, name, {
       description: data.description,
       contentPath,
       metadata: data.metadata,
@@ -161,8 +162,8 @@ export async function setSkill(
   return { name, enabled: true, description: data.description, path: contentPath };
 }
 
-export async function deleteSkill(userId: string, name: string): Promise<boolean> {
-  const deleted = await configPg.deleteSkill(userId, name);
+export async function deleteSkill(ctx: AuthContext, name: string): Promise<boolean> {
+  const deleted = await configPg.deleteSkill(ctx, name);
   if (!deleted) return false;
   const skillDir = join(SKILLS_DIR, name);
   await deleteSkillDir(skillDir).catch((e) => {
@@ -171,12 +172,12 @@ export async function deleteSkill(userId: string, name: string): Promise<boolean
   return true;
 }
 
-export async function enableSkill(userId: string, name: string): Promise<boolean> {
-  return configPg.enableSkill(userId, name);
+export async function enableSkill(ctx: AuthContext, name: string): Promise<boolean> {
+  return configPg.enableSkill(ctx, name);
 }
 
-export async function disableSkill(userId: string, name: string): Promise<boolean> {
-  return configPg.disableSkill(userId, name);
+export async function disableSkill(ctx: AuthContext, name: string): Promise<boolean> {
+  return configPg.disableSkill(ctx, name);
 }
 
 /** 校验上传文件并检测冲突（全局和 workspace 共享） */
@@ -243,7 +244,7 @@ async function executeImportCore(
 }
 
 export async function importSkillDirectories(
-  userId: string,
+  ctx: AuthContext,
   files: UploadSkillFile[],
   strategy?: ImportConflictStrategy,
 ): Promise<ImportSkillsResult> {
@@ -253,7 +254,7 @@ export async function importSkillDirectories(
   const entries = Array.from(grouped.entries());
   const existingResults = await Promise.all(
     entries.map(async ([name]) => {
-      const existing = await configPg.getSkill(userId, name);
+      const existing = await configPg.getSkill(ctx, name);
       return existing
         ? { name, enabled: existing.enabled, path: existing.contentPath ?? skillContentPath(name) }
         : null;
@@ -281,11 +282,11 @@ export async function importSkillDirectories(
     "rcs-skill-import-",
     // onConflictCleanup: overwrite 时清理 PG 冲突记录（pre-write）
     strategy === "overwrite" ? async (names) => {
-      await Promise.all(names.map((name) => configPg.deleteSkill(userId, name)));
+      await Promise.all(names.map((name) => configPg.deleteSkill(ctx, name)));
     } : undefined,
     // onSkillWritten: 并行写入 PG 元数据
     async (info) => {
-      await configPg.upsertSkill(userId, info.name, {
+      await configPg.upsertSkill(ctx, info.name, {
         description: info.description,
         contentPath: info.path,
         enabled: true,
@@ -293,7 +294,7 @@ export async function importSkillDirectories(
     },
     // onRollbackCleanup: 回滚时清理已尝试写入的 PG 记录
     async (names) => {
-      await Promise.all(names.map((name) => configPg.deleteSkill(userId, name)));
+      await Promise.all(names.map((name) => configPg.deleteSkill(ctx, name)));
     },
   );
 
@@ -312,11 +313,11 @@ export async function listWorkspaceSkills(workspacePath: string): Promise<SkillI
   return listSkillsFromDir(skillsDir);
 }
 
-export async function listSkillSources(userId: string): Promise<SkillSourceInfo[]> {
+export async function listSkillSources(ctx: AuthContext): Promise<SkillSourceInfo[]> {
   // 两个查询无依赖关系，并行执行
   const [environments, globalSkills] = await Promise.all([
-    environmentRepo.listByUserId(userId),
-    listSkills(userId),
+    environmentRepo.listByUserId(ctx.userId),
+    listSkills(ctx),
   ]);
   const sources: SkillSourceInfo[] = [{
     type: "global",

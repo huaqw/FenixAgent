@@ -8,12 +8,16 @@ import {
   knowledgeBase,
   knowledgeResource,
   user,
+  team,
 } from "../db/schema";
 import knowledgeMcpRoutes from "../routes/mcp/knowledge";
 import { setKnowledgeRuntimeProviderForTesting } from "../services/knowledge-runtime";
 
 const app = new Elysia();
 app.use(knowledgeMcpRoutes);
+
+// 固定的测试团队 UUID
+const TEST_TEAM_ID = "b0000000-0000-0000-0000-000000000001";
 
 const fakeProvider = {
   async createKnowledgeBase() {
@@ -59,6 +63,11 @@ function mcpRequest(secret: string | null, body: Record<string, unknown>) {
 }
 
 describe("knowledge MCP route", () => {
+  let kbLocal1Id: string;
+  let kbLocal2Id: string;
+  let resLocal1Id: string;
+  let resLocal2Id: string;
+
   beforeEach(async () => {
     setKnowledgeRuntimeProviderForTesting(fakeProvider as any);
     await db.delete(agentKnowledgeBinding);
@@ -66,6 +75,8 @@ describe("knowledge MCP route", () => {
     await db.delete(knowledgeBase);
     await db.delete(environment);
     await db.delete(user).where(inArray(user.id, ["kb-mcp-user", "kb-mcp-user-2"]));
+    // 清理测试团队（如果存在）
+    await db.delete(team).where(eq(team.id, TEST_TEAM_ID)).catch(() => {});
 
     const now = new Date();
     await db.insert(user).values({
@@ -84,6 +95,15 @@ describe("knowledge MCP route", () => {
       createdAt: now,
       updatedAt: now,
     });
+    // 创建测试团队
+    await db.insert(team).values({
+      id: TEST_TEAM_ID,
+      name: "KB MCP Test Team",
+      slug: "kb-mcp-test-team",
+      createdBy: "kb-mcp-user",
+      createdAt: now,
+      updatedAt: now,
+    });
     await db.insert(environment).values({
       id: "env_kb_mcp",
       name: "env-kb-mcp",
@@ -99,15 +119,16 @@ describe("knowledge MCP route", () => {
       capabilities: null,
       secret: "env_secret_kb_mcp",
       userId: "kb-mcp-user",
+      teamId: TEST_TEAM_ID,
       autoStart: false,
       lastPollAt: now,
       createdAt: now,
       updatedAt: now,
     });
-    await db.insert(knowledgeBase).values([
+    const kbRows = await db.insert(knowledgeBase).values([
       {
-        id: "kb_local_1",
         userId: "kb-mcp-user",
+        teamId: TEST_TEAM_ID,
         name: "Docs",
         slug: "docs",
         description: null,
@@ -119,8 +140,8 @@ describe("knowledge MCP route", () => {
         updatedAt: now,
       },
       {
-        id: "kb_local_2",
         userId: "kb-mcp-user",
+        teamId: TEST_TEAM_ID,
         name: "Private",
         slug: "private",
         description: null,
@@ -131,11 +152,13 @@ describe("knowledge MCP route", () => {
         createdAt: now,
         updatedAt: now,
       },
-    ]);
-    await db.insert(knowledgeResource).values([
+    ]).returning();
+    kbLocal1Id = kbRows[0].id;
+    kbLocal2Id = kbRows[1].id;
+
+    const resRows = await db.insert(knowledgeResource).values([
       {
-        id: "res_local_1",
-        knowledgeBaseId: "kb_local_1",
+        knowledgeBaseId: kbLocal1Id,
         sourceType: "upload",
         sourceName: "workflow-proxy.md",
         sourcePath: null,
@@ -146,8 +169,7 @@ describe("knowledge MCP route", () => {
         updatedAt: now,
       },
       {
-        id: "res_local_2",
-        knowledgeBaseId: "kb_local_2",
+        knowledgeBaseId: kbLocal2Id,
         sourceType: "upload",
         sourceName: "private.md",
         sourcePath: null,
@@ -157,11 +179,13 @@ describe("knowledge MCP route", () => {
         createdAt: now,
         updatedAt: now,
       },
-    ]);
+    ]).returning();
+    resLocal1Id = resRows[0].id;
+    resLocal2Id = resRows[1].id;
+
     await db.insert(agentKnowledgeBinding).values({
-      id: "bind_mcp_1",
       agentName: "general",
-      knowledgeBaseId: "kb_local_1",
+      knowledgeBaseId: kbLocal1Id,
       priority: 0,
       enabled: true,
       createdAt: now,
@@ -192,8 +216,8 @@ describe("knowledge MCP route", () => {
         snippet: "Use /workflow-ui to access the proxy.",
         source: "kb://docs/workflow-proxy.md",
         score: 0.91,
-        knowledgeBaseId: "kb_local_1",
-        resourceId: "res_local_1",
+        knowledgeBaseId: kbLocal1Id,
+        resourceId: resLocal1Id,
       },
     ]);
   });
@@ -206,7 +230,7 @@ describe("knowledge MCP route", () => {
       params: {
         name: "kb_read",
         arguments: {
-          resourceId: "res_local_2",
+          resourceId: resLocal2Id,
         },
       },
     });

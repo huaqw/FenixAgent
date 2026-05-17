@@ -22,6 +22,7 @@ export interface EnvironmentRecord {
   status: string;
   username: string | null;
   userId: string | null;
+  teamId: string | null;
   autoStart: boolean;
   lastPollAt: Date | null;
   createdAt: Date;
@@ -36,6 +37,7 @@ export interface EnvironmentCreateParams {
   agentConfigId?: string | null;
   secret?: string;
   userId: string;
+  teamId?: string;
   status?: string;
   machineName?: string;
   directory?: string;
@@ -67,6 +69,7 @@ export interface IEnvironmentRepo {
   listActiveByUsername(username: string): Promise<EnvironmentRecord[]>;
   listAcpAgents(): Promise<EnvironmentRecord[]>;
   listAcpAgentsByUserId(userId: string): Promise<EnvironmentRecord[]>;
+  listByTeamId(teamId: string): Promise<EnvironmentRecord[]>;
   listOnlineAcpAgents(): Promise<EnvironmentRecord[]>;
 }
 
@@ -89,6 +92,7 @@ function rowToRecord(row: typeof environment.$inferSelect): EnvironmentRecord {
     status: row.status,
     username: null,
     userId: row.userId,
+    teamId: (row as any).teamId ?? null,
     autoStart: row.autoStart ?? false,
     lastPollAt: row.lastPollAt,
     createdAt: row.createdAt,
@@ -120,6 +124,7 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
       capabilities: params.capabilities ?? null,
       status,
       userId: params.userId,
+      teamId: (params as any).teamId ?? null,
       autoStart: params.autoStart ?? false,
       lastPollAt: now,
     } as any);
@@ -132,6 +137,7 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
       maxSessions: params.maxSessions ?? 1, workerType: params.workerType ?? "acp",
       capabilities: params.capabilities ?? null, status,
       username: params.username ?? null, userId: params.userId,
+      teamId: (params as any).teamId ?? null,
       autoStart: params.autoStart ?? false,
       lastPollAt: now, createdAt: now, updatedAt: now,
     };
@@ -204,6 +210,11 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
     const rows = await db.select().from(environment).where(
       and(eq(environment.workerType, "acp"), eq(environment.userId, userId))
     );
+    return rows.map(rowToRecord);
+  }
+
+  async listByTeamId(teamId: string): Promise<EnvironmentRecord[]> {
+    const rows = await db.select().from(environment).where(eq(environment.teamId, teamId));
     return rows.map(rowToRecord);
   }
 

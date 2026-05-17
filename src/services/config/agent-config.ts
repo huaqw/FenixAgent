@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import { agentConfig } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
+import type { AuthContext } from "../../plugins/auth";
 
 import { resolveAgentKnowledgePolicy } from "../agent-knowledge";
 import type { AgentKnowledgeConfig, AgentKnowledgePolicy } from "../agent-knowledge";
@@ -17,14 +18,14 @@ const AGENT_SETTABLE_FIELDS = [
 /** 前端字段名 → Drizzle 列名映射（路由层已做映射，此处为防御性兜底） */
 const FIELD_ALIAS: Record<string, string> = { top_p: "topP" };
 
-export async function listAgentConfigs(userId: string) {
+export async function listAgentConfigs(ctx: AuthContext) {
   return db.select().from(agentConfig)
-    .where(eq(agentConfig.userId, userId));
+    .where(eq(agentConfig.teamId, ctx.teamId));
 }
 
-export async function getAgentConfig(userId: string, name: string) {
+export async function getAgentConfig(ctx: AuthContext, name: string) {
   const rows = await db.select().from(agentConfig)
-    .where(and(eq(agentConfig.userId, userId), eq(agentConfig.name, name)))
+    .where(and(eq(agentConfig.teamId, ctx.teamId), eq(agentConfig.name, name)))
     .limit(1);
   return rows[0] ?? null;
 }
@@ -49,35 +50,35 @@ function buildSetFromData(data: Record<string, unknown>): Partial<typeof agentCo
 }
 
 export async function createAgentConfig(
-  userId: string,
+  ctx: AuthContext,
   name: string,
   data: Record<string, unknown>,
 ) {
   const set = buildSetFromData(data);
-  const values = { userId, name, ...set } as typeof agentConfig.$inferInsert;
+  const values = { teamId: ctx.teamId, userId: ctx.userId, name, ...set } as typeof agentConfig.$inferInsert;
 
   await db.insert(agentConfig).values(values)
     .onConflictDoUpdate({
-      target: [agentConfig.userId, agentConfig.name],
+      target: [agentConfig.teamId, agentConfig.name],
       set,
     });
 }
 
 export async function updateAgentConfig(
-  userId: string,
+  ctx: AuthContext,
   name: string,
   data: Record<string, unknown>,
 ): Promise<boolean> {
   const set = buildSetFromData(data);
   const result = await db.update(agentConfig).set(set)
-    .where(and(eq(agentConfig.userId, userId), eq(agentConfig.name, name)))
+    .where(and(eq(agentConfig.teamId, ctx.teamId), eq(agentConfig.name, name)))
     .returning({ id: agentConfig.id });
   return result.length > 0;
 }
 
-export async function deleteAgentConfig(userId: string, name: string): Promise<boolean> {
+export async function deleteAgentConfig(ctx: AuthContext, name: string): Promise<boolean> {
   const result = await db.delete(agentConfig)
-    .where(and(eq(agentConfig.userId, userId), eq(agentConfig.name, name)))
+    .where(and(eq(agentConfig.teamId, ctx.teamId), eq(agentConfig.name, name)))
     .returning({ id: agentConfig.id });
   return result.length > 0;
 }

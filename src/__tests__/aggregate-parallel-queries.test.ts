@@ -53,7 +53,7 @@ describe("getAgentFullConfig", () => {
       }),
     }));
 
-    const result = await getAgentFullConfig("u1", null);
+    const result = await getAgentFullConfig({ teamId: "test-team", userId: "u1", role: "owner" }, null);
 
     expect(result.agentConfig).toBe(null);
     expect(result.providers).toEqual(mockProviders);
@@ -74,7 +74,7 @@ describe("getAgentFullConfig", () => {
       }),
     }));
 
-    const result = await getAgentFullConfig("u1", "ac1");
+    const result = await getAgentFullConfig({ teamId: "test-team", userId: "u1", role: "owner" }, "ac1");
 
     expect(result.agentConfig).toEqual(mockAgentConfig);
     expect(result.providers).toEqual(mockProviders);
@@ -96,7 +96,7 @@ describe("getAgentFullConfig", () => {
       }),
     }));
 
-    const result = await getAgentFullConfig("u1", "nonexistent");
+    const result = await getAgentFullConfig({ teamId: "test-team", userId: "u1", role: "owner" }, "nonexistent");
 
     expect(result.agentConfig).toBe(null);
     // 只保留 agentConfigId === null 的全局 skills

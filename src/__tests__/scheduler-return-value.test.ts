@@ -46,7 +46,7 @@ describe("scheduleTask return value", () => {
 
   test("returns false when node-schedule rejects cron expression", () => {
     // node-schedule returns null for invalid cron
-    mockScheduleJob.mockImplementation(() => null);
+    mockScheduleJob.mockImplementation(() => null as any);
     const result = scheduleTask({ id: "task_3", cron: "invalid-cron", enabled: true });
     expect(result).toBe(false);
   });

@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { agentKnowledgeBinding, knowledgeBase, user } from "../db/schema";
+import { agentKnowledgeBinding, knowledgeBase, user, team } from "../db/schema";
 import {
   countBindingsByKnowledgeBaseIds,
   listAgentKnowledgeBindings,
   resolveAgentKnowledgePolicy,
   syncAgentKnowledgeBindings,
 } from "../services/agent-knowledge";
+
+// 固定的测试团队 UUID
+const TEST_TEAM_ID = "c0000000-0000-0000-0000-000000000001";
 
 async function ensureUser(userId: string) {
   const now = new Date();
@@ -21,19 +24,39 @@ async function ensureUser(userId: string) {
   });
 }
 
+/** 确保测试团队存在 */
+async function ensureTeam() {
+  const [existing] = await db.select().from(team).where(eq(team.id, TEST_TEAM_ID));
+  if (!existing) {
+    const now = new Date();
+    await db.insert(team).values({
+      id: TEST_TEAM_ID,
+      name: "Agent KB Test Team",
+      slug: "agent-kb-test-team",
+      createdBy: "agent-kb-user",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+}
+
 describe("agent-knowledge service", () => {
+  let kbAgent1Id: string;
+  let kbAgent2Id: string;
+
   beforeEach(async () => {
     await db.delete(agentKnowledgeBinding);
     await db.delete(knowledgeBase);
     await db.delete(user).where(inArray(user.id, ["agent-kb-user", "agent-kb-user-2"]));
     await ensureUser("agent-kb-user");
     await ensureUser("agent-kb-user-2");
+    await ensureTeam();
 
     const now = new Date();
-    await db.insert(knowledgeBase).values([
+    const kbRows = await db.insert(knowledgeBase).values([
       {
-        id: "kb_agent_1",
         userId: "agent-kb-user",
+        teamId: TEST_TEAM_ID,
         name: "KB 1",
         slug: "kb-1",
         description: null,
@@ -45,8 +68,8 @@ describe("agent-knowledge service", () => {
         updatedAt: now,
       },
       {
-        id: "kb_agent_2",
         userId: "agent-kb-user",
+        teamId: TEST_TEAM_ID,
         name: "KB 2",
         slug: "kb-2",
         description: null,
@@ -57,30 +80,27 @@ describe("agent-knowledge service", () => {
         createdAt: now,
         updatedAt: now,
       },
-    ]);
+    ]).returning();
+    kbAgent1Id = kbRows[0].id;
+    kbAgent2Id = kbRows[1].id;
   });
 
   test("syncAgentKnowledgeBindings replaces old bindings and preserves priority order", async () => {
-    const now = new Date();
-    await db.insert(agentKnowledgeBinding).values({
-      id: "akb_old",
-      agentName: "build",
-      knowledgeBaseId: "kb_agent_1",
-      priority: 0,
-      enabled: true,
-      createdAt: now,
-      updatedAt: now,
+    // 先创建一个旧绑定
+    await syncAgentKnowledgeBindings("agent-kb-user", "build", {
+      knowledgeBaseIds: [kbAgent1Id],
     });
 
+    // 替换为新顺序
     await syncAgentKnowledgeBindings("agent-kb-user", "build", {
-      knowledgeBaseIds: ["kb_agent_2", "kb_agent_1"],
+      knowledgeBaseIds: [kbAgent2Id, kbAgent1Id],
       policy: { searchFirst: false, maxResults: 2 },
     });
 
     const bindings = await listAgentKnowledgeBindings("build");
     expect(bindings).toEqual([
-      { knowledgeBaseId: "kb_agent_2", priority: 0, enabled: true },
-      { knowledgeBaseId: "kb_agent_1", priority: 1, enabled: true },
+      { knowledgeBaseId: kbAgent2Id, priority: 0, enabled: true },
+      { knowledgeBaseId: kbAgent1Id, priority: 1, enabled: true },
     ]);
   });
 
@@ -93,19 +113,19 @@ describe("agent-knowledge service", () => {
   });
 
   test("countBindingsByKnowledgeBaseIds returns count per knowledge base", async () => {
-    await syncAgentKnowledgeBindings("agent-kb-user", "build", { knowledgeBaseIds: ["kb_agent_1", "kb_agent_2"] });
-    await syncAgentKnowledgeBindings("agent-kb-user", "plan", { knowledgeBaseIds: ["kb_agent_1"] });
+    await syncAgentKnowledgeBindings("agent-kb-user", "build", { knowledgeBaseIds: [kbAgent1Id, kbAgent2Id] });
+    await syncAgentKnowledgeBindings("agent-kb-user", "plan", { knowledgeBaseIds: [kbAgent1Id] });
 
-    const counts = await countBindingsByKnowledgeBaseIds(["kb_agent_1", "kb_agent_2"]);
+    const counts = await countBindingsByKnowledgeBaseIds([kbAgent1Id, kbAgent2Id]);
     expect(counts).toEqual({
-      kb_agent_1: 2,
-      kb_agent_2: 1,
+      [kbAgent1Id]: 2,
+      [kbAgent2Id]: 1,
     });
   });
 
   test("syncAgentKnowledgeBindings rejects missing knowledge bases before insert", async () => {
     await expect(syncAgentKnowledgeBindings("agent-kb-user", "build", {
-      knowledgeBaseIds: ["kb_agent_1", "kb_missing"],
-    })).rejects.toThrow("知识库不存在或无权限访问: kb_missing");
+      knowledgeBaseIds: [kbAgent1Id, "00000000-0000-0000-0000-000000009999"],
+    })).rejects.toThrow("知识库不存在或无权限访问: 00000000-0000-0000-0000-000000009999");
   });
 });

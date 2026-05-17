@@ -4,7 +4,7 @@ import {
   createKnowledgeBaseRecord,
   deleteKnowledgeBase,
   getKnowledgeBaseDetail,
-  listKnowledgeBasesByUserId,
+  listKnowledgeBasesByTeamId,
   updateKnowledgeBase,
 } from "../../services/knowledge-base";
 import {
@@ -20,6 +20,7 @@ import {
   UpdateKnowledgeBaseRequestSchema,
   ImportKnowledgeUrlRequestSchema,
 } from "../../schemas/knowledge.schema";
+import { loadTeamContext } from "../../services/team-context";
 
 const app = new Elysia({ name: "web-knowledge-bases", prefix: "/web" })
   .use(authGuardPlugin)
@@ -33,40 +34,40 @@ const app = new Elysia({ name: "web-knowledge-bases", prefix: "/web" })
     "import-knowledge-url-request": ImportKnowledgeUrlRequestSchema,
   });
 
-app.get("/knowledgeBases", async ({ store }) => {
-  const user = store.user!;
-  return await listKnowledgeBasesByUserId(user.id);
+app.get("/knowledgeBases", async ({ store, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
+  return await listKnowledgeBasesByTeamId(authCtx.teamId);
 }, { sessionAuth: true, response: "knowledge-base-list" });
 
-app.post("/knowledgeBases", async ({ store, body, error }) => {
-  const user = store.user!;
+app.post("/knowledgeBases", async ({ store, body, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const payload = body as { name: string; slug: string; description?: string };
-  const result = await createKnowledgeBaseRecord(user.id, {
+  const result = await createKnowledgeBaseRecord(authCtx.teamId, {
     name: payload.name,
     slug: payload.slug,
     description: payload.description,
-  });
+  }, authCtx.teamId);
   if (!result.success) {
     return error(400, { error: { type: result.error.code, message: result.error.message } });
   }
   return result.data;
 }, { sessionAuth: true, body: "create-knowledge-base-request" });
 
-app.get("/knowledgeBases/:id", async ({ store, params, error }) => {
-  const user = store.user!;
+app.get("/knowledgeBases/:id", async ({ store, params, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
-  const detail = await getKnowledgeBaseDetail(user.id, id);
+  const detail = await getKnowledgeBaseDetail(authCtx.teamId, id);
   if (!detail) {
     return error(404, { error: { type: "NOT_FOUND", message: "知识库不存在" } });
   }
   return detail;
 }, { sessionAuth: true });
 
-app.patch("/knowledgeBases/:id", async ({ store, params, body, error }) => {
-  const user = store.user!;
+app.patch("/knowledgeBases/:id", async ({ store, params, body, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
   const payload = body as { name?: string; slug?: string; description?: string };
-  const result = await updateKnowledgeBase(user.id, id, {
+  const result = await updateKnowledgeBase(authCtx.teamId, id, {
     name: payload.name,
     slug: payload.slug,
     description: payload.description,
@@ -78,11 +79,11 @@ app.patch("/knowledgeBases/:id", async ({ store, params, body, error }) => {
   return result.data;
 }, { sessionAuth: true, body: "update-knowledge-base-request" });
 
-app.delete("/knowledgeBases/:id", async ({ store, params, error }) => {
-  const user = store.user!;
+app.delete("/knowledgeBases/:id", async ({ store, params, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
   try {
-    const result = await deleteKnowledgeBase(user.id, id);
+    const result = await deleteKnowledgeBase(authCtx.teamId, id);
     if (!result.success) {
       return error(404, { error: { type: "NOT_FOUND", message: result.error.message } });
     }
@@ -98,19 +99,19 @@ app.delete("/knowledgeBases/:id", async ({ store, params, error }) => {
 }, { sessionAuth: true });
 
 app.post("/knowledgeBases/:id/resources/upload", async ({ store, params, request, error }) => {
-  const user = store.user!;
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
   try {
     const form = await request.formData();
     const files = Array.from(form.getAll("files")).filter((entry: any): entry is globalThis.File => entry instanceof globalThis.File);
-    const items = await Promise.all(files.map((file) => uploadKnowledgeResource(user.id, id, file as unknown as File)));
+    const items = await Promise.all(files.map((file) => uploadKnowledgeResource(authCtx.teamId, id, file as unknown as File)));
 
     for (let index = 0; index < items.length; index += 1) {
       if (items[index]?.status !== "error") {
         continue;
       }
-      await deleteKnowledgeResource(user.id, id, items[index]!.id);
-      items[index] = await uploadKnowledgeResource(user.id, id, files[index]! as unknown as File);
+      await deleteKnowledgeResource(authCtx.teamId, id, items[index]!.id);
+      items[index] = await uploadKnowledgeResource(authCtx.teamId, id, files[index]! as unknown as File);
     }
 
     const failedItem = items.find((item) => item.status === "error");
@@ -125,15 +126,15 @@ app.post("/knowledgeBases/:id/resources/upload", async ({ store, params, request
   }
 }, { sessionAuth: true });
 
-app.post("/knowledgeBases/:id/resources/url", async ({ store, params, body, error }) => {
-  const user = store.user!;
+app.post("/knowledgeBases/:id/resources/url", async ({ store, params, body, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
   const payload = body as { url: string; sourceName?: string };
   if (!payload.url || typeof payload.url !== "string") {
     return error(400, { error: { type: "VALIDATION_ERROR", message: "url 为必填字段" } });
   }
   try {
-    const item = await importKnowledgeResourceFromUrl(user.id, id, {
+    const item = await importKnowledgeResourceFromUrl(authCtx.teamId, id, {
       url: payload.url,
       sourceName: payload.sourceName,
     });
@@ -147,22 +148,22 @@ app.post("/knowledgeBases/:id/resources/url", async ({ store, params, body, erro
   }
 }, { sessionAuth: true, body: "import-knowledge-url-request" });
 
-app.get("/knowledgeBases/:id/resources", async ({ store, params, error }) => {
-  const user = store.user!;
+app.get("/knowledgeBases/:id/resources", async ({ store, params, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
-  const items = await listKnowledgeResources(user.id, id);
+  const items = await listKnowledgeResources(authCtx.teamId, id);
   if (!items) {
     return error(404, { error: { type: "NOT_FOUND", message: "知识库不存在" } });
   }
   return items;
 }, { sessionAuth: true });
 
-app.delete("/knowledgeBases/:id/resources/:resourceId", async ({ store, params, error }) => {
-  const user = store.user!;
+app.delete("/knowledgeBases/:id/resources/:resourceId", async ({ store, params, error, request }: any) => {
+  const authCtx = (await loadTeamContext(store.user!, request as any))!;
   const id = params.id;
   const resourceId = params.resourceId;
   try {
-    const result = await deleteKnowledgeResource(user.id, id, resourceId);
+    const result = await deleteKnowledgeResource(authCtx.teamId, id, resourceId);
     if (!result.success) {
       return error(404, { error: { type: result.error.code, message: result.error.message } });
     }

@@ -2,9 +2,11 @@ import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
 import { eventService } from "../../services/event-service";
 import { sessionRepo } from "../../repositories/session";
+import { environmentRepo } from "../../repositories";
 import {
   SessionHistorySchema,
 } from "../../schemas/session.schema";
+import { loadTeamContext } from "../../services/team-context";
 
 const app = new Elysia({ name: "web-sessions", prefix: "/web" })
   .use(authGuardPlugin)
@@ -12,10 +14,16 @@ const app = new Elysia({ name: "web-sessions", prefix: "/web" })
     "session-history": SessionHistorySchema,
   });
 
-/** GET /web/sessions — List sessions for the current user */
-app.get("/sessions", async ({ store }) => {
-  const user = store.user!;
-  const rows = await sessionRepo.listByUserId(user.id);
+/** GET /web/sessions — List sessions for the current team */
+app.get("/sessions", async ({ store, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
+  // 获取团队所有 environmentId，再过滤 session
+  const teamEnvs = await environmentRepo.listByTeamId(authCtx.teamId);
+  const teamEnvIds = new Set(teamEnvs.map((e) => e.id));
+  const allSessions = await sessionRepo.listAll();
+  const rows = allSessions.filter((s) =>
+    s.environmentId && teamEnvIds.has(s.environmentId),
+  );
   return rows.map((r) => ({
     id: r.id,
     title: r.title ?? null,
@@ -29,10 +37,18 @@ app.get("/sessions", async ({ store }) => {
 }, { sessionAuth: true });
 
 /** GET /web/sessions/:id — Get session detail */
-app.get("/sessions/:id", async ({ params, error }) => {
+app.get("/sessions/:id", async ({ store, params, error, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const row = await sessionRepo.getById(params.id);
   if (!row) {
     return error(404, { error: { type: "not_found", message: `Session '${params.id}' not found` } });
+  }
+  // 验证 session 的 environment 属于当前团队
+  if (row.environmentId) {
+    const env = await environmentRepo.getById(row.environmentId);
+    if (!env || env.teamId !== authCtx.teamId) {
+      return error(404, { error: { type: "not_found", message: `Session '${params.id}' not found` } });
+    }
   }
   return {
     id: row.id,
@@ -48,8 +64,20 @@ app.get("/sessions/:id", async ({ params, error }) => {
 
 /** GET /web/sessions/:id/history — Session event history (EventBus)
  *  Session 元数据已下沉到 Agent，此处仅保留事件流查询 */
-app.get("/sessions/:id/history", async ({ params, error }) => {
+app.get("/sessions/:id/history", async ({ store, params, error, request }) => {
+  const authCtx = (await loadTeamContext(store.user!, request))!;
   const sessionId = params.id;
+  // 验证 session 属于当前团队
+  const row = await sessionRepo.getById(sessionId);
+  if (!row) {
+    return error(404, { error: { type: "not_found", message: "Session not found" } });
+  }
+  if (row.environmentId) {
+    const env = await environmentRepo.getById(row.environmentId);
+    if (!env || env.teamId !== authCtx.teamId) {
+      return error(404, { error: { type: "not_found", message: "Session not found" } });
+    }
+  }
   const bus = eventService.getBus(sessionId);
   if (!bus) {
     return error(404, { error: { type: "not_found", message: "Session event bus not found" } });

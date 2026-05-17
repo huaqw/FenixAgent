@@ -121,6 +121,7 @@ const prefetchedEnv = {
   status: "active",
   username: null,
   userId: "user1",
+  teamId: "test-team",
   autoStart: false,
   lastPollAt: new Date(),
   createdAt: new Date(),

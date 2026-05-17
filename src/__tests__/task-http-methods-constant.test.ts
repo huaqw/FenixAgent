@@ -9,6 +9,9 @@ mock.module("../repositories/task", () => ({
   scheduledTaskRepo: {
     create: mockCreate,
     update: mockUpdate,
+    getByTeamAndId: mock(async () => null),
+    deleteByTeamAndId: mock(async () => true),
+    listByTeam: mock(async () => []),
     getByUserAndId: mock(async () => null),
     deleteByUserAndId: mock(async () => true),
     listByUser: mock(async () => []),
@@ -46,7 +49,7 @@ describe("VALID_HTTP_METHODS constant usage", () => {
 
   // PATCH 是有效方法
   test("PATCH method accepted in createTask", async () => {
-    const result = await createTask("u1", {
+    const result = await createTask("team1", {
       name: "test",
       cron: "0 * * * *",
       url: "http://example.com",
@@ -65,28 +68,28 @@ describe("VALID_HTTP_METHODS constant usage", () => {
     });
 
     mockUpdate.mockClear();
-    // 先 mock getByUserAndId 返回现有 task
+    // 先 mock getByTeamAndId 返回现有 task
     const { scheduledTaskRepo } = await import("../repositories/task");
-    (scheduledTaskRepo.getByUserAndId as typeof mock).mockResolvedValueOnce({
+    (scheduledTaskRepo.getByTeamAndId as any).mockResolvedValueOnce({
       id: "t1", userId: "u1", name: "test", cron: "0 * * * *", timezone: null,
       enabled: true, url: "http://example.com", method: "GET",
       headers: null, body: null, lastRunAt: null, nextRunAt: null,
       lastStatus: null, createdAt: new Date(), updatedAt: new Date(),
     });
-    (scheduledTaskRepo.update as typeof mock).mockResolvedValueOnce({
+    (scheduledTaskRepo.update as any).mockResolvedValueOnce({
       id: "t1", userId: "u1", name: "test", cron: "0 * * * *", timezone: null,
       enabled: true, url: "http://example.com", method: "OPTIONS",
       headers: null, body: null, lastRunAt: null, nextRunAt: null,
       lastStatus: null, createdAt: new Date(), updatedAt: new Date(),
     });
 
-    const result = await updateTask("u1", "t1", { method: "OPTIONS" });
+    const result = await updateTask("team1", "t1", { method: "OPTIONS" });
     expect(result.success).toBe(true);
   });
 
   // 无效方法被拒绝
   test("invalid method rejected in createTask", async () => {
-    const result = await createTask("u1", {
+    const result = await createTask("team1", {
       name: "test",
       cron: "0 * * * *",
       url: "http://example.com",
@@ -100,7 +103,7 @@ describe("VALID_HTTP_METHODS constant usage", () => {
 
   // HEAD 是有效方法
   test("HEAD method accepted in createTask", async () => {
-    const result = await createTask("u1", {
+    const result = await createTask("team1", {
       name: "test",
       cron: "0 * * * *",
       url: "http://example.com",

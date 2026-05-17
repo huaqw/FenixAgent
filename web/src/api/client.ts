@@ -9,7 +9,14 @@ export const client = treaty<App>(
 // --- SSE 辅助函数（Eden 不原生支持 SSE） ---
 
 export function createSessionEventSource(sessionId: string): EventSource {
-  return new EventSource(`/web/sessions/${sessionId}/events`, { withCredentials: true });
+  const uuid = getUuid();
+  const activeTeamId = localStorage.getItem("active_team_id");
+  const params = new URLSearchParams();
+  if (uuid) params.set("uuid", uuid);
+  if (activeTeamId) params.set("activeTeamId", activeTeamId);
+  const query = params.toString();
+  const url = query ? `/web/sessions/${sessionId}/events?${query}` : `/web/sessions/${sessionId}/events`;
+  return new EventSource(url, { withCredentials: true });
 }
 
 // --- FormData 上传辅助函数 ---

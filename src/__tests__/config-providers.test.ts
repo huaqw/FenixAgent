@@ -15,8 +15,13 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/config-pg", () => ({
-  listProviders: async (_userId: string) => {
+  listProviders: async (_ctx: any) => {
     return [..._providers.values()].map((p) => ({
       id: p.id,
       name: p.name,
@@ -28,7 +33,7 @@ mock.module("../services/config-pg", () => ({
       modelCount: p.models.size,
     }));
   },
-  getProvider: async (_userId: string, name: string) => {
+  getProvider: async (_ctx: any, name: string) => {
     const p = _providers.get(name);
     if (!p) return null;
     return {
@@ -36,7 +41,7 @@ mock.module("../services/config-pg", () => ({
       models: [...p.models.entries()].map(([modelId, m]) => ({ id: "model-uuid", providerId: p.id, modelId, ...m })),
     };
   },
-  upsertProvider: async (_userId: string, name: string, data: any) => {
+  upsertProvider: async (_ctx: any, name: string, data: any) => {
     const existing = _providers.get(name);
     if (existing) {
       Object.assign(existing, {
@@ -52,7 +57,7 @@ mock.module("../services/config-pg", () => ({
     _providers.set(name, { id, name, displayName: data.displayName ?? null, npm: data.npm ?? null, baseUrl: data.baseUrl ?? null, apiKey: data.apiKey ?? null, extraOptions: data.extraOptions ?? null, models: new Map() });
     return id;
   },
-  deleteProvider: async (_userId: string, name: string) => {
+  deleteProvider: async (_ctx: any, name: string) => {
     return _providers.delete(name);
   },
   addModel: async (providerId: string, data: any) => {

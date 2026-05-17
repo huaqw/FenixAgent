@@ -1,8 +1,9 @@
 import Elysia from "elysia";
-import { authGuardPlugin } from "../../../plugins/auth";
+import { authGuardPlugin, type AuthContext } from "../../../plugins/auth";
 import * as configPg from "../../../services/config-pg";
 import { ConfigBodySchema } from "../../../schemas/config.schema";
 import { configSuccess, configError } from "../../../services/config-utils";
+import { loadTeamContext } from "../../../services/team-context";
 
 const app = new Elysia({ name: "web-config-models", prefix: "/web" })
   .use(authGuardPlugin)
@@ -16,11 +17,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 分钟
 
 type ModelEntry = { id: string; provider: string; fullId: string; label: string; contextLimit: number | null; outputLimit: number | null };
 
-async function buildAvailableList(userId: string): Promise<ModelEntry[]> {
-  const providers = await configPg.listProviders(userId);
+async function buildAvailableList(ctx: AuthContext): Promise<ModelEntry[]> {
+  const providers = await configPg.listProviders(ctx);
   const models: ModelEntry[] = [];
   for (const p of providers) {
-    const pDetail = await configPg.getProvider(userId, p.name);
+    const pDetail = await configPg.getProvider(ctx, p.name);
     if (!pDetail?.models) continue;
     for (const m of pDetail.models) {
       const limit = (m.limitConfig as { context?: number; output?: number } | undefined) ?? undefined;
@@ -37,19 +38,19 @@ async function buildAvailableList(userId: string): Promise<ModelEntry[]> {
   return models;
 }
 
-async function getAvailable(userId: string, forceRefresh = false): Promise<ModelEntry[]> {
+async function getAvailable(ctx: AuthContext, forceRefresh = false): Promise<ModelEntry[]> {
   const now = Date.now();
   if (!forceRefresh && cachedAvailable && (now - cachedAvailable.updatedAt) < CACHE_TTL_MS) {
     return cachedAvailable.models;
   }
-  const models = await buildAvailableList(userId);
+  const models = await buildAvailableList(ctx);
   cachedAvailable = { models, updatedAt: now };
   return models;
 }
 
-async function handleGet(userId: string) {
-  const uc = await configPg.getUserConfig(userId);
-  const available = await getAvailable(userId);
+async function handleGet(ctx: AuthContext) {
+  const uc = await configPg.getUserConfig(ctx);
+  const available = await getAvailable(ctx);
   return configSuccess({
     current: {
       model: uc.currentModel ?? null,
@@ -60,17 +61,17 @@ async function handleGet(userId: string) {
   });
 }
 
-async function handleSet(userId: string, data: { model?: string; small_model?: string; permission?: unknown }) {
+async function handleSet(ctx: AuthContext, data: { model?: string; small_model?: string; permission?: unknown }) {
   if (!data.model && !data.small_model && data.permission === undefined) {
     return configError("VALIDATION_ERROR", "At least one of 'model', 'small_model', or 'permission' is required");
   }
-  await configPg.setUserConfig(userId, {
+  await configPg.setUserConfig(ctx, {
     currentModel: data.model,
     smallModel: data.small_model,
     permission: data.permission,
   });
   cachedAvailable = null;
-  const uc = await configPg.getUserConfig(userId);
+  const uc = await configPg.getUserConfig(ctx);
   return configSuccess({
     model: uc.currentModel ?? null,
     small_model: uc.smallModel ?? null,
@@ -82,20 +83,22 @@ export function invalidateAvailableCache() {
   cachedAvailable = null;
 }
 
-async function handleRefresh(userId: string) {
-  const available = await getAvailable(userId, true);
+async function handleRefresh(ctx: AuthContext) {
+  const available = await getAvailable(ctx, true);
   return configSuccess({ count: available.length });
 }
 
-app.post("/config/models", async ({ store, body, error }) => {
-  const user = store.user!;
+app.post("/config/models", async ({ store, body, error, request }: any) => {
+  const authContext = await loadTeamContext(store.user!, request);
+  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+  const authCtx = authContext;
   const b = (body as any) ?? {};
   const payload = { action: b.action ?? "", data: b.data as { model?: string; small_model?: string; permission?: unknown } | undefined };
   try {
     switch (payload.action) {
-      case "get": return await handleGet(user.id);
-      case "set": return await handleSet(user.id, payload.data ?? {});
-      case "refresh": return await handleRefresh(user.id);
+      case "get": return await handleGet(authCtx);
+      case "set": return await handleSet(authCtx, payload.data ?? {});
+      case "refresh": return await handleRefresh(authCtx);
       default: return error(400, configError("VALIDATION_ERROR", `Unknown action: ${payload.action}`));
     }
   } catch (e: unknown) {

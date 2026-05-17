@@ -614,3 +614,91 @@ export default app;
 - **前端**：统一使用 `toast.error()` 显示错误信息
 - **后端**：返回 `{ error: { type: "...", message: "..." } }` 格式
 - **日志**：使用 `src/logger.ts` 的 `log()` 和 `error()`
+
+## 文档编写规范
+
+RCS 使用 VitePress 构建文档，分为用户文档和开发者文档。
+
+### 目录结构
+
+```
+docs/
+├── user/                    # 用户文档（小白向）
+│   ├── index.md            # 术语表 + 快速导航
+│   ├── getting-started.md  # 快速开始
+│   ├── configuration/      # 配置管理
+│   ├── sessions/           # 会话管理
+│   ├── agents/             # Agent 管理
+│   ├── tasks/              # 定时任务
+│   └── troubleshooting.md  # 故障排查
+├── developer/              # 开发者文档
+│   ├── architecture/       # 架构设计
+│   ├── api/                # API 参考
+│   └── contributing.md     # 贡献指南
+└── .vitepress/
+```
+
+### 写作规范
+
+#### 标题层级
+- **H1**：文档标题（每页唯一）
+- **H2**：主要章节（自动生成侧边栏）
+- **H3**：子章节
+- 禁止 H4+，保持扁平结构
+
+#### 代码示例
+严格标注格式：
+
+````markdown
+```bash
+# 可执行命令，显示提示符
+$ bun install
+
+# 输出结果单独标注
+Server started at http://localhost:3000
+```
+````
+
+#### 语言规范
+- **中文优先**：正文使用中文
+- **术语保留原文**：ACP、WebSocket、Provider 等首次出现时保留英文
+- **中英文混排**：中文前，英文后（如 "配置 ACP Agent"）
+
+#### 截图占位符
+```markdown
+<!-- TODO: 添加截图：配置页面 - Provider 表单 -->
+![配置 Provider](/images/config-provider.png)
+```
+
+#### 术语表
+每类用户文档开头包含术语表：
+
+```markdown
+## 术语表
+
+| 术语 | 说明 |
+|------|------|
+| ACP | Agent Control Protocol，Agent 控制协议 |
+| Provider | AI 服务商（如 OpenAI、Anthropic） |
+```
+
+### 文档更新时机
+
+- **代码变更同步更新**：功能 PR 必须包含对应文档更新
+- **Breaking changes**：必须更新迁移指南
+- **每周审查**：定期检查过时内容
+
+### 开发文档命令
+
+```bash
+# 启动文档开发服务器
+$ bun run docs:dev
+
+# 构建文档
+$ bun run docs:build
+```
+
+### 文档模板
+
+- 用户文档模板：`docs/user/_template.md`
+- 开发者文档模板：`docs/developer/_template.md`

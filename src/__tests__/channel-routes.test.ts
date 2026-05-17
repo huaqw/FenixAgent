@@ -11,6 +11,11 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user-1", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/hermes-client", () => ({
   getHermesClient: () => ({
     getStatus: () => ({

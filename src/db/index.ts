@@ -60,12 +60,61 @@ export async function initDb() {
     );
   `);
 
+  // Team + TeamMember — must come before tables that reference team(id)
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS team (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      name VARCHAR NOT NULL,
+      slug VARCHAR NOT NULL UNIQUE,
+      description TEXT,
+      created_by TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS team_member (
+      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      team_id UUID NOT NULL REFERENCES team(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      role VARCHAR(20) NOT NULL DEFAULT 'member',
+      joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_team_member_team_user ON team_member(team_id, user_id);
+  `);
+
+  // Team 层级：先为已有表添加 team_id 和 session.active_team_id（幂等）
+  // 必须在 CREATE INDEX 之前，否则索引引用不存在的列会报错
+  const teamAlterStatements = [
+    `ALTER TABLE session ADD COLUMN IF NOT EXISTS active_team_id UUID REFERENCES team(id) ON DELETE SET NULL`,
+    `ALTER TABLE api_key ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE environment ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE scheduled_task ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE im_channel ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE provider ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE agent_config ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE mcp_server ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE skill ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `ALTER TABLE workflow ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES team(id) ON DELETE CASCADE`,
+    `CREATE INDEX IF NOT EXISTS idx_api_key_team_id ON api_key(team_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_environment_team_id ON environment(team_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_provider_team_name ON provider(team_id, name)`,
+    `CREATE INDEX IF NOT EXISTS idx_agent_config_team_name ON agent_config(team_id, name)`,
+    `CREATE INDEX IF NOT EXISTS idx_mcp_server_team_name ON mcp_server(team_id, name)`,
+  ];
+  for (const stmt of teamAlterStatements) {
+    await client.unsafe(stmt).catch(() => {});
+  }
+
   // Custom tables in dependency order.
 
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS api_key (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       key VARCHAR NOT NULL UNIQUE,
       label VARCHAR NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -119,6 +168,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS provider (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       display_name VARCHAR,
       npm VARCHAR,
@@ -128,7 +178,7 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_user_name ON provider(user_id, name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_team_name ON provider(team_id, name);
   `);
 
   await client.unsafe(`
@@ -151,6 +201,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS agent_config (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       model VARCHAR,
       prompt TEXT,
@@ -168,13 +219,14 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_config_user_name ON agent_config(user_id, name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_config_team_name ON agent_config(team_id, name);
   `);
 
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS mcp_server (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       type VARCHAR(10) NOT NULL,
       config JSONB NOT NULL,
@@ -182,7 +234,7 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_server_user_name ON mcp_server(user_id, name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_server_team_name ON mcp_server(team_id, name);
   `);
 
   // environment 引用 agent_config(id)，所以必须放在 agent_config 之后
@@ -203,6 +255,7 @@ export async function initDb() {
       capabilities JSONB,
       secret VARCHAR NOT NULL,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       auto_start BOOLEAN NOT NULL DEFAULT FALSE,
       last_poll_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -225,6 +278,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS knowledge_base (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       slug VARCHAR NOT NULL,
       description TEXT,
@@ -237,8 +291,8 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_base_user_slug ON knowledge_base(user_id, slug);
-    CREATE INDEX IF NOT EXISTS idx_knowledge_base_user_status ON knowledge_base(user_id, status);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_base_team_slug ON knowledge_base(team_id, slug);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_base_team_status ON knowledge_base(team_id, status);
   `);
 
   await client.unsafe(`
@@ -278,6 +332,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS scheduled_task (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       description TEXT,
       cron VARCHAR NOT NULL,
@@ -365,6 +420,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS skill (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       environment_id UUID REFERENCES environment(id) ON DELETE CASCADE,
       agent_config_id UUID REFERENCES agent_config(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
@@ -375,10 +431,10 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE INDEX IF NOT EXISTS idx_skill_global ON skill(user_id, name);
-    CREATE INDEX IF NOT EXISTS idx_skill_workspace ON skill(user_id, environment_id, name);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_global_unique ON skill(user_id, name) WHERE environment_id IS NULL;
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_workspace_unique ON skill(user_id, environment_id, name) WHERE environment_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_skill_global ON skill(team_id, name);
+    CREATE INDEX IF NOT EXISTS idx_skill_workspace ON skill(team_id, environment_id, name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_global_unique ON skill(team_id, name) WHERE environment_id IS NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_workspace_unique ON skill(team_id, environment_id, name) WHERE environment_id IS NOT NULL;
   `);
 
   // 向已有 skill 表补充 agent_config_id 列（幂等）
@@ -392,7 +448,8 @@ export async function initDb() {
 
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS user_config (
-      user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY REFERENCES team(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
       default_agent VARCHAR,
       current_model VARCHAR,
       small_model VARCHAR,
@@ -407,6 +464,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS im_channel (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       platform VARCHAR NOT NULL,
       credentials JSONB NOT NULL,
@@ -416,7 +474,7 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_im_channel_user_platform ON im_channel(user_id, platform, name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_im_channel_team_platform ON im_channel(team_id, platform, name);
   `);
 
   await client.unsafe(`
@@ -439,6 +497,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS workflow (
       id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      team_id UUID NOT NULL DEFAULT gen_random_uuid() REFERENCES team(id) ON DELETE CASCADE,
       name VARCHAR NOT NULL,
       description TEXT,
       steps JSONB NOT NULL,
@@ -446,7 +505,7 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_user_name ON workflow(user_id, name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_team_name ON workflow(team_id, name);
   `);
 
   await client.unsafe(`
@@ -468,28 +527,4 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_workflow_run_status ON workflow_run(status);
   `);
 
-  // Plan 11: Team + TeamMember
-
-  await client.unsafe(`
-    CREATE TABLE IF NOT EXISTS team (
-      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-      name VARCHAR NOT NULL,
-      slug VARCHAR NOT NULL UNIQUE,
-      description TEXT,
-      created_by TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
-
-  await client.unsafe(`
-    CREATE TABLE IF NOT EXISTS team_member (
-      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-      team_id UUID NOT NULL REFERENCES team(id) ON DELETE CASCADE,
-      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-      role VARCHAR(20) NOT NULL DEFAULT 'member',
-      joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_team_member_team_user ON team_member(team_id, user_id);
-  `);
 }

@@ -16,18 +16,23 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 mock.module("../services/config-pg", () => ({
-  getUserConfig: async (_userId: string) => ({ ..._userConfig }),
-  setUserConfig: async (_userId: string, patch: any) => {
+  getUserConfig: async (_ctx: any) => ({ ..._userConfig }),
+  setUserConfig: async (_ctx: any, patch: any) => {
     if (patch.currentModel !== undefined) _userConfig.currentModel = patch.currentModel;
     if (patch.smallModel !== undefined) _userConfig.smallModel = patch.smallModel;
     if (patch.permission !== undefined) _userConfig.permission = patch.permission;
     if (patch.defaultAgent !== undefined) _userConfig.defaultAgent = patch.defaultAgent;
   },
-  listProviders: async (_userId: string) => {
+  listProviders: async (_ctx: any) => {
     return [..._providers.values()].map((p) => ({ id: p.id, name: p.name, modelCount: p.models.size }));
   },
-  getProvider: async (_userId: string, name: string) => {
+  getProvider: async (_ctx: any, name: string) => {
     const p = _providers.get(name);
     if (!p) return null;
     return { ...p, models: [...p.models.entries()].map(([modelId, m]) => ({ id: "model-uuid", providerId: p.id, modelId, ...m })) };

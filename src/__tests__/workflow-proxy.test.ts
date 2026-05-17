@@ -34,6 +34,11 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 import Elysia from "elysia";
 import { workflowStaticApp, workflowApiApp } from "../routes/web/workflow-proxy";
 

@@ -11,6 +11,7 @@ import { ThemeProvider } from "./lib/theme";
 import { useSession } from "./lib/auth-client";
 import { LoginPage } from "./pages/LoginPage";
 import { ApiKeyManager } from "./pages/ApiKeyManager";
+import { TeamProvider } from "./contexts/TeamContext";
 
 const Dashboard = lazy(() =>
     import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })),
@@ -45,9 +46,12 @@ const ChannelsPage = lazy(() =>
 const WorkflowPage = lazy(() =>
     import("./pages/WorkflowPage").then((m) => ({ default: m.WorkflowPage })),
 );
+const TeamsPage = lazy(() =>
+    import("./pages/TeamsPage").then((m) => ({ default: m.TeamsPage })),
+);
 
 export function parseConfigView(pathname: string): string | null {
-    const configViews = ["models", "agents", "skills", "knowledge-bases", "mcp", "tasks", "channels", "workflow", "environments"];
+    const configViews = ["models", "agents", "skills", "knowledge-bases", "mcp", "tasks", "channels", "workflow", "environments", "teams"];
     const segment = pathname.replace(/^\/ctrl\/?/, "").split("/")[0];
     return configViews.includes(segment) ? segment : null;
 }
@@ -65,7 +69,8 @@ type ViewId =
     | "tasks"
     | "channels"
     | "workflow"
-    | "environments";
+    | "environments"
+    | "teams";
 
 export default function App() {
     const { data: session, isPending } = useSession();
@@ -80,7 +85,7 @@ export default function App() {
     const parseRoute = useCallback(() => {
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
-        const configViews = ["models", "agents", "skills", "knowledge-bases", "mcp", "tasks", "channels", "workflow", "environments"];
+        const configViews = ["models", "agents", "skills", "knowledge-bases", "mcp", "tasks", "channels", "workflow", "environments", "teams"];
         const segment = path.replace(/^\/ctrl\/?/, "").split("/")[0];
         if (configViews.includes(segment)) {
             setConfigView(segment);
@@ -202,9 +207,10 @@ export default function App() {
 
     return (
         <ThemeProvider defaultTheme="system">
-            <AppShell
-                currentPage={activeView}
-                onNavigate={handleNavigate}>
+            <TeamProvider>
+                <AppShell
+                    currentPage={activeView}
+                    onNavigate={handleNavigate}>
                 <Suspense
                     fallback={
                         <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -232,6 +238,8 @@ export default function App() {
                         <WorkflowPage />
                     ) : configView === "environments" ? (
                         <EnvironmentsPage onNavigateToSession={navigateToSession} />
+                    ) : configView === "teams" ? (
+                        <TeamsPage />
                     ) : currentSessionId ? (
                         <SessionDetail
                             key={currentSessionId}
@@ -245,6 +253,7 @@ export default function App() {
                 </Suspense>
             </AppShell>
             <Toaster richColors position="top-right" />
+            </TeamProvider>
         </ThemeProvider>
     );
 }

@@ -75,10 +75,10 @@ export function sanitizeResponse(row: EnvironmentRecord) {
   };
 }
 
-/** 获取 Environment 并验证归属，未找到或不属于该用户时抛出 NotFoundError */
-export async function getOwnedEnvironment(envId: string, userId: string) {
+/** 获取 Environment 并验证团队归属，未找到或不属于该团队时抛出 NotFoundError */
+export async function getOwnedEnvironment(envId: string, teamId: string) {
   const env = await environmentRepo.getById(envId);
-  if (!env || env.userId !== userId) {
+  if (!env || env.teamId !== teamId) {
     throw new NotFoundError("环境不存在");
   }
   return env;
@@ -97,6 +97,7 @@ export interface CreateWebEnvironmentParams {
   workspacePath: string;
   autoStart?: boolean;
   userId: string;
+  teamId?: string;
 }
 
 /** Web 控制面板更新 Environment 的参数 */

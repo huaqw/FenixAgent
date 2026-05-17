@@ -44,11 +44,12 @@ const baseTask = {
 describe("executeTaskById HTTP error message", () => {
   // 有 body 的 HTTP 错误保留原始格式
   test("error with body includes response text", async () => {
-    globalThis.fetch = mock(async () => ({
+    const m = mock(async () => ({
       ok: false,
       status: 500,
       text: async () => "Internal Server Error",
-    }));
+    })) as unknown as typeof fetch;
+    globalThis.fetch = m;
 
     const result = await executeTaskById("t1", "manual", baseTask as any);
     expect(result.success).toBe(true);
@@ -60,11 +61,12 @@ describe("executeTaskById HTTP error message", () => {
 
   // 空 body 的 HTTP 错误不留尾部冒号
   test("error with empty body shows status only", async () => {
-    globalThis.fetch = mock(async () => ({
+    const m = mock(async () => ({
       ok: false,
       status: 502,
       text: async () => "",
-    }));
+    })) as unknown as typeof fetch;
+    globalThis.fetch = m;
 
     const result = await executeTaskById("t1", "manual", baseTask as any);
     expect(result.success).toBe(true);
@@ -78,11 +80,12 @@ describe("executeTaskById HTTP error message", () => {
 
   // text() 抛出异常时 fallback 为空
   test("error when text() throws shows status only", async () => {
-    globalThis.fetch = mock(async () => ({
+    const m = mock(async () => ({
       ok: false,
       status: 503,
       text: async () => { throw new Error("stream error"); },
-    }));
+    })) as unknown as typeof fetch;
+    globalThis.fetch = m;
 
     const result = await executeTaskById("t1", "manual", baseTask as any);
     expect(result.success).toBe(true);
@@ -94,11 +97,12 @@ describe("executeTaskById HTTP error message", () => {
 
   // 成功响应 error 为 null
   test("successful response has null error", async () => {
-    globalThis.fetch = mock(async () => ({
+    const m = mock(async () => ({
       ok: true,
       status: 200,
       text: async () => "OK",
-    }));
+    })) as unknown as typeof fetch;
+    globalThis.fetch = m;
 
     const result = await executeTaskById("t1", "manual", baseTask as any);
     expect(result.success).toBe(true);

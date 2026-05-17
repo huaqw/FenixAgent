@@ -48,14 +48,14 @@ describe("updateAgentConfig returns boolean", () => {
   // 存在的 agent config 返回 true
   test("returns true when agent config exists", async () => {
     updateResults.push([{ id: "ac-1" }]);
-    const result = await updateAgentConfig("user-1", "general", { model: "gpt-4" });
+    const result = await updateAgentConfig({ teamId: "test-team", userId: "user-1", role: "owner" }, "general", { model: "gpt-4" });
     expect(result).toBe(true);
   });
 
   // 不存在的 agent config 返回 false
   test("returns false when agent config does not exist", async () => {
     updateResults.push([]);
-    const result = await updateAgentConfig("user-1", "nonexistent", { model: "gpt-4" });
+    const result = await updateAgentConfig({ teamId: "test-team", userId: "user-1", role: "owner" }, "nonexistent", { model: "gpt-4" });
     expect(result).toBe(false);
   });
 });

@@ -21,7 +21,7 @@ export type { CreateWebEnvironmentParams, UpdateWebEnvironmentParams };
 
 /** 创建 Web 控制面板 Environment — 包含完整的参数校验、Agent 配置解析、目录初始化 */
 export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
-  const { name, description, autoStart, userId } = params;
+  const { name, description, autoStart, userId, teamId } = params;
   let { workspacePath } = params;
 
   // 名称校验
@@ -66,6 +66,7 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
       status: "idle",
       secret,
       userId,
+      teamId: teamId ?? userId,
       autoStart: autoStart === true,
       agentConfigId: params.agentConfigId ?? null,
     });
@@ -80,8 +81,8 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
 }
 
 /** 更新 Web 控制面板 Environment — 包含参数校验、Agent 配置解析 */
-export async function updateWebEnvironment(envId: string, userId: string, params: UpdateWebEnvironmentParams) {
-  await getOwnedEnvironment(envId, userId);
+export async function updateWebEnvironment(envId: string, teamId: string, params: UpdateWebEnvironmentParams) {
+  await getOwnedEnvironment(envId, teamId);
   const patch: EnvironmentUpdateParams = {};
 
   if (params.name !== undefined) {
@@ -123,9 +124,9 @@ export async function updateWebEnvironment(envId: string, userId: string, params
   return updated;
 }
 
-/** 获取用户所有环境并组装实例信息（web/environments 路由用） */
-export async function listEnvironmentsWithInstances(userId: string) {
-  const allEnvs = await environmentRepo.listByUserId(userId);
+/** 获取团队所有环境并组装实例信息（web/environments 路由用） */
+export async function listEnvironmentsWithInstances(teamId: string) {
+  const allEnvs = await environmentRepo.listByTeamId(teamId);
   // 单次遍历按 environmentId 分组实例，避免 N 次 listInstances 调用
   const instanceMap = groupActiveInstancesByEnvironment();
   const results = [];

@@ -31,7 +31,7 @@ mock.module("../services/skill-fs", () => ({
   writeSkillMd: mock(() => "/tmp/skill/SKILL.md"),
   deleteSkillDir: mock(() => Promise.resolve()),
   resolveImportPlan: mock((_grouped: unknown, _conflicts: unknown[], _strategy: unknown) => ({
-    pendingEntries: [["test-skill", [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }]]],
+    pendingEntries: [["test-skill", [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }]]],
     skipped: [],
   })),
   writeImportFiles: mock(() => Promise.resolve(["test-skill"])),
@@ -52,8 +52,8 @@ describe("skill import finally block error handling", () => {
       throw new Error("backup cleanup failed");
     });
 
-    const files = [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
-    const result = await importSkillDirectories("user-1", files, "overwrite");
+    const files = [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
+    const result = await importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, files, "overwrite");
 
     // 导入结果应该成功返回（cleanupBackupDir 的错误被 catch 吞掉）
     expect(result.imported).toBeDefined();
@@ -72,9 +72,9 @@ describe("skill import finally block error handling", () => {
       throw new Error("cleanup failed");
     });
 
-    const files = [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
+    const files = [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
     try {
-      await importSkillDirectories("user-1", files, "overwrite");
+      await importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, files, "overwrite");
       expect(true).toBe(false); // should not reach
     } catch (err: unknown) {
       // 原始错误应该是 "disk full"，不是 "cleanup failed"
@@ -87,7 +87,7 @@ describe("skill import finally block error handling", () => {
       throw new Error("backup cleanup failed");
     });
 
-    const files = [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
+    const files = [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
     const result = await importWorkspaceSkillDirectories("/workspace", files, "overwrite");
 
     expect(result.imported).toBeDefined();
@@ -103,7 +103,7 @@ describe("skill import finally block error handling", () => {
       throw new Error("cleanup failed ws");
     });
 
-    const files = [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
+    const files = [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
     try {
       await importWorkspaceSkillDirectories("/workspace", files, "overwrite");
       expect(true).toBe(false);

@@ -5,6 +5,7 @@ export { listMcpServers, getMcpServer, createMcpServer, updateMcpServer, deleteM
 export { listSkills, listWorkspaceSkills, getSkill, upsertSkill, deleteSkill, enableSkill, disableSkill } from "./skill";
 export { getUserConfig, setUserConfig } from "./user-config";
 export type { UserConfigData } from "./user-config";
+export type { AuthContext } from "../../plugins/auth";
 export { getAgentFullConfig } from "./aggregate";
 export type { AgentFullConfig } from "./aggregate";
 export { parseJsonb, parseJsonbOr } from "./jsonb";

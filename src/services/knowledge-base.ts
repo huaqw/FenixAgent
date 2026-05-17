@@ -108,8 +108,8 @@ export function resolveKnowledgeTenantIdentity(
   };
 }
 
-async function assertUniqueSlug(userId: string, slug: string, excludeId?: string) {
-  const row = await knowledgeBaseRepo.findByUserAndSlug(userId, normalizeSlug(slug));
+async function assertUniqueSlug(teamId: string, slug: string, excludeId?: string) {
+  const row = await knowledgeBaseRepo.findByUserAndSlug(teamId, normalizeSlug(slug));
   if (row && row.id !== excludeId) {
     throw new Error(`知识库 slug '${normalizeSlug(slug)}' 已存在`);
   }
@@ -119,8 +119,8 @@ export async function countKnowledgeBaseBindings(knowledgeBaseId: string): Promi
   return knowledgeBaseRepo.countBindings(knowledgeBaseId);
 }
 
-export async function listKnowledgeBasesByUserId(userId: string) {
-  const rows = await knowledgeBaseRepo.listByUserId(userId);
+export async function listKnowledgeBasesByTeamId(teamId: string) {
+  const rows = await knowledgeBaseRepo.listByTeamId(teamId);
   const items = await Promise.all(rows.map(async (row) => sanitizeKnowledgeBase(row, {
     bindingsCount: await countKnowledgeBaseBindings(row.id),
     resourcesCount: await knowledgeResourceRepo.countByKnowledgeBase(row.id),
@@ -128,8 +128,8 @@ export async function listKnowledgeBasesByUserId(userId: string) {
   return items;
 }
 
-export async function getKnowledgeBaseDetail(userId: string, knowledgeBaseId: string) {
-  const row = await knowledgeBaseRepo.getByUserAndId(userId, knowledgeBaseId);
+export async function getKnowledgeBaseDetail(teamId: string, knowledgeBaseId: string) {
+  const row = await knowledgeBaseRepo.getByUserAndId(teamId, knowledgeBaseId);
   if (!row) {
     return null;
   }
@@ -152,8 +152,9 @@ export async function getKnowledgeBaseDetail(userId: string, knowledgeBaseId: st
 }
 
 export async function createKnowledgeBaseRecord(
-  userId: string,
+  teamId: string,
   input: { name: string; slug: string; description?: string | null },
+  userId?: string,
 ) {
   const nameError = validateName(input.name);
   if (nameError) {
@@ -165,29 +166,30 @@ export async function createKnowledgeBaseRecord(
   }
 
   try {
-    await assertUniqueSlug(userId, input.slug);
+    await assertUniqueSlug(teamId, input.slug);
   } catch (error) {
     return { success: false as const, error: { code: "VALIDATION_ERROR", message: (error as Error).message } };
   }
 
   const provider = getKnowledgeProvider();
+  const effectiveUserId = userId ?? teamId;
   const tenantIdentity = resolveKnowledgeTenantIdentity({
-    userId,
-    remoteAccountId: userId,
-    remoteUserId: userId,
+    userId: effectiveUserId,
+    remoteAccountId: effectiveUserId,
+    remoteUserId: effectiveUserId,
   });
   const remote = await provider.createKnowledgeBase({
-    userId,
+    userId: effectiveUserId,
     slug: normalizeSlug(input.slug),
     name: input.name.trim(),
     description: input.description?.trim() || undefined,
   });
 
   const now = new Date();
-  const remoteId = remote.remoteId ?? buildKnowledgeBaseRemoteId(userId, input.slug);
+  const remoteId = remote.remoteId ?? buildKnowledgeBaseRemoteId(effectiveUserId, input.slug);
   const row = await knowledgeBaseRepo.create({
-    id: generateKnowledgeBaseId(),
-    userId,
+    userId: effectiveUserId,
+    teamId,
     name: input.name.trim(),
     slug: normalizeSlug(input.slug),
     description: input.description?.trim() || null,
@@ -205,11 +207,11 @@ export async function createKnowledgeBaseRecord(
 }
 
 export async function updateKnowledgeBase(
-  userId: string,
+  teamId: string,
   knowledgeBaseId: string,
   input: { name?: string; slug?: string; description?: string | null },
 ) {
-  const row = await knowledgeBaseRepo.getByUserAndId(userId, knowledgeBaseId);
+  const row = await knowledgeBaseRepo.getByUserAndId(teamId, knowledgeBaseId);
   if (!row) {
     return { success: false as const, error: { code: "NOT_FOUND", message: "知识库不存在" } };
   }
@@ -225,7 +227,7 @@ export async function updateKnowledgeBase(
       return { success: false as const, error: { code: "VALIDATION_ERROR", message: slugError } };
     }
     try {
-      await assertUniqueSlug(userId, input.slug, knowledgeBaseId);
+      await assertUniqueSlug(teamId, input.slug, knowledgeBaseId);
     } catch (error) {
       return { success: false as const, error: { code: "VALIDATION_ERROR", message: (error as Error).message } };
     }
@@ -248,8 +250,8 @@ export async function updateKnowledgeBase(
   return { success: true as const, data: sanitizeKnowledgeBase(updated!) };
 }
 
-export async function deleteKnowledgeBase(userId: string, knowledgeBaseId: string) {
-  const row = await knowledgeBaseRepo.getByUserAndId(userId, knowledgeBaseId);
+export async function deleteKnowledgeBase(teamId: string, knowledgeBaseId: string) {
+  const row = await knowledgeBaseRepo.getByUserAndId(teamId, knowledgeBaseId);
   if (!row) {
     return { success: false as const, error: { code: "NOT_FOUND", message: "知识库不存在" } };
   }

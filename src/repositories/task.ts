@@ -21,6 +21,10 @@ export interface IScheduledTaskRepo {
   deleteByUserAndId(userId: string, taskId: string): Promise<boolean>;
   listEnabled(): Promise<ScheduledTaskRow[]>;
   existsByUserAndId(userId: string, taskId: string): Promise<boolean>;
+  listByTeam(teamId: string): Promise<ScheduledTaskRow[]>;
+  getByTeamAndId(teamId: string, taskId: string): Promise<ScheduledTaskRow | null>;
+  deleteByTeamAndId(teamId: string, taskId: string): Promise<boolean>;
+  existsByTeamAndId(teamId: string, taskId: string): Promise<boolean>;
 }
 
 /** TaskExecutionLog 仓储接口 */
@@ -82,6 +86,32 @@ class PgScheduledTaskRepo implements IScheduledTaskRepo {
   async existsByUserAndId(userId: string, taskId: string): Promise<boolean> {
     const rows = await db.select({ id: scheduledTask.id }).from(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.userId, userId)));
+    return rows.length > 0;
+  }
+
+  async listByTeam(teamId: string) {
+    return db.select().from(scheduledTask)
+      .where(eq(scheduledTask.teamId, teamId))
+      .orderBy(desc(scheduledTask.createdAt));
+  }
+
+  async getByTeamAndId(teamId: string, taskId: string) {
+    const rows = await db.select().from(scheduledTask)
+      .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.teamId, teamId)))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async deleteByTeamAndId(teamId: string, taskId: string): Promise<boolean> {
+    const result = await db.delete(scheduledTask)
+      .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.teamId, teamId)))
+      .returning({ id: scheduledTask.id });
+    return result.length > 0;
+  }
+
+  async existsByTeamAndId(teamId: string, taskId: string): Promise<boolean> {
+    const rows = await db.select({ id: scheduledTask.id }).from(scheduledTask)
+      .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.teamId, teamId)));
     return rows.length > 0;
   }
 }

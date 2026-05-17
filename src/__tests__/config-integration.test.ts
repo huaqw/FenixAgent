@@ -13,6 +13,11 @@ mock.module("../auth/better-auth", () => ({
   },
 }));
 
+mock.module("../services/team", () => ({
+  getAuthContext: async () => ({ teamId: "test-team", userId: "test-user", role: "owner" }),
+  ensurePersonalTeam: async () => {},
+}));
+
 // Mock config-pg service
 mock.module("../services/config-pg", () => ({
   listProviders: async () => [],
@@ -48,7 +53,7 @@ mock.module("../services/skill", () => ({
   SKILLS_DIR: "/tmp/test-skills",
   listSkills: async () => [],
   getSkill: async () => null,
-  setSkill: async (_userId: string, _name: string, data: any) => ({ name: _name, enabled: true, description: data.description, path: "/tmp/test-skills/" + _name + "/SKILL.md" }),
+  setSkill: async (_ctx: any, _name: string, data: any) => ({ name: _name, enabled: true, description: data.description, path: "/tmp/test-skills/" + _name + "/SKILL.md" }),
   deleteSkill: async () => true,
   enableSkill: async () => true,
   disableSkill: async () => true,

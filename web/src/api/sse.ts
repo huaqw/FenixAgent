@@ -11,7 +11,10 @@ export function connectSSE(
   disconnectSSE();
 
   const uuid = getUuid();
-  const url = `/web/sessions/${sessionId}/events?uuid=${encodeURIComponent(uuid)}`;
+  const activeTeamId = localStorage.getItem("active_team_id");
+  const params = new URLSearchParams({ uuid: uuid });
+  if (activeTeamId) params.set("activeTeamId", activeTeamId);
+  const url = `/web/sessions/${sessionId}/events?${params}`;
   const es = new EventSource(url);
   currentEventSource = es;
 

@@ -1,5 +1,5 @@
 import Elysia from "elysia";
-import { authGuardPlugin } from "../../../plugins/auth";
+import { authGuardPlugin, type AuthContext } from "../../../plugins/auth";
 import * as configPg from "../../../services/config-pg";
 import {
   InvalidKnowledgeBindingError,
@@ -15,9 +15,10 @@ import {
   AGENT_SETTABLE_FIELDS,
 } from "../../../services/config/agent-config";
 import { configSuccess, configError, configValidationError, configNotFound, isValidResourceName } from "../../../services/config-utils";
+import { loadTeamContext } from "../../../services/team-context";
 
 /** 将 PG 行数据映射为前端兼容的 agent 字段 */
-function pgRowToAgentFields(row: typeof configPg extends { listAgentConfigs: (userId: string) => Promise<(infer T)[]> } ? T : never) {
+function pgRowToAgentFields(row: typeof configPg extends { listAgentConfigs: (ctx: AuthContext) => Promise<(infer T)[]> } ? T : never) {
   // tools → permission 兼容转换：PG 中不再有 tools，但保留接口
   let permission = (row as any).permission ?? null;
   return {
@@ -38,9 +39,9 @@ function pgRowToAgentFields(row: typeof configPg extends { listAgentConfigs: (us
   };
 }
 
-async function handleList(userId: string) {
-  const agents = await configPg.listAgentConfigs(userId);
-  const uc = await configPg.getUserConfig(userId);
+async function handleList(ctx: AuthContext) {
+  const agents = await configPg.listAgentConfigs(ctx);
+  const uc = await configPg.getUserConfig(ctx);
   const defaultAgent = uc.defaultAgent ?? null;
   const list = await Promise.all(agents.map(async (a) => ({
     id: a.id,
@@ -55,8 +56,8 @@ async function handleList(userId: string) {
   return configSuccess({ default_agent: defaultAgent, agents: list });
 }
 
-async function handleGet(userId: string, name: string) {
-  const agent = await configPg.getAgentConfig(userId, name);
+async function handleGet(ctx: AuthContext, name: string) {
+  const agent = await configPg.getAgentConfig(ctx, name);
   if (!agent) return configNotFound(`Agent '${name}' not found`);
 
   let permission = agent.permission ?? null;
@@ -85,7 +86,7 @@ async function handleGet(userId: string, name: string) {
   });
 }
 
-async function handleSet(userId: string, name: string, data: Record<string, unknown>) {
+async function handleSet(ctx: AuthContext, name: string, data: Record<string, unknown>) {
   const validation = validateAgentData(data);
   if (validation) return configValidationError(validation);
 
@@ -98,7 +99,7 @@ async function handleSet(userId: string, name: string, data: Record<string, unkn
   }
 
   // 检查 agent 是否存在
-  const existing = await configPg.getAgentConfig(userId, name);
+  const existing = await configPg.getAgentConfig(ctx, name);
   if (!existing) return configNotFound(`Agent '${name}' not found`);
 
   // 清除 null 值字段，映射 snake_case → camelCase
@@ -115,12 +116,12 @@ async function handleSet(userId: string, name: string, data: Record<string, unkn
     }
   }
 
-  await configPg.updateAgentConfig(userId, name, updateData);
-  await syncAgentKnowledgeBindings(userId, name, filtered.knowledge as AgentKnowledgeConfig | null | undefined);
+  await configPg.updateAgentConfig(ctx, name, updateData);
+  await syncAgentKnowledgeBindings(ctx.userId, name, filtered.knowledge as AgentKnowledgeConfig | null | undefined);
   return configSuccess({ name, ...filtered });
 }
 
-async function handleCreate(userId: string, name: string, data: Record<string, unknown>) {
+async function handleCreate(ctx: AuthContext, name: string, data: Record<string, unknown>) {
   if (!isValidResourceName(name)) {
     return configValidationError("Invalid agent name: must be 1-64 lowercase alphanumeric chars with single hyphens");
   }
@@ -147,27 +148,27 @@ async function handleCreate(userId: string, name: string, data: Record<string, u
   }
 
   // 检查是否已存在
-  const existing = await configPg.getAgentConfig(userId, name);
+  const existing = await configPg.getAgentConfig(ctx, name);
   if (existing) return configError("ALREADY_EXISTS", `Agent '${name}' already exists`);
 
-  await configPg.createAgentConfig(userId, name, pgData);
-  await syncAgentKnowledgeBindings(userId, name, filtered.knowledge as AgentKnowledgeConfig | null | undefined);
+  await configPg.createAgentConfig(ctx, name, pgData);
+  await syncAgentKnowledgeBindings(ctx.userId, name, filtered.knowledge as AgentKnowledgeConfig | null | undefined);
   return configSuccess({ name });
 }
 
-async function handleDelete(userId: string, name: string) {
+async function handleDelete(ctx: AuthContext, name: string) {
   if (isBuiltInAgent(name)) {
     return configError("FORBIDDEN", `Cannot delete built-in agent '${name}'`);
   }
-  const deleted = await configPg.deleteAgentConfig(userId, name);
+  const deleted = await configPg.deleteAgentConfig(ctx, name);
   if (!deleted) return configNotFound(`Agent '${name}' not found`);
   return configSuccess(null);
 }
 
-async function handleSetDefault(userId: string, name: string) {
-  const agent = await configPg.getAgentConfig(userId, name);
+async function handleSetDefault(ctx: AuthContext, name: string) {
+  const agent = await configPg.getAgentConfig(ctx, name);
   if (!agent) return configNotFound(`Agent '${name}' not found`);
-  await configPg.setUserConfig(userId, { defaultAgent: name });
+  await configPg.setUserConfig(ctx, { defaultAgent: name });
   return configSuccess({ default_agent: name });
 }
 
@@ -179,18 +180,24 @@ const app = new Elysia({ name: "web-config-agents", prefix: "/web" })
     "config-body": ConfigBodySchema,
   });
 
-app.post("/config/agents", async ({ store, body, error }) => {
-  const user = store.user!;
+app.post("/config/agents", async ({ store, body, error, request }: any) => {
+  const authContext = await loadTeamContext(store.user!, request);
+  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+  const authCtx = authContext;
   const b = (body as any) ?? {};
   const { action, name, data } = { action: b.action ?? "", name: b.name, data: b.data as Record<string, unknown> | undefined };
+  // get/set/create/delete/set_default 都需要 name
+  if (action !== "list" && !name) {
+    return error(400, configValidationError("Missing 'name' field"));
+  }
   try {
     switch (action) {
-      case "list": return await handleList(user.id);
-      case "get": return await handleGet(user.id, name!);
-      case "set": return await handleSet(user.id, name!, data!);
-      case "create": return await handleCreate(user.id, name!, data!);
-      case "delete": return await handleDelete(user.id, name!);
-      case "set_default": return await handleSetDefault(user.id, name!);
+      case "list": return await handleList(authCtx);
+      case "get": return await handleGet(authCtx, name!);
+      case "set": return await handleSet(authCtx, name!, data!);
+      case "create": return await handleCreate(authCtx, name!, data!);
+      case "delete": return await handleDelete(authCtx, name!);
+      case "set_default": return await handleSetDefault(authCtx, name!);
       default: return error(400, configValidationError(`Unknown action '${action}'`));
     }
   } catch (error_) {

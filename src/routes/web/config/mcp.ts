@@ -1,10 +1,11 @@
 import Elysia from "elysia";
-import { authGuardPlugin } from "../../../plugins/auth";
+import { authGuardPlugin, type AuthContext } from "../../../plugins/auth";
 import * as configPg from "../../../services/config-pg";
 import { inspectRemoteMcpServer } from "../../../services/mcp-inspector";
 import { ConfigBodySchema } from "../../../schemas/config.schema";
 import { configSuccess, configError, configValidationError, configNotFound, isValidResourceName } from "../../../services/config-utils";
 import { countToolsByServer, deleteToolsByServer, replaceToolsForServer, listToolsByServer, isValidMcpName, validateMcpConfig, toServerInfo } from "../../../services/config/mcp-server";
+import { loadTeamContext } from "../../../services/team-context";
 
 // 内部类型定义（与前端 web/src/types/config.ts 对齐）
 type McpLocalConfig = {
@@ -30,8 +31,8 @@ type McpServerConfig = McpLocalConfig | McpRemoteConfig | McpDisabledConfig;
 
 // --- Action Handlers ---
 
-async function handleList(userId: string) {
-  const servers = await configPg.listMcpServers(userId);
+async function handleList(ctx: AuthContext) {
+  const servers = await configPg.listMcpServers(ctx);
 
   const serversWithCount = await Promise.all(
     servers.map(async (s) => {
@@ -47,40 +48,40 @@ async function handleList(userId: string) {
   return { success: true, data: { servers: serversWithCount } };
 }
 
-async function handleGet(userId: string, name: string) {
-  const s = await configPg.getMcpServer(userId, name);
+async function handleGet(ctx: AuthContext, name: string) {
+  const s = await configPg.getMcpServer(ctx, name);
   if (!s) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
   return { success: true, data: { name, config: s.config } };
 }
 
-async function handleCreate(userId: string, name: string, config: McpServerConfig) {
+async function handleCreate(ctx: AuthContext, name: string, config: McpServerConfig) {
   if (!isValidMcpName(name)) {
     return { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid server name: must be 1-64 lowercase alphanumeric chars with single hyphens" } };
   }
   const validation = validateMcpConfig(config);
   if (validation) return { success: false, error: { code: "VALIDATION_ERROR", message: validation } };
 
-  const existing = await configPg.getMcpServer(userId, name);
+  const existing = await configPg.getMcpServer(ctx, name);
   if (existing) return { success: false, error: { code: "ALREADY_EXISTS", message: `MCP server '${name}' already exists` } };
 
   const cfgType = typeof config === "object" && config !== null && "type" in config ? (config as Record<string, unknown>).type as string : "local";
-  await configPg.createMcpServer(userId, name, cfgType, config as Record<string, unknown>);
+  await configPg.createMcpServer(ctx, name, cfgType, config as Record<string, unknown>);
   return { success: true, data: { name } };
 }
 
-async function handleUpdate(userId: string, name: string, config: McpServerConfig) {
+async function handleUpdate(ctx: AuthContext, name: string, config: McpServerConfig) {
   const validation = validateMcpConfig(config);
   if (validation) return { success: false, error: { code: "VALIDATION_ERROR", message: validation } };
 
-  const existing = await configPg.getMcpServer(userId, name);
+  const existing = await configPg.getMcpServer(ctx, name);
   if (!existing) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
-  await configPg.updateMcpServer(userId, name, config as Record<string, unknown>);
+  await configPg.updateMcpServer(ctx, name, config as Record<string, unknown>);
   return { success: true, data: { name } };
 }
 
-async function handleDelete(userId: string, name: string) {
-  const deleted = await configPg.deleteMcpServer(userId, name);
+async function handleDelete(ctx: AuthContext, name: string) {
+  const deleted = await configPg.deleteMcpServer(ctx, name);
   if (!deleted) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
   try {
@@ -92,8 +93,8 @@ async function handleDelete(userId: string, name: string) {
   return { success: true };
 }
 
-async function handleEnable(userId: string, name: string) {
-  const existing = await configPg.getMcpServer(userId, name);
+async function handleEnable(ctx: AuthContext, name: string) {
+  const existing = await configPg.getMcpServer(ctx, name);
   if (!existing) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
   const config = existing.config as Record<string, unknown>;
@@ -101,20 +102,20 @@ async function handleEnable(userId: string, name: string) {
     return { success: false, error: { code: "VALIDATION_ERROR", message: `Cannot enable '${name}': original config lost, please recreate` } };
   }
 
-  await configPg.setMcpServerEnabled(userId, name, true);
+  await configPg.setMcpServerEnabled(ctx, name, true);
   return { success: true, data: { name, enabled: true } };
 }
 
-async function handleDisable(userId: string, name: string) {
-  const existing = await configPg.getMcpServer(userId, name);
+async function handleDisable(ctx: AuthContext, name: string) {
+  const existing = await configPg.getMcpServer(ctx, name);
   if (!existing) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
-  await configPg.setMcpServerEnabled(userId, name, false);
+  await configPg.setMcpServerEnabled(ctx, name, false);
   return { success: true, data: { name, enabled: false } };
 }
 
-async function handleTest(userId: string, name: string) {
-  const s = await configPg.getMcpServer(userId, name);
+async function handleTest(ctx: AuthContext, name: string) {
+  const s = await configPg.getMcpServer(ctx, name);
   if (!s) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
   const config = s.config as Record<string, unknown>;
@@ -189,8 +190,8 @@ async function handleTestUrl(url: string, headers?: Record<string, string>, time
   return { success: true, data: { reachable: false, protocol: false, message: result.message ?? "连接失败" } };
 }
 
-async function handleInspect(userId: string, name: string) {
-  const s = await configPg.getMcpServer(userId, name);
+async function handleInspect(ctx: AuthContext, name: string) {
+  const s = await configPg.getMcpServer(ctx, name);
   if (!s) return { success: false, error: { code: "NOT_FOUND", message: `MCP server '${name}' not found` } };
 
   const config = s.config as Record<string, unknown>;
@@ -249,8 +250,10 @@ const app = new Elysia({ name: "web-config-mcp", prefix: "/web" })
     "config-body": ConfigBodySchema,
   });
 
-app.post("/config/mcp", async ({ store, body, error }) => {
-  const user = store.user!;
+app.post("/config/mcp", async ({ store, body, error, request }: any) => {
+  const authContext = await loadTeamContext(store.user!, request);
+  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+  const authCtx = authContext;
   const b = (body as any) ?? {};
   const { action, name, config, url, headers, timeout } = {
     action: b.action ?? "",
@@ -263,16 +266,16 @@ app.post("/config/mcp", async ({ store, body, error }) => {
 
   try {
     switch (action) {
-      case "list":       return await handleList(user.id);
-      case "get":        return await handleGet(user.id, name!);
-      case "create":     return await handleCreate(user.id, name!, config as McpServerConfig);
-      case "update":     return await handleUpdate(user.id, name!, config as McpServerConfig);
-      case "delete":     return await handleDelete(user.id, name!);
-      case "enable":     return await handleEnable(user.id, name!);
-      case "disable":    return await handleDisable(user.id, name!);
-      case "test":       return await handleTest(user.id, name!);
+      case "list":       return await handleList(authCtx);
+      case "get":        return await handleGet(authCtx, name!);
+      case "create":     return await handleCreate(authCtx, name!, config as McpServerConfig);
+      case "update":     return await handleUpdate(authCtx, name!, config as McpServerConfig);
+      case "delete":     return await handleDelete(authCtx, name!);
+      case "enable":     return await handleEnable(authCtx, name!);
+      case "disable":    return await handleDisable(authCtx, name!);
+      case "test":       return await handleTest(authCtx, name!);
       case "test_url":   return await handleTestUrl(url!, headers, timeout);
-      case "inspect":    return await handleInspect(user.id, name!);
+      case "inspect":    return await handleInspect(authCtx, name!);
       case "list_tools": return await handleListTools(name!);
       default: return error(400, { success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } });
     }

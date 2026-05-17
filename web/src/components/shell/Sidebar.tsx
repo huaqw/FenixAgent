@@ -12,8 +12,10 @@ import {
   BookOpen,
   ChevronsLeft,
   ChevronsRight,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { TeamSwitcher } from "../TeamSwitcher";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -46,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "控制台",
     items: [
       { id: "dashboard", label: "概览", icon: Monitor },
+      { id: "teams", label: "团队", icon: Users },
       { id: "workflow", label: "智能体编排", icon: Workflow },
       { id: "environments", label: "智能体", icon: Bot },
       { id: "models", label: "模型", icon: Cpu },
@@ -118,6 +121,13 @@ export function Sidebar({
         >
           XAgent
         </span>
+
+        {/* Team switcher */}
+        {!collapsed && (
+          <div className="ml-1 flex-1 min-w-0">
+            <TeamSwitcher />
+          </div>
+        )}
 
         {/* Toggle button */}
         <button

@@ -51,7 +51,7 @@ describe("createMcpServer — onConflictDoUpdate 幂等 upsert", () => {
 
   // createMcpServer 调用 insert 时传入包含 userId、name、type、config、enabled、updatedAt 的 values
   test("inserts with values including userId, name, type, config, enabled, updatedAt", async () => {
-    await createMcpServer("user-1", "my-server", "local", { command: ["npx", "test"] });
+    await createMcpServer({ teamId: "test-team", userId: "user-1", role: "owner" }, "my-server", "local", { command: ["npx", "test"] });
     expect(mockInsert).toHaveBeenCalledTimes(1);
     expect(mockInsert).toHaveBeenCalledWith(mockMcpServerTable);
     expect(mockValues).toHaveBeenCalledTimes(1);
@@ -67,7 +67,7 @@ describe("createMcpServer — onConflictDoUpdate 幂等 upsert", () => {
 
   // onConflictDoUpdate 的 target 应该是 [mcpServer.userId, mcpServer.name]
   test("onConflictDoUpdate target is [mcpServer.userId, mcpServer.name]", async () => {
-    await createMcpServer("user-1", "my-server", "remote", { url: "http://example.com" });
+    await createMcpServer({ teamId: "test-team", userId: "user-1", role: "owner" }, "my-server", "remote", { url: "http://example.com" });
     expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
 
     const [conflictArg] = (mockOnConflictDoUpdate.mock.calls as any[][])[0] as [Record<string, unknown>];
@@ -77,7 +77,7 @@ describe("createMcpServer — onConflictDoUpdate 幂等 upsert", () => {
   // onConflictDoUpdate set 包含 type、config、updatedAt 但不包含 userId/name（冲突目标列不参与更新）
   test("onConflictDoUpdate set includes type, config, updatedAt but NOT userId/name", async () => {
     const config = { url: "http://example.com" };
-    await createMcpServer("user-1", "my-server", "remote", config);
+    await createMcpServer({ teamId: "test-team", userId: "user-1", role: "owner" }, "my-server", "remote", config);
     const setArg = ((mockOnConflictDoUpdate.mock.calls as any[][])[0][0] as Record<string, unknown>).set as Record<string, unknown>;
 
     expect(setArg.type).toBe("remote");
@@ -93,7 +93,7 @@ describe("createAgentConfig — onConflictDoUpdate 幂等 upsert", () => {
 
   // createAgentConfig 调用 insert 时传入包含 userId、name、updatedAt 的 values
   test("inserts with values including userId, name, updatedAt", async () => {
-    await createAgentConfig("user-1", "general", { model: "gpt-4" });
+    await createAgentConfig({ teamId: "test-team", userId: "user-1", role: "owner" }, "general", { model: "gpt-4" });
     expect(mockInsert).toHaveBeenCalledTimes(1);
     expect(mockInsert).toHaveBeenCalledWith(mockAgentConfigTable);
     expect(mockValues).toHaveBeenCalledTimes(1);
@@ -106,7 +106,7 @@ describe("createAgentConfig — onConflictDoUpdate 幂等 upsert", () => {
 
   // onConflictDoUpdate 的 target 应该是 [agentConfig.userId, agentConfig.name]
   test("onConflictDoUpdate target is [agentConfig.userId, agentConfig.name]", async () => {
-    await createAgentConfig("user-1", "general", { model: "gpt-4" });
+    await createAgentConfig({ teamId: "test-team", userId: "user-1", role: "owner" }, "general", { model: "gpt-4" });
     expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
 
     const [conflictArg] = (mockOnConflictDoUpdate.mock.calls as any[][])[0] as [Record<string, unknown>];
@@ -115,7 +115,7 @@ describe("createAgentConfig — onConflictDoUpdate 幂等 upsert", () => {
 
   // onConflictDoUpdate set 包含 settable 字段（如 model、prompt）和 updatedAt
   test("onConflictDoUpdate set includes settable fields (model, prompt) and updatedAt", async () => {
-    await createAgentConfig("user-1", "general", {
+    await createAgentConfig({ teamId: "test-team", userId: "user-1", role: "owner" }, "general", {
       model: "gpt-4",
       prompt: "You are helpful",
       steps: 10,

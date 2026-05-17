@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { getCoreRuntime } from "./core-bootstrap";
 import { buildLaunchSpec } from "./launch-spec-builder";
 import { getAgentConfigById, getAgentFullConfig } from "./config-pg";
+import type { AuthContext } from "../plugins/auth";
 import { environmentRepo } from "../repositories";
 import type { EnvironmentRecord } from "../repositories";
 import { findOrCreateForEnvironment } from "./session";
@@ -42,6 +43,7 @@ interface InstanceSupplement {
   userId: string;
   environmentId: string;
   instanceNumber: number;
+  teamId: string;
 }
 
 const supplements = new Map<string, InstanceSupplement>();
@@ -120,7 +122,7 @@ export async function spawnInstanceFromEnvironment(
 ): Promise<SpawnedInstance> {
   const env = prefetchedEnv ?? await environmentRepo.getById(environmentId);
   if (!env) throw new NotFoundError("Environment not found");
-  if (env.userId !== userId) throw new AppError("Not your environment", "FORBIDDEN", 403);
+  // 注意：团队归属由调用方（route 层 getOwnedEnvironment）验证，此处仅确认环境存在
 
   const cwd = env.workspacePath ?? env.directory;
   if (!cwd) throw new AppError(`Workspace directory not set for environment: ${environmentId}`, "VALIDATION_ERROR", 400);
@@ -136,13 +138,13 @@ export async function spawnInstanceFromEnvironment(
     if (!resolvedAgentConfig) {
       throw new NotFoundError(`AgentConfig '${env.agentConfigId}' not found`);
     }
-    fullConfig = await getAgentFullConfig(env.userId, resolvedAgentConfig.id);
+    fullConfig = await getAgentFullConfig({ teamId: env.teamId ?? "", userId: env.userId ?? "", role: "owner" }, resolvedAgentConfig.id);
     const ac = fullConfig.agentConfig as Record<string, unknown> | null;
     agentName = resolvedAgentConfig.name;
     agentPrompt = typeof ac?.prompt === "string" ? ac.prompt : null;
     modelRef = typeof ac?.model === "string" ? ac.model : null;
   } else {
-    fullConfig = await getAgentFullConfig(env.userId, null);
+    fullConfig = await getAgentFullConfig({ teamId: env.teamId ?? "", userId: env.userId ?? "", role: "owner" }, null);
   }
 
   // 组装 AgentLaunchSpec
@@ -172,14 +174,20 @@ export async function spawnInstanceFromEnvironment(
     userId,
     environmentId,
     instanceNumber,
+    teamId: env.teamId ?? userId,
   };
   supplements.set(instanceId, supplement);
 
   return toSpawnedInstance(snapshot, supplement);
 }
 
-export function listInstances(userId: string): SpawnedInstance[] {
-  return filterInstances((_s, sup) => sup.userId === userId);
+/** 按 teamId 过滤实例 */
+function filterInstancesWithTeamId(teamId: string): SpawnedInstance[] {
+  return filterInstances((_s, sup) => sup.teamId === teamId);
+}
+
+export function listInstances(teamId: string): SpawnedInstance[] {
+  return filterInstancesWithTeamId(teamId);
 }
 
 export function findRunningInstanceByEnvironment(environmentId: string, userId?: string): SpawnedInstance | undefined {
@@ -238,10 +246,10 @@ export function getInstance(id: string, userId?: string): SpawnedInstance | unde
   return toSpawnedInstance(snapshot, sup);
 }
 
-export async function stopInstance(id: string, userId: string): Promise<{ ok: boolean; error?: string }> {
+export async function stopInstance(id: string, teamId: string): Promise<{ ok: boolean; error?: string }> {
   const sup = supplements.get(id);
   if (!sup) return { ok: false, error: "Instance not found" };
-  if (sup.userId !== userId) return { ok: false, error: "Not your instance" };
+  if (sup.teamId !== teamId) return { ok: false, error: "Not your instance" };
 
   const facade = getCoreRuntime();
   const snapshot = facade.getInstance(id);

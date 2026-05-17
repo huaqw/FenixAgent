@@ -2,16 +2,16 @@
 import { describe, test, expect, mock } from "bun:test";
 
 // mock core-bootstrap
-const mockListInstances = mock(() => []);
-const mockGetInstance = mock(() => undefined);
-const mockStopInstance = mock(async () => {});
+const mockListInstances = mock(() => [] as any[]);
+const mockGetInstance = mock((_id?: any) => undefined as any);
+const mockStopInstance = mock(async (_id?: any) => {});
 const mockLaunchInstance = mock(async (spec: any) => ({
   instanceId: spec.instanceId,
   status: "running",
   pluginMetadata: {},
   errorMessage: null,
   createdAt: new Date(),
-}));
+} as any));
 
 mock.module("../services/core-bootstrap", () => ({
   getCoreRuntime: () => ({
@@ -36,7 +36,7 @@ mock.module("../services/launch-spec-builder", () => ({
 }));
 
 mock.module("../repositories", () => ({
-  environmentRepo: { getById: mock(async () => ({ id: "env_1", userId: "u1", secret: "s1", maxSessions: 5, workspacePath: "/tmp/ws1" })) },
+  environmentRepo: { getById: mock(async () => ({ id: "env_1", userId: "u1", teamId: "u1", secret: "s1", maxSessions: 5, workspacePath: "/tmp/ws1" })) },
 }));
 
 const {

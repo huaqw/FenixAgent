@@ -24,6 +24,9 @@ export interface IKnowledgeBaseRepo {
   getByUserAndId(userId: string, knowledgeBaseId: string): Promise<KnowledgeBaseRow | null>;
   listByUserId(userId: string): Promise<KnowledgeBaseRow[]>;
   findByUserAndSlug(userId: string, slug: string): Promise<KnowledgeBaseRow | null>;
+  listByTeamId(teamId: string): Promise<KnowledgeBaseRow[]>;
+  getByTeamAndId(teamId: string, knowledgeBaseId: string): Promise<KnowledgeBaseRow | null>;
+  findByTeamAndSlug(teamId: string, slug: string): Promise<KnowledgeBaseRow | null>;
   create(data: KnowledgeBaseInsert): Promise<KnowledgeBaseRow>;
   update(knowledgeBaseId: string, data: Partial<KnowledgeBaseInsert>): Promise<void>;
   delete(knowledgeBaseId: string): Promise<boolean>;
@@ -98,6 +101,24 @@ class PgKnowledgeBaseRepo implements IKnowledgeBaseRepo {
   async findByUserAndSlug(userId: string, slug: string) {
     const rows = await db.select().from(knowledgeBase)
       .where(and(eq(knowledgeBase.userId, userId), eq(knowledgeBase.slug, slug)));
+    return rows[0] ?? null;
+  }
+
+  async listByTeamId(teamId: string) {
+    return db.select().from(knowledgeBase)
+      .where(eq(knowledgeBase.teamId, teamId))
+      .orderBy(desc(knowledgeBase.updatedAt));
+  }
+
+  async getByTeamAndId(teamId: string, knowledgeBaseId: string) {
+    const rows = await db.select().from(knowledgeBase)
+      .where(and(eq(knowledgeBase.id, knowledgeBaseId), eq(knowledgeBase.teamId, teamId)));
+    return rows[0] ?? null;
+  }
+
+  async findByTeamAndSlug(teamId: string, slug: string) {
+    const rows = await db.select().from(knowledgeBase)
+      .where(and(eq(knowledgeBase.teamId, teamId), eq(knowledgeBase.slug, slug)));
     return rows[0] ?? null;
   }
 
