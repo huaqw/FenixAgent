@@ -64,6 +64,13 @@
       "when": 1779009474155,
       "tag": "0008_agent_knowledge_binding_agent_config_id",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779010135575,
+      "tag": "0009_scheduled_task_drop_environment_id",
+      "breakpoints": true
     }
   ]
 }

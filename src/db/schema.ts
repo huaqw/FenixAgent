@@ -246,8 +246,6 @@ export const scheduledTask = pgTable("scheduled_task", {
   method: varchar("method", { length: 10 }).notNull().default("POST"),
   headers: jsonb("headers"),
   body: text("body"),
-  environmentId: varchar("environment_id")
-    .references(() => environment.id, { onDelete: "cascade" }),
   lastRunAt: timestamp("last_run_at", { withTimezone: true }),
   nextRunAt: timestamp("next_run_at", { withTimezone: true }),
   lastStatus: varchar("last_status"),
@@ -269,8 +267,6 @@ export const taskExecutionLog = pgTable("task_execution_log", {
   triggeredBy: varchar("triggered_by").notNull().default("cron"),
   workspacePath: varchar("workspace_path"),
   workspaceName: varchar("workspace_name"),
-  environmentId: varchar("environment_id"),
-  environmentName: varchar("environment_name"),
   taskSnapshot: jsonb("task_snapshot"),
   skipReason: text("skip_reason"),
   resultSummary: text("result_summary"),
