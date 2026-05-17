@@ -1,10 +1,5 @@
 // ── listSkillSources 跳过无 workspacePath 的环境 ──
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-
-mock.module("../logger", () => ({
-  log: mock(),
-  error: mock(),
-}));
 mock.module("../repositories", () => ({
   environmentRepo: {
     listByUserId: mock(async () => []),

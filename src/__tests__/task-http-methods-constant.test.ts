@@ -33,12 +33,6 @@ mock.module("../services/scheduler", () => ({
 mock.module("../services/config/jsonb", () => ({
   parseJsonb: (v: unknown) => v,
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { createTask, updateTask } = await import("../services/task");
 
 describe("VALID_HTTP_METHODS constant usage", () => {

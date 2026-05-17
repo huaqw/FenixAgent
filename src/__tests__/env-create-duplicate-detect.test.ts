@@ -1,11 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 
 // mock logger
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 // mock errors
 class ConflictError extends Error { code = "ALREADY_EXISTS"; statusCode = 409; constructor(m: string) { super(m); this.name = "ConflictError"; } }
 class ValidationError extends Error { code = "VALIDATION_ERROR"; statusCode = 400; constructor(m: string) { super(m); this.name = "ValidationError"; } }

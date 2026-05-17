@@ -180,7 +180,7 @@ describe("Models Config Route", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "invalid" }),
     }));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(422);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });

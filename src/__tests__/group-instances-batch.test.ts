@@ -47,12 +47,6 @@ mock.module("../repositories", () => ({
 mock.module("../services/session", () => ({
   findOrCreateForEnvironment: mock(async () => ({ id: "ses_1" })),
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { groupActiveInstancesByEnvironment } = await import("../services/instance");
 
 describe("groupActiveInstancesByEnvironment", () => {

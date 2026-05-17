@@ -15,10 +15,6 @@ mock.module("../repositories/task", () => ({
 mock.module("../services/config/jsonb", () => ({
   parseJsonb: mock((v: unknown) => v),
 }));
-mock.module("../logger", () => ({
-  log: mock(),
-  error: mock(),
-}));
 mock.module("./scheduler", () => ({
   scheduleTask: mock(() => true),
   rescheduleTask: mock(() => true),

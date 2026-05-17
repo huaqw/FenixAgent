@@ -23,12 +23,6 @@ mock.module("../repositories", () => ({
     create: mock(async (d: any) => ({ id: "ses_new", ...d })),
   },
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 mock.module("../services/session", () => ({
   findOrCreateForEnvironment: mock(async () => ({ id: "ses_new" })),
 }));

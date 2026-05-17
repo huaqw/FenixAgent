@@ -42,12 +42,6 @@ mock.module("../repositories", () => ({
 mock.module("../services/session", () => ({
   findOrCreateForEnvironment: mock(async () => ({ id: "ses_1" })),
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { stopInstance, listInstances } = await import("../services/instance");
 
 describe("stopInstance supplement cleanup", () => {

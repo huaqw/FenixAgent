@@ -23,12 +23,6 @@ mock.module("../repositories/task", () => ({
     deleteByTask: mock(async () => {}),
   },
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 mock.module("../services/scheduler", () => ({
   scheduleTask: mock(() => {}),
   rescheduleTask: mock(() => {}),

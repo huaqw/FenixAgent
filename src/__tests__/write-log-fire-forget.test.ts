@@ -22,12 +22,6 @@ mock.module("../repositories/task", () => ({
     deleteByTask: mock(async () => {}),
   },
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 mock.module("../services/config/jsonb", () => ({
   parseJsonb: (v: unknown) => v,
 }));

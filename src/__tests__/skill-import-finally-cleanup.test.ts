@@ -2,11 +2,6 @@ import { describe, expect, it, mock } from "bun:test";
 
 // mock logger
 const mockLogError = mock(() => {});
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mockLogError,
-}));
-
 // mock config-pg
 mock.module("../services/config-pg", () => ({
   getSkill: mock(() => Promise.resolve(null)),

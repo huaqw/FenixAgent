@@ -58,12 +58,6 @@ mock.module("../repositories", () => ({
 mock.module("../services/session", () => ({
   findOrCreateForEnvironment: mock(async () => ({ id: "ses_1" })),
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { getInstance } = await import("../services/instance");
 
 describe("getInstance supplement cleanup on stale core", () => {

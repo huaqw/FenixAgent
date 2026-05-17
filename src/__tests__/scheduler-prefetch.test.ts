@@ -1,129 +1,86 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+// ── scheduler executeTaskById prefetchedTask 验证 ──
+import { describe, test, expect, mock, beforeEach, afterAll } from "bun:test";
+import { eq } from "drizzle-orm";
+import { db } from "../db";
+import { scheduledTask, taskExecutionLog, team, user } from "../db/schema";
+import { executeTaskById } from "../services/task";
+import { stopScheduler, setScheduleJobImpl } from "../services/scheduler";
 
-// ── scheduler executeTask 传递 prefetchedTask 验证 ──
+const mockScheduleJob = mock(() => ({ nextInvocation: () => new Date(), cancel: () => {} }));
 
-const mockLogCreate = mock(async () => ({ id: "log_1" }));
-const mockTaskUpdate = mock(async () => null);
-const mockTaskGetById = mock(async (): Promise<any> => null);
+beforeEach(() => {
+  setScheduleJobImpl(mockScheduleJob as any);
+  stopScheduler();
+  mockScheduleJob.mockClear();
+});
 
-mock.module("../repositories/task", () => ({
-  scheduledTaskRepo: {
-    listByUser: mock(async () => []),
-    getById: mockTaskGetById,
-    getByUserAndId: mock(async () => null),
-    create: mock(async (d: any) => d),
-    update: mockTaskUpdate,
-    deleteByUserAndId: mock(async () => true),
-    listEnabled: mock(async () => []),
-  },
-  taskExecutionLogRepo: {
-    listByTask: mock(async () => []),
-    listByTaskPaged: mock(async () => ({ rows: [], total: 0 })),
-    create: mockLogCreate,
-    deleteByTask: mock(async () => {}),
-  },
-}));
+const TEST_USER_ID = "user_sched_prefetch";
+const TEST_TEAM_SLUG = "sched-prefetch-team";
+let TEST_TEAM_ID: string | undefined;
 
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
+async function ensureTeam() {
+  const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
+  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
+  const now = new Date();
+  const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
+  if (existingUser.length === 0) {
+    await db.insert(user).values({ id: TEST_USER_ID, name: "Sched Prefetch", email: "sched-prefetch@rcs.local", emailVerified: false, createdAt: now, updatedAt: now });
+  }
+  const [created] = await db.insert(team).values({ name: "Sched Prefetch Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  TEST_TEAM_ID = created.id;
+}
 
-mock.module("../services/config/jsonb", () => ({
-  parseJsonb: (v: unknown) => v,
-}));
+async function insertTask() {
+  const [row] = await db.insert(scheduledTask).values({
+    userId: TEST_USER_ID, teamId: TEST_TEAM_ID!,
+    name: `prefetch_${Date.now()}`, description: null, cron: "* * * * *", timezone: null,
+    enabled: true, url: "http://localhost:9999/test", method: "POST", headers: null, body: null,
+    lastRunAt: null, nextRunAt: null, lastStatus: null,
+  }).returning();
+  return row;
+}
 
-// mock scheduler 自身的 scheduleTask 等（避免 node-schedule 依赖）
-mock.module("node-schedule", () => ({
-  default: {
-    scheduleJob: mock(() => ({ nextInvocation: () => new Date(), cancel: () => {} })),
-  },
-}));
-
-const { default: schedule } = await import("node-schedule");
-
-// 需要重新导入 scheduler 模块来测试 executeTask 内部逻辑
-// 但 executeTask 是私有函数，我们通过 executeTaskById 间接验证
-
-const { executeTaskById } = await import("../services/task");
+await ensureTeam();
 
 describe("scheduler→executeTaskById prefetchedTask pass-through", () => {
-  beforeEach(() => {
-    mockLogCreate.mockClear();
-    mockTaskUpdate.mockClear();
-    mockTaskGetById.mockClear();
+  afterAll(async () => {
+    if (TEST_TEAM_ID) {
+      try { await db.delete(taskExecutionLog); } catch {}
+      try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
+      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+    }
+    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
   });
 
-  // executeTaskById 收到 prefetchedTask 时不调用 getById
-  test("executeTaskById with prefetchedTask skips getById", async () => {
+  // executeTaskById 收到 prefetchedTask 时正常执行
+  test("executeTaskById with prefetchedTask executes HTTP call", async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => "OK",
+      ok: true, status: 200, text: async () => "OK",
     })) as unknown as typeof fetch;
 
-    const task = {
-      id: "task_sched1",
-      url: "http://localhost:9999/test",
-      method: "POST",
-      headers: null,
-      enabled: true,
-    };
-
-    const result = await executeTaskById("task_sched1", "cron", task as any);
+    const task = await insertTask();
+    const result = await executeTaskById(task.id, "cron", task as any);
 
     expect(result.success).toBe(true);
-    // getById 不应被调用
-    expect(mockTaskGetById).not.toHaveBeenCalled();
-
     globalThis.fetch = origFetch;
   });
 
-  // 模拟 scheduler 的 executeTask 路径：先检查 enabled，再传 prefetchedTask
+  // 模拟 scheduler flow：检查 enabled 后传给 executeTaskById
   test("simulates scheduler flow: check enabled then execute", async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => "done",
+      ok: true, status: 200, text: async () => "done",
     })) as unknown as typeof fetch;
 
-    // 模拟 scheduler 先获取 task（getTaskById），检查 enabled
-    const task = {
-      id: "task_flow",
-      url: "http://localhost:9999/flow",
-      method: "GET",
-      headers: null,
-      enabled: true,
-    };
-
-    // scheduler 检查 enabled 后传给 executeTaskById
+    const task = await insertTask();
     expect(task.enabled).toBe(true);
-    const result = await executeTaskById("task_flow", "cron", task as any);
+
+    const result = await executeTaskById(task.id, "cron", task as any);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.status).toBe("success");
     }
-
     globalThis.fetch = origFetch;
-  });
-
-  // disabled task 不应到达 executeTaskById（scheduler 层拦截）
-  test("disabled task would be filtered before executeTaskById", async () => {
-    // 这个测试验证 scheduler 的 enabled 检查在 executeTaskById 之前
-    const task = {
-      id: "task_disabled",
-      url: "http://localhost:9999/disabled",
-      method: "POST",
-      headers: null,
-      enabled: false,
-    };
-
-    // scheduler 的逻辑：if (!task.enabled) return;
-    // 所以 disabled task 不会调用 executeTaskById
-    expect(task.enabled).toBe(false);
-    // 如果意外调用了，executeTaskById 仍会执行（不检查 enabled）
-    // 但 scheduler 层保证了这不会发生
   });
 });

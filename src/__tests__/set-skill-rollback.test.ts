@@ -32,12 +32,6 @@ mock.module("../services/skill-fs", () => ({
   createBackupDir: async () => "/tmp/backup",
   cleanupBackupDir: async () => {},
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { setSkill } = await import("../services/skill");
 
 describe("setSkill partial write rollback", () => {

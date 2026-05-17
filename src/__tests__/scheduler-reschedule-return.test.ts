@@ -1,36 +1,16 @@
 // ── scheduler rescheduleTask 返回 boolean（与 scheduleTask 对齐） ──
 import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { scheduleTask, rescheduleTask, unscheduleTask, stopScheduler, setScheduleJobImpl } from "../services/scheduler";
 
-// mock node-schedule，在 import scheduler 之前注册
-mock.module("node-schedule", () => ({
-  default: {
-    scheduleJob: mock(() => ({ nextInvocation: () => null, cancel: mock() })),
-  },
+const mockScheduleJob = mock((_config: unknown, _handler: () => void) => ({
+  cancel: mock(() => {}),
+  nextInvocation: () => new Date(),
 }));
-mock.module("../repositories/task", () => ({
-  scheduledTaskRepo: { update: mock(async () => {}) },
-  taskExecutionLogRepo: {
-    listByTask: mock(async () => []),
-    listByTaskPaged: mock(async () => ({ rows: [], total: 0 })),
-    create: mock(async () => ({ id: "log_1" })),
-    deleteByTask: mock(async () => {}),
-  },
-}));
-mock.module("../logger", () => ({
-  log: mock(),
-  error: mock(),
-}));
-mock.module("./task", () => ({
-  createExecutionLog: mock(async () => "log-id"),
-  executeTaskById: mock(async () => ({ success: true })),
-  getTaskById: mock(async () => null),
-}));
-
-const { scheduleTask, rescheduleTask, unscheduleTask } = await import("../services/scheduler");
 
 beforeEach(() => {
-  // 清除所有活跃 job
-  try { unscheduleTask("__test_1"); unscheduleTask("__test_2"); } catch {}
+  stopScheduler();
+  mockScheduleJob.mockClear();
+  setScheduleJobImpl(mockScheduleJob as any);
 });
 
 describe("rescheduleTask returns boolean", () => {

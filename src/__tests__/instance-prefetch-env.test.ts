@@ -72,12 +72,6 @@ mock.module("../services/config-pg", () => ({
 mock.module("../services/session", () => ({
   findOrCreateForEnvironment: () => Promise.resolve({ id: "ses_test" }),
 }));
-
-mock.module("../logger", () => ({
-  log: () => {},
-  error: () => {},
-}));
-
 mock.module("../errors", () => {
   class AppError extends Error {
     code: string;

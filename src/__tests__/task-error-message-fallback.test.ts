@@ -26,12 +26,6 @@ mock.module("../services/scheduler", () => ({
 mock.module("../services/config/jsonb", () => ({
   parseJsonb: (v: unknown) => v,
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { executeTaskById } = await import("../services/task");
 
 const baseTask = {

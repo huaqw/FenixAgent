@@ -56,12 +56,6 @@ mock.module("../repositories", () => ({
 mock.module("../services/session", () => ({
   findOrCreateForEnvironment: mock(async () => ({ id: "ses_1" })),
 }));
-
-mock.module("../logger", () => ({
-  log: mock(() => {}),
-  error: mock(() => {}),
-}));
-
 const { ensureRunning } = await import("../services/instance");
 
 describe("ensureRunning re-check after async gap", () => {

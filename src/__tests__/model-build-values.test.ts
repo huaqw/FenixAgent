@@ -6,7 +6,7 @@ const insertMock = mock(() => ({
   onConflictDoUpdate: mock(() => Promise.resolve()),
 }));
 const updateMock = mock(() => ({
-  where: mock(() => Promise.resolve({})),
+  where: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "m1" }])) })),
 }));
 mock.module("../db", () => ({
   db: {

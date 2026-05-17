@@ -3,6 +3,14 @@ import { scheduledTaskRepo } from "../repositories/task";
 import { error, log } from "../logger";
 import { createExecutionLog, executeTaskById, getTaskById } from "./task";
 
+// 可替换的 scheduleJob 实现（测试时覆盖）
+export type ScheduleJobFn = (config: schedule.ScheduleJobArgs, handler: () => void) => schedule.Job | null;
+export let scheduleJobImpl: ScheduleJobFn = (config, handler) => schedule.scheduleJob(config as schedule.JobReference, handler);
+
+export function setScheduleJobImpl(fn: ScheduleJobFn) {
+  scheduleJobImpl = fn;
+}
+
 interface ScheduledJob {
   taskId: string;
   job: schedule.Job;
@@ -91,8 +99,8 @@ export function scheduleTask(task: { id: string; cron: string; timezone?: string
   };
 
   const job = task.timezone
-    ? schedule.scheduleJob({ rule: task.cron, tz: task.timezone }, handler)
-    : schedule.scheduleJob({ rule: task.cron }, handler);
+    ? scheduleJobImpl({ rule: task.cron, tz: task.timezone }, handler)
+    : scheduleJobImpl({ rule: task.cron }, handler);
 
   if (!job) {
     error(`[Scheduler] Invalid cron expression "${task.cron}" for task ${task.id}, job not created`);
