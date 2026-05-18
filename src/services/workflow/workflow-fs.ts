@@ -40,6 +40,8 @@ export async function readYamlFile(dir: string, fileName: string): Promise<strin
  * 扫描文件系统中可恢复的孤立工作流目录。
  * 返回在文件系统中存在但不在 excludeIds 集合中的 workflowId 列表。
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function listRecoverable(baseDir: string, teamId: string, excludeIds: Set<string>): Promise<string[]> {
   const teamDir = join(baseDir, teamId);
   if (!existsSync(teamDir)) return [];
@@ -47,5 +49,5 @@ export async function listRecoverable(baseDir: string, teamId: string, excludeId
   const entries = await readdir(teamDir, { withFileTypes: true });
   const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
 
-  return dirs.filter((id) => !excludeIds.has(id));
+  return dirs.filter((id) => UUID_RE.test(id) && !excludeIds.has(id));
 }

@@ -55,14 +55,27 @@ describe("workflow-fs", () => {
 
   // listRecoverable 返回文件存在但不在排除列表中的目录
   test("listRecoverable returns orphaned directories", async () => {
-    const dir1 = buildStoragePath(testRoot, "team-1", "wf-exists");
-    const dir2 = buildStoragePath(testRoot, "team-1", "wf-orphan");
+    const uuid1 = "11111111-aaaa-bbbb-cccc-111111111111";
+    const uuid2 = "22222222-aaaa-bbbb-cccc-222222222222";
+    const dir1 = buildStoragePath(testRoot, "team-1", uuid1);
+    const dir2 = buildStoragePath(testRoot, "team-1", uuid2);
     await ensureWorkflowDir(dir1);
     await ensureWorkflowDir(dir2);
     await writeYamlFile(dir1, "draft.yaml", "name: exists\n");
     await writeYamlFile(dir2, "draft.yaml", "name: orphan\n");
 
-    const result = await listRecoverable(testRoot, "team-1", new Set(["wf-exists"]));
-    expect(result).toEqual(["wf-orphan"]);
+    const result = await listRecoverable(testRoot, "team-1", new Set([uuid1]));
+    expect(result).toEqual([uuid2]);
+  });
+
+  // listRecoverable 过滤非 UUID 格式的目录名
+  test("listRecoverable filters non-UUID directory names", async () => {
+    const uuid = "33333333-aaaa-bbbb-cccc-333333333333";
+    const nonUuid = "wf-sample-001";
+    await ensureWorkflowDir(buildStoragePath(testRoot, "team-1", uuid));
+    await ensureWorkflowDir(buildStoragePath(testRoot, "team-1", nonUuid));
+
+    const result = await listRecoverable(testRoot, "team-1", new Set());
+    expect(result).toEqual([uuid]);
   });
 });
