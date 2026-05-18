@@ -10,6 +10,7 @@ import { corsPlugin } from "./plugins/cors";
 import { errorPlugin } from "./plugins/error-handler";
 import { loggerPlugin } from "./plugins/logger";
 import { ctrlStaticPlugin } from "./plugins/static";
+import { rateLimitPlugin } from "./plugins/rate-limit";
 import { environmentRepo } from "./repositories";
 import acpRoutes from "./routes/acp";
 import knowledgeMcpRoutes from "./routes/mcp/knowledge";
@@ -120,6 +121,17 @@ const app = new Elysia()
   )
   .use(loggerPlugin)
   .use(errorPlugin)
+  .use(rateLimitPlugin)
+  // 全局请求体大小限制 10MB
+  .onBeforeHandle(({ request }) => {
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+      return new Response(
+        JSON.stringify({ error: { type: "PAYLOAD_TOO_LARGE", message: "Request body exceeds 10MB limit" } }),
+        { status: 413, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  })
   // Path normalization: collapse double slashes
   .onBeforeHandle(({ request }) => {
     const url = new URL(request.url);
