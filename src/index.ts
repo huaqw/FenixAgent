@@ -35,6 +35,8 @@ import webS3Files from "./routes/web/s3-files";
 import webSessions from "./routes/web/sessions";
 import webTasks from "./routes/web/tasks";
 import webTeams from "./routes/web/teams";
+import webWorkflowDefs from "./routes/web/workflow-defs";
+import webWorkflowEngine from "./routes/web/workflow-engine";
 import { workflowStaticApp } from "./routes/web/workflow-proxy";
 import { getCoreRuntime } from "./services/core-bootstrap";
 import { getHermesClient, initHermesClient } from "./services/hermes-client";
@@ -110,6 +112,7 @@ const app = new Elysia()
           { name: "Tasks", description: "Scheduled HTTP tasks" },
           { name: "Knowledge", description: "Knowledge bases and resources" },
           { name: "Channels", description: "IM channel bindings" },
+          { name: "Workflow Engine", description: "Native DAG workflow execution engine" },
         ],
       },
       swaggerOptions: {
@@ -176,6 +179,10 @@ const app = new Elysia()
   .use(webTeams)
   // Workflow proxy
   .use(workflowStaticApp)
+  // Workflow engine API
+  .use(webWorkflowEngine)
+  // Workflow definition API
+  .use(webWorkflowDefs)
   // MCP routes
   .use(knowledgeMcpRoutes)
   // ACP protocol routes
