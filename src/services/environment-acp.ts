@@ -26,7 +26,9 @@ export function _resetDeps() {
 }
 
 /** 通过 secret 获取环境信息（认证用），仅返回认证所需字段 */
-export async function getEnvironmentBySecret(secret: string): Promise<{ id: string; userId: string | null; agentConfigId: string | null; secret: string } | null> {
+export async function getEnvironmentBySecret(
+  secret: string,
+): Promise<{ id: string; userId: string | null; agentConfigId: string | null; secret: string } | null> {
   const env = await _deps.environmentRepo.getBySecret(secret);
   if (!env) return null;
   return {
@@ -60,7 +62,14 @@ export interface BridgeRegistrationResult {
 }
 
 /** 旧式 WS 注册（env_ 前缀 secret），保留向后兼容 */
-export async function registerEnvironment(req: RegisterEnvironmentRequest & { metadata?: { worker_type?: string }; username?: string; userId?: string; teamId?: string }) {
+export async function registerEnvironment(
+  req: RegisterEnvironmentRequest & {
+    metadata?: { worker_type?: string };
+    username?: string;
+    userId?: string;
+    teamId?: string;
+  },
+) {
   const secret = `env_${randomBytes(24).toString("hex")}`;
   const workerType = req.worker_type ?? req.metadata?.worker_type;
   const record = await _deps.environmentRepo.create({
@@ -232,12 +241,7 @@ export async function registerBridge(input: BridgeRegistrationInput): Promise<Br
 
   let sessionId: string | undefined;
   if (workerType === "acp") {
-    const sessionResult = await _deps.findOrCreateForEnvironment(
-      record.id,
-      machine_name || "ACP Agent",
-      userId,
-      "acp",
-    );
+    const sessionResult = await _deps.findOrCreateForEnvironment(record.id, machine_name || "ACP Agent", userId, "acp");
     sessionId = sessionResult.id;
   }
 
@@ -325,10 +329,7 @@ export async function handleAcpIdentify(params: {
 }): Promise<{ envId: string; capabilities: Record<string, unknown> | null }> {
   if (params.boundEnvId) {
     // markActive 更新 status/poll，getEnvironment 读取 capabilities，两操作无依赖
-    const [, env] = await Promise.all([
-      markEnvironmentActive(params.boundEnvId),
-      getEnvironment(params.boundEnvId),
-    ]);
+    const [, env] = await Promise.all([markEnvironmentActive(params.boundEnvId), getEnvironment(params.boundEnvId)]);
     return { envId: params.boundEnvId, capabilities: env?.capabilities ?? null };
   }
 

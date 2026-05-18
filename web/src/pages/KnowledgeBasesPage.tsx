@@ -23,9 +23,7 @@ export async function loadKnowledgeBasesData() {
   return data as unknown as KnowledgeBaseInfo[];
 }
 
-export async function loadKnowledgeBaseDetailData(
-  knowledgeBaseId: string,
-) {
+export async function loadKnowledgeBaseDetailData(knowledgeBaseId: string) {
   const [detailRes, resourcesRes] = await Promise.all([
     client.web.knowledgeBases[knowledgeBaseId].get(),
     client.web.knowledgeBases[knowledgeBaseId].resources.get(),
@@ -33,7 +31,7 @@ export async function loadKnowledgeBaseDetailData(
   if (detailRes.error) throw new Error(detailRes.error.message ?? "加载知识库详情失败");
   if (resourcesRes.error) throw new Error(resourcesRes.error.message ?? "加载资源列表失败");
   const detail = (detailRes.data ?? {}) as Record<string, unknown>;
-  const resources = Array.isArray(resourcesRes.data) ? resourcesRes.data as unknown as KnowledgeResourceInfo[] : [];
+  const resources = Array.isArray(resourcesRes.data) ? (resourcesRes.data as unknown as KnowledgeResourceInfo[]) : [];
   return { detail, resources };
 }
 
@@ -48,10 +46,7 @@ export async function uploadKnowledgeBaseFiles(
   return fetchUpload<KnowledgeUploadResponse>(`/web/knowledgeBases/${knowledgeBaseId}/resources/upload`, formData);
 }
 
-export function summarizeKnowledgeDetail(
-  detail: KnowledgeBaseDetail,
-  resources: KnowledgeResourceInfo[],
-) {
+export function summarizeKnowledgeDetail(detail: KnowledgeBaseDetail, resources: KnowledgeResourceInfo[]) {
   return {
     lastError: detail.lastError ?? resources.find((item) => item.lastError)?.lastError ?? null,
     resourcesCount: resources.length,
@@ -91,9 +86,7 @@ export function KnowledgeBasesPage() {
     try {
       const list = await loadKnowledgeBasesData();
       setItems(list);
-      const nextId = selectedId && list.some((item) => item.id === selectedId)
-        ? selectedId
-        : list[0]?.id ?? null;
+      const nextId = selectedId && list.some((item) => item.id === selectedId) ? selectedId : (list[0]?.id ?? null);
       setSelectedId(nextId);
     } catch (error) {
       console.error("加载知识库失败", error);
@@ -311,19 +304,31 @@ export function KnowledgeBasesPage() {
             emptyMessage="暂无知识库"
             actions={(row) => (
               <div className="flex gap-1.5">
-                <Button size="xs" variant={row.id === selectedId ? "default" : "outline"} onClick={() => setSelectedId(row.id)}>
+                <Button
+                  size="xs"
+                  variant={row.id === selectedId ? "default" : "outline"}
+                  onClick={() => setSelectedId(row.id)}
+                >
                   详情
                 </Button>
-                <Button size="xs" variant="outline" onClick={() => {
-                  setSelectedId(row.id);
-                  setTimeout(() => fileInputRef.current?.click(), 0);
-                }}>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedId(row.id);
+                    setTimeout(() => fileInputRef.current?.click(), 0);
+                  }}
+                >
                   上传
                 </Button>
-                <Button size="xs" variant="destructive" onClick={() => {
-                  setDeleteTarget(row);
-                  setConfirmOpen(true);
-                }}>
+                <Button
+                  size="xs"
+                  variant="destructive"
+                  onClick={() => {
+                    setDeleteTarget(row);
+                    setConfirmOpen(true);
+                  }}
+                >
                   删除
                 </Button>
               </div>
@@ -345,7 +350,9 @@ export function KnowledgeBasesPage() {
                   <h3 className="text-lg font-semibold text-text-bright">{selectedDetail.name}</h3>
                   <p className="text-xs text-text-muted">slug: {selectedDetail.slug}</p>
                 </div>
-                <Button size="sm" variant="outline" onClick={handleOpenEdit}>编辑</Button>
+                <Button size="sm" variant="outline" onClick={handleOpenEdit}>
+                  编辑
+                </Button>
               </div>
 
               <div className="space-y-2 text-sm">
@@ -364,7 +371,12 @@ export function KnowledgeBasesPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-text-bright">上传资源</span>
-                  <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     {uploading ? "上传中..." : "选择文件"}
                   </Button>
                 </div>
@@ -375,7 +387,11 @@ export function KnowledgeBasesPage() {
                     {importingUrl ? "导入中..." : "导入 URL"}
                   </Button>
                 </div>
-                <Input value={urlSourceName} onChange={(e) => setUrlSourceName(e.target.value)} placeholder="可选：来源名称" />
+                <Input
+                  value={urlSourceName}
+                  onChange={(e) => setUrlSourceName(e.target.value)}
+                  placeholder="可选：来源名称"
+                />
               </div>
 
               <div className="space-y-2">
@@ -386,28 +402,30 @@ export function KnowledgeBasesPage() {
                 <div className="max-h-[320px] space-y-2 overflow-y-auto">
                   {resources.length === 0 ? (
                     <p className="text-sm text-text-muted">暂无资源</p>
-                  ) : resources.map((resource) => (
-                    <div key={resource.id} className="rounded-lg border border-border-subtle px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-medium text-text-bright">{resource.sourceName}</p>
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={resource.status} />
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            disabled={deletingResourceId === resource.id}
-                            onClick={() => void handleDeleteResource(resource.id)}
-                          >
-                            {deletingResourceId === resource.id ? "删除中..." : "删除"}
-                          </Button>
+                  ) : (
+                    resources.map((resource) => (
+                      <div key={resource.id} className="rounded-lg border border-border-subtle px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-medium text-text-bright">{resource.sourceName}</p>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={resource.status} />
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              disabled={deletingResourceId === resource.id}
+                              onClick={() => void handleDeleteResource(resource.id)}
+                            >
+                              {deletingResourceId === resource.id ? "删除中..." : "删除"}
+                            </Button>
+                          </div>
                         </div>
+                        <p className="mt-1 text-xs text-text-muted">
+                          {resource.sourceType} · {formatTimestamp(resource.updatedAt)}
+                        </p>
+                        {resource.lastError && <p className="mt-2 text-xs text-red-600">{resource.lastError}</p>}
                       </div>
-                      <p className="mt-1 text-xs text-text-muted">{resource.sourceType} · {formatTimestamp(resource.updatedAt)}</p>
-                      {resource.lastError && (
-                        <p className="mt-2 text-xs text-red-600">{resource.lastError}</p>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -435,7 +453,12 @@ export function KnowledgeBasesPage() {
           </div>
           <div>
             <Label>描述</Label>
-            <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={4} placeholder="可选，简要描述知识库用途" />
+            <Textarea
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              rows={4}
+              placeholder="可选，简要描述知识库用途"
+            />
           </div>
         </div>
       </FormDialog>

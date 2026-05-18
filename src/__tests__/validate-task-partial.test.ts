@@ -16,21 +16,50 @@ async function ensureTeam() {
   const now = new Date();
   const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(user).values({ id: TEST_USER_ID, name: "Validate Partial", email: "validate-partial@rcs.local", emailVerified: false, createdAt: now, updatedAt: now }).catch(() => {});
+    await db
+      .insert(user)
+      .values({
+        id: TEST_USER_ID,
+        name: "Validate Partial",
+        email: "validate-partial@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .catch(() => {});
   }
   const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
-  const [created] = await db.insert(team).values({ name: "Validate Partial Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
+  const [created] = await db
+    .insert(team)
+    .values({ name: "Validate Partial Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
 async function insertTask() {
-  const [row] = await db.insert(scheduledTask).values({
-    userId: TEST_USER_ID, teamId: TEST_TEAM_ID!,
-    name: `vp_${Date.now()}`, description: null, cron: "0 * * * *", timezone: null,
-    enabled: true, url: "http://localhost:9999/test", method: "GET", headers: null, body: null,
-    lastRunAt: null, nextRunAt: null, lastStatus: null,
-  }).returning();
+  const [row] = await db
+    .insert(scheduledTask)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID!,
+      name: `vp_${Date.now()}`,
+      description: null,
+      cron: "0 * * * *",
+      timezone: null,
+      enabled: true,
+      url: "http://localhost:9999/test",
+      method: "GET",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+    })
+    .returning();
   return row;
 }
 
@@ -40,11 +69,19 @@ describe("validateTaskInput accepts partial without cast", () => {
   afterAll(async () => {
     stopScheduler();
     if (TEST_TEAM_ID) {
-      try { await db.delete(taskExecutionLog); } catch {}
-      try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(taskExecutionLog);
+      } catch {}
+      try {
+        await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID));
+      } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   // updateTask 接受 Partial<CreateTaskInput>，不需要提供所有字段
@@ -93,12 +130,16 @@ describe("validateTaskInput accepts partial without cast", () => {
 
   // createTask 仍需要完整字段
   test("createTask requires full input", async () => {
-    const result = await createTask(TEST_TEAM_ID!, {
-      name: "new-task",
-      cron: "*/10 * * * *",
-      url: "http://localhost:9999/hook",
-      method: "POST",
-    }, TEST_USER_ID);
+    const result = await createTask(
+      TEST_TEAM_ID!,
+      {
+        name: "new-task",
+        cron: "*/10 * * * *",
+        url: "http://localhost:9999/hook",
+        method: "POST",
+      },
+      TEST_USER_ID,
+    );
     expect(result.success).toBe(true);
   });
 });

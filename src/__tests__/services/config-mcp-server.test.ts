@@ -70,14 +70,28 @@ describe("isValidMcpName", () => {
 describe("toServerInfo", () => {
   // local 类型
   test("local 类型", () => {
-    const info = toServerInfo("test", { type: "local", config: { type: "local", command: ["npx", "server"] }, enabled: true });
+    const info = toServerInfo("test", {
+      type: "local",
+      config: { type: "local", command: ["npx", "server"] },
+      enabled: true,
+    });
     expect(info).toEqual({ name: "test", type: "local", enabled: true, summary: "npx", timeout: undefined });
   });
 
   // remote 类型
   test("remote 类型", () => {
-    const info = toServerInfo("test", { type: "remote", config: { type: "remote", url: "https://example.com" }, enabled: true });
-    expect(info).toEqual({ name: "test", type: "remote", enabled: true, summary: "https://example.com", timeout: undefined });
+    const info = toServerInfo("test", {
+      type: "remote",
+      config: { type: "remote", url: "https://example.com" },
+      enabled: true,
+    });
+    expect(info).toEqual({
+      name: "test",
+      type: "remote",
+      enabled: true,
+      summary: "https://example.com",
+      timeout: undefined,
+    });
   });
 
   // disabled

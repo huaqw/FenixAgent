@@ -11,29 +11,40 @@ import type { AgentKnowledgeConfig, AgentKnowledgePolicy } from "../agent-knowle
 // ────────────────────────────────────────────
 
 const AGENT_SETTABLE_FIELDS = [
-  "model", "prompt", "steps", "mode", "permission",
-  "variant", "temperature", "topP", "top_p", "disable", "hidden", "color", "description", "knowledge",
+  "model",
+  "prompt",
+  "steps",
+  "mode",
+  "permission",
+  "variant",
+  "temperature",
+  "topP",
+  "top_p",
+  "disable",
+  "hidden",
+  "color",
+  "description",
+  "knowledge",
 ] as const;
 
 /** 前端字段名 → Drizzle 列名映射（路由层已做映射，此处为防御性兜底） */
 const FIELD_ALIAS: Record<string, string> = { top_p: "topP" };
 
 export async function listAgentConfigs(ctx: AuthContext) {
-  return db.select().from(agentConfig)
-    .where(eq(agentConfig.teamId, ctx.teamId));
+  return db.select().from(agentConfig).where(eq(agentConfig.teamId, ctx.teamId));
 }
 
 export async function getAgentConfig(ctx: AuthContext, name: string) {
-  const rows = await db.select().from(agentConfig)
+  const rows = await db
+    .select()
+    .from(agentConfig)
     .where(and(eq(agentConfig.teamId, ctx.teamId), eq(agentConfig.name, name)))
     .limit(1);
   return rows[0] ?? null;
 }
 
 export async function getAgentConfigById(id: string) {
-  const rows = await db.select().from(agentConfig)
-    .where(eq(agentConfig.id, id))
-    .limit(1);
+  const rows = await db.select().from(agentConfig).where(eq(agentConfig.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
@@ -49,15 +60,13 @@ function buildSetFromData(data: Record<string, unknown>): Partial<typeof agentCo
   return set;
 }
 
-export async function createAgentConfig(
-  ctx: AuthContext,
-  name: string,
-  data: Record<string, unknown>,
-) {
+export async function createAgentConfig(ctx: AuthContext, name: string, data: Record<string, unknown>) {
   const set = buildSetFromData(data);
   const values = { teamId: ctx.teamId, userId: ctx.userId, name, ...set } as typeof agentConfig.$inferInsert;
 
-  await db.insert(agentConfig).values(values)
+  await db
+    .insert(agentConfig)
+    .values(values)
     .onConflictDoUpdate({
       target: [agentConfig.teamId, agentConfig.name],
       set,
@@ -70,21 +79,23 @@ export async function updateAgentConfig(
   data: Record<string, unknown>,
 ): Promise<boolean> {
   const set = buildSetFromData(data);
-  const result = await db.update(agentConfig).set(set)
+  const result = await db
+    .update(agentConfig)
+    .set(set)
     .where(and(eq(agentConfig.teamId, ctx.teamId), eq(agentConfig.name, name)))
     .returning({ id: agentConfig.id });
   return result.length > 0;
 }
 
 export async function deleteAgentConfig(ctx: AuthContext, name: string): Promise<boolean> {
-  const result = await db.delete(agentConfig)
+  const result = await db
+    .delete(agentConfig)
     .where(and(eq(agentConfig.teamId, ctx.teamId), eq(agentConfig.name, name)))
     .returning({ id: agentConfig.id });
   return result.length > 0;
 }
 
 export { AGENT_SETTABLE_FIELDS };
-
 
 // ────────────────────────────────────────────
 // Agent Config 验证与转换
@@ -107,7 +118,8 @@ export function validateAgentData(data: Record<string, unknown>): string | null 
   if (data.mode !== undefined && typeof data.mode === "string" && !isValidMode(data.mode)) return "INVALID_MODE";
   if (data.steps !== undefined && typeof data.steps === "number" && !isValidSteps(data.steps)) return "INVALID_STEPS";
   if (data.temperature !== undefined) {
-    if (typeof data.temperature !== "number" || data.temperature < 0 || data.temperature > 2) return "INVALID_TEMPERATURE";
+    if (typeof data.temperature !== "number" || data.temperature < 0 || data.temperature > 2)
+      return "INVALID_TEMPERATURE";
   }
   if (data.top_p !== undefined) {
     if (typeof data.top_p !== "number" || data.top_p < 0 || data.top_p > 1) return "INVALID_TOP_P";
@@ -154,17 +166,15 @@ function validateKnowledgeConfig(value: unknown): string | null {
       return "INVALID_KNOWLEDGE_SEARCH_FIRST";
     }
     if (
-      policy.maxResults !== undefined
-      && (!Number.isInteger(policy.maxResults) || (policy.maxResults as number) < 1 || (policy.maxResults as number) > 20)
+      policy.maxResults !== undefined &&
+      (!Number.isInteger(policy.maxResults) || (policy.maxResults as number) < 1 || (policy.maxResults as number) > 20)
     ) {
       return "INVALID_KNOWLEDGE_MAX_RESULTS";
     }
     if (
-      policy.defaultNamespaces !== undefined
-      && (
-        !Array.isArray(policy.defaultNamespaces)
-        || policy.defaultNamespaces.some((item) => typeof item !== "string" || item.trim().length === 0)
-      )
+      policy.defaultNamespaces !== undefined &&
+      (!Array.isArray(policy.defaultNamespaces) ||
+        policy.defaultNamespaces.some((item) => typeof item !== "string" || item.trim().length === 0))
     ) {
       return "INVALID_KNOWLEDGE_DEFAULT_NAMESPACES";
     }

@@ -13,7 +13,9 @@ beforeEach(() => {
     setItem: () => {},
     removeItem: () => {},
     clear: () => {},
-    get length() { return 0; },
+    get length() {
+      return 0;
+    },
     key: () => null,
   };
 });
@@ -40,7 +42,9 @@ describe("KnowledgeBasesPage helpers", () => {
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mock(() =>
-      Promise.resolve(new Response(JSON.stringify(mockData), { status: 200, headers: { "Content-Type": "application/json" } }))
+      Promise.resolve(
+        new Response(JSON.stringify(mockData), { status: 200, headers: { "Content-Type": "application/json" } }),
+      ),
     ) as typeof fetch;
 
     try {
@@ -89,7 +93,9 @@ describe("KnowledgeBasesPage helpers", () => {
     globalThis.fetch = mock(() => {
       callCount++;
       const body = callCount === 1 ? detailData : resourcesData;
-      return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
+      return Promise.resolve(
+        new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
     }) as typeof fetch;
 
     try {
@@ -110,14 +116,38 @@ describe("KnowledgeBasesPage helpers", () => {
   test("uploadKnowledgeBaseFiles uploads files via fetchUpload", async () => {
     const mockResponse = {
       items: [
-        { id: "res_0", knowledgeBaseId: "kb_1", sourceName: "a.md", sourceType: "upload", sourcePath: null, remoteId: null, status: "processing", lastError: null, createdAt: 1, updatedAt: 1 },
-        { id: "res_1", knowledgeBaseId: "kb_1", sourceName: "b.md", sourceType: "upload", sourcePath: null, remoteId: null, status: "processing", lastError: null, createdAt: 1, updatedAt: 1 },
+        {
+          id: "res_0",
+          knowledgeBaseId: "kb_1",
+          sourceName: "a.md",
+          sourceType: "upload",
+          sourcePath: null,
+          remoteId: null,
+          status: "processing",
+          lastError: null,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "res_1",
+          knowledgeBaseId: "kb_1",
+          sourceName: "b.md",
+          sourceType: "upload",
+          sourcePath: null,
+          remoteId: null,
+          status: "processing",
+          lastError: null,
+          createdAt: 1,
+          updatedAt: 1,
+        },
       ],
     };
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mock(() =>
-      Promise.resolve(new Response(JSON.stringify(mockResponse), { status: 200, headers: { "Content-Type": "application/json" } }))
+      Promise.resolve(
+        new Response(JSON.stringify(mockResponse), { status: 200, headers: { "Content-Type": "application/json" } }),
+      ),
     ) as typeof fetch;
 
     try {

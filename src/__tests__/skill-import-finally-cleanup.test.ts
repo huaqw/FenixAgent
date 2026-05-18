@@ -22,15 +22,19 @@ beforeEach(() => {
   } as any;
   _deps.skillFs = {
     createSkillValidationError: (msg: string) => new Error(msg),
-    groupUploadFiles: () => new Map([
-      ["test-skill", [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }]],
-    ]),
+    groupUploadFiles: () =>
+      new Map([["test-skill", [{ relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }]]]),
     listSkillsFromDir: mock(async () => []),
     readSkillDetailFromMd: mock(async () => null),
     writeSkillMd: mock(async () => "/tmp/skill/SKILL.md"),
     deleteSkillDir: mock(async () => {}),
     resolveImportPlan: mock(() => ({
-      pendingEntries: [["test-skill", [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }]]],
+      pendingEntries: [
+        [
+          "test-skill",
+          [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }],
+        ],
+      ],
       skipped: [],
     })),
     writeImportFiles: mockWriteImportFiles,
@@ -54,7 +58,11 @@ describe("skill import finally block error handling", () => {
     });
 
     const files = [{ skillName: "test-skill", relativePath: "SKILL.md", content: "---\nname: test\n---\ncontent" }];
-    const result = await importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, files, "overwrite");
+    const result = await importSkillDirectories(
+      { teamId: "test-team", userId: "user-1", role: "owner" },
+      files,
+      "overwrite",
+    );
 
     expect(result.imported).toBeDefined();
     expect(result.imported.length).toBeGreaterThan(0);

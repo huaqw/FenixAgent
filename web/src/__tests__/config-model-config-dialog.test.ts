@@ -21,9 +21,7 @@ describe("buildModelOptions", () => {
   });
 
   test("handles null/undefined fields gracefully", () => {
-    const available = [
-      { id: "test", provider: "p", label: "Test", fullId: "p/test" },
-    ] as ModelEntry[];
+    const available = [{ id: "test", provider: "p", label: "Test", fullId: "p/test" }] as ModelEntry[];
     const result = buildModelOptions(available);
     expect(result).toEqual([{ value: "p/test", label: "Test (p)" }]);
   });

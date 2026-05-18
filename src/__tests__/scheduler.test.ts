@@ -31,11 +31,14 @@ async function ensureTeam() {
     TEST_TEAM_ID = existing[0].id;
     return;
   }
-  const [created] = await db.insert(team).values({
-    name: "Scheduler Test Team",
-    slug: TEST_TEAM_SLUG,
-    createdBy: TEST_USER_ID,
-  }).returning();
+  const [created] = await db
+    .insert(team)
+    .values({
+      name: "Scheduler Test Team",
+      slug: TEST_TEAM_SLUG,
+      createdBy: TEST_USER_ID,
+    })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
@@ -54,29 +57,36 @@ async function ensureUser() {
 }
 
 async function insertTask(enabled: boolean, timezone: string | null, cron = "* * * * *") {
-  const [row] = await db.insert(scheduledTask).values({
-    userId: TEST_USER_ID,
-    teamId: TEST_TEAM_ID!,
-    name: `task_${Date.now()}`,
-    description: null,
-    cron,
-    timezone,
-    enabled,
-    url: "https://httpbin.org/post",
-    method: "POST",
-    headers: null,
-    body: null,
-    lastRunAt: null,
-    nextRunAt: null,
-    lastStatus: null,
-  }).returning();
+  const [row] = await db
+    .insert(scheduledTask)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID!,
+      name: `task_${Date.now()}`,
+      description: null,
+      cron,
+      timezone,
+      enabled,
+      url: "https://httpbin.org/post",
+      method: "POST",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+    })
+    .returning();
   return row;
 }
 
 async function cleanupRows() {
-  try { await db.delete(taskExecutionLog); } catch {}
+  try {
+    await db.delete(taskExecutionLog);
+  } catch {}
   if (TEST_TEAM_ID) {
-    try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
+    try {
+      await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID));
+    } catch {}
   }
 }
 
@@ -94,9 +104,13 @@ describe("Scheduler", () => {
   afterAll(async () => {
     stopScheduler();
     await cleanupRows();
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
     if (TEST_TEAM_ID) {
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
   });
 

@@ -6,12 +6,7 @@ import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { Scan } from "lucide-react";
 import { useTheme } from "../lib/theme";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 
 interface IdentityPanelProps {
   open: boolean;
@@ -27,9 +22,8 @@ export function IdentityPanel({ open, onClose }: IdentityPanelProps) {
   const uuid = getUuid();
   const { resolvedTheme } = useTheme();
 
-  const qrColors = resolvedTheme === "dark"
-    ? { dark: "#ECE9E0", light: "#1C1B18" }
-    : { dark: "#141413", light: "#FDFCF8" };
+  const qrColors =
+    resolvedTheme === "dark" ? { dark: "#ECE9E0", light: "#1C1B18" } : { dark: "#141413", light: "#FDFCF8" };
 
   useEffect(() => {
     if (!open) return;
@@ -153,7 +147,12 @@ export function IdentityPanel({ open, onClose }: IdentityPanelProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm rounded-2xl border-border bg-surface-1 p-6 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="font-display text-lg font-semibold text-text-primary">Identity</DialogTitle>

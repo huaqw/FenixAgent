@@ -29,13 +29,9 @@ export function SessionList({ sessions, onSelect }: SessionListProps) {
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-medium text-text-primary">
-                {session.title || session.id}
-              </span>
+              <span className="truncate text-sm font-medium text-text-primary">{session.title || session.id}</span>
               {session.source === "acp" && (
-                <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-                  ACP
-                </span>
+                <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">ACP</span>
               )}
             </div>
             <div className="truncate text-xs text-text-muted mt-0.5">{session.id}</div>

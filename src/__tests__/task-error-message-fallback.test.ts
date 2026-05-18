@@ -14,23 +14,51 @@ let TEST_TEAM_ID: string | undefined;
 
 async function ensureTeam() {
   const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
   const now = new Date();
   const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(user).values({ id: TEST_USER_ID, name: "Task Err Msg", email: "task-err-msg@rcs.local", emailVerified: false, createdAt: now, updatedAt: now });
+    await db
+      .insert(user)
+      .values({
+        id: TEST_USER_ID,
+        name: "Task Err Msg",
+        email: "task-err-msg@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      });
   }
-  const [created] = await db.insert(team).values({ name: "Task Err Msg Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  const [created] = await db
+    .insert(team)
+    .values({ name: "Task Err Msg Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
 async function insertTask(suffix: string) {
-  const [row] = await db.insert(scheduledTask).values({
-    userId: TEST_USER_ID, teamId: TEST_TEAM_ID!,
-    name: `em_${suffix}_${Date.now()}`, description: null, cron: "* * * * *", timezone: null,
-    enabled: true, url: "http://localhost:9999/test", method: "GET", headers: null, body: null,
-    lastRunAt: null, nextRunAt: null, lastStatus: null,
-  }).returning();
+  const [row] = await db
+    .insert(scheduledTask)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID!,
+      name: `em_${suffix}_${Date.now()}`,
+      description: null,
+      cron: "* * * * *",
+      timezone: null,
+      enabled: true,
+      url: "http://localhost:9999/test",
+      method: "GET",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+    })
+    .returning();
   return row;
 }
 
@@ -40,11 +68,19 @@ describe("executeTaskById HTTP error message", () => {
   afterAll(async () => {
     stopScheduler();
     if (TEST_TEAM_ID) {
-      try { await db.delete(taskExecutionLog); } catch {}
-      try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(taskExecutionLog);
+      } catch {}
+      try {
+        await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID));
+      } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   // 有 body 的 HTTP 错误保留原始格式
@@ -52,7 +88,9 @@ describe("executeTaskById HTTP error message", () => {
     const task = await insertTask("body");
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: false, status: 500, text: async () => "Internal Server Error",
+      ok: false,
+      status: 500,
+      text: async () => "Internal Server Error",
     })) as unknown as typeof fetch;
 
     const result = await executeTaskById(task.id, "manual", task as any);
@@ -68,7 +106,9 @@ describe("executeTaskById HTTP error message", () => {
     const task = await insertTask("empty");
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: false, status: 502, text: async () => "",
+      ok: false,
+      status: 502,
+      text: async () => "",
     })) as unknown as typeof fetch;
 
     const result = await executeTaskById(task.id, "manual", task as any);
@@ -85,7 +125,11 @@ describe("executeTaskById HTTP error message", () => {
     const task = await insertTask("throw");
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: false, status: 503, text: async () => { throw new Error("stream error"); },
+      ok: false,
+      status: 503,
+      text: async () => {
+        throw new Error("stream error");
+      },
     })) as unknown as typeof fetch;
 
     const result = await executeTaskById(task.id, "manual", task as any);
@@ -101,7 +145,9 @@ describe("executeTaskById HTTP error message", () => {
     const task = await insertTask("ok");
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true, status: 200, text: async () => "OK",
+      ok: true,
+      status: 200,
+      text: async () => "OK",
     })) as unknown as typeof fetch;
 
     const result = await executeTaskById(task.id, "manual", task as any);

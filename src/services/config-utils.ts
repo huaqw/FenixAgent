@@ -25,10 +25,13 @@ export function configValidationError(message: string) {
 
 /** 通用资源名校验：1-64 字符，小写字母数字和单连字符 */
 export function isValidResourceName(name: string): boolean {
-  return typeof name === "string"
-    && name.length >= 1 && name.length <= 64
-    && !name.includes("--")
-    && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name);
+  return (
+    typeof name === "string" &&
+    name.length >= 1 &&
+    name.length <= 64 &&
+    !name.includes("--") &&
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name)
+  );
 }
 
 /** 从 apiKey 字段生成 keyHint：取尾 4 位，前缀 *** */
@@ -53,6 +56,9 @@ export function safeJsonStringify(value: unknown): string | undefined {
 /** JSONB 安全反序列化 */
 export function safeJsonParse<T>(value: string | null | undefined): T | null {
   if (!value) return null;
-  try { return JSON.parse(value) as T; }
-  catch { return null; }
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }

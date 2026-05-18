@@ -62,7 +62,9 @@ describe("API Key Service", () => {
 
   afterAll(async () => {
     await cleanupApiKeys();
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   describe("createApiKey", () => {

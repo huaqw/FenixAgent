@@ -47,17 +47,24 @@ async function ensureTeam() {
     createdAt: now,
     updatedAt: now,
   });
-  await db.insert(teamMember).values({
-    teamId: TEAM_ID,
-    userId: TEST_USER_ID,
-    role: "owner",
-    joinedAt: now,
-  }).onConflictDoNothing();
+  await db
+    .insert(teamMember)
+    .values({
+      teamId: TEAM_ID,
+      userId: TEST_USER_ID,
+      role: "owner",
+      joinedAt: now,
+    })
+    .onConflictDoNothing();
 }
 
 async function cleanup() {
-  try { await db.delete(taskExecutionLog); } catch {}
-  try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_ID)); } catch {}
+  try {
+    await db.delete(taskExecutionLog);
+  } catch {}
+  try {
+    await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_ID));
+  } catch {}
 }
 
 await ensureUser();

@@ -1,9 +1,6 @@
 import Elysia from "elysia";
 import { getSession, updateSessionStatus } from "../../services/session";
-import {
-  automationStatesEqual,
-  getAutomationStateEventPayload,
-} from "../../services/automationState";
+import { automationStatesEqual, getAutomationStateEventPayload } from "../../services/automationState";
 import { authGuardPlugin } from "../../plugins/auth";
 import { eventService } from "../../services/event-service";
 import { sessionWorkerRepo } from "../../repositories";
@@ -15,90 +12,106 @@ const app = new Elysia({ name: "v1-code-sessions-worker", prefix: "/v1/code/sess
   .model({ "update-worker-request": UpdateWorkerRequestSchema });
 
 /** GET /v1/code/sessions/:id/worker — Read worker state */
-app.get("/:id/worker", async ({ params, error }) => {
-  const sessionId = params.id;
-  const session = await getSession(sessionId);
-  if (!session) {
-    return error(404, { error: { type: "not_found", message: "Session not found" } });
-  }
+app.get(
+  "/:id/worker",
+  async ({ params, error }) => {
+    const sessionId = params.id;
+    const session = await getSession(sessionId);
+    if (!session) {
+      return error(404, { error: { type: "not_found", message: "Session not found" } });
+    }
 
-  const worker = await sessionWorkerRepo.get(sessionId);
-  return {
-    worker: {
-      worker_status: worker?.workerStatus ?? session.status,
-      external_metadata: worker?.externalMetadata ?? null,
-      requires_action_details: worker?.requiresActionDetails ?? null,
-      last_heartbeat_at: worker?.lastHeartbeatAt?.toISOString() ?? null,
-    },
-  };
-}, { sessionIngressAuth: true });
+    const worker = await sessionWorkerRepo.get(sessionId);
+    return {
+      worker: {
+        worker_status: worker?.workerStatus ?? session.status,
+        external_metadata: worker?.externalMetadata ?? null,
+        requires_action_details: worker?.requiresActionDetails ?? null,
+        last_heartbeat_at: worker?.lastHeartbeatAt?.toISOString() ?? null,
+      },
+    };
+  },
+  { sessionIngressAuth: true },
+);
 
 /** PUT /v1/code/sessions/:id/worker — Update worker state */
-app.put("/:id/worker", async ({ params, body, error }) => {
-  const sessionId = params.id;
-  const session = await getSession(sessionId);
-  if (!session) {
-    return error(404, { error: { type: "not_found", message: "Session not found" } });
-  }
+app.put(
+  "/:id/worker",
+  async ({ params, body, error }) => {
+    const sessionId = params.id;
+    const session = await getSession(sessionId);
+    if (!session) {
+      return error(404, { error: { type: "not_found", message: "Session not found" } });
+    }
 
-  const b = body as UpdateWorkerRequest;
-  const prevAutomationState = getAutomationStateEventPayload(
-    (await sessionWorkerRepo.get(sessionId))?.externalMetadata,
-  );
-  if (b.worker_status) {
-    await updateSessionStatus(sessionId, b.worker_status);
-  }
+    const b = body as UpdateWorkerRequest;
+    const prevAutomationState = getAutomationStateEventPayload(
+      (await sessionWorkerRepo.get(sessionId))?.externalMetadata,
+    );
+    if (b.worker_status) {
+      await updateSessionStatus(sessionId, b.worker_status);
+    }
 
-  const worker = await sessionWorkerRepo.upsert(sessionId, {
-    workerStatus: b.worker_status,
-    externalMetadata: b.external_metadata,
-    requiresActionDetails: b.requires_action_details,
-  });
-  const nextAutomationState = getAutomationStateEventPayload(worker.externalMetadata);
-
-  if (!automationStatesEqual(prevAutomationState, nextAutomationState)) {
-    eventService.publishEvent(sessionId, {
-      id: uuid(),
-      sessionId,
-      type: "automation_state",
-      payload: nextAutomationState,
-      direction: "inbound",
+    const worker = await sessionWorkerRepo.upsert(sessionId, {
+      workerStatus: b.worker_status,
+      externalMetadata: b.external_metadata,
+      requiresActionDetails: b.requires_action_details,
     });
-  }
+    const nextAutomationState = getAutomationStateEventPayload(worker.externalMetadata);
 
-  return {
-    status: "ok",
-    worker: {
-      worker_status: worker.workerStatus ?? session.status,
-      external_metadata: worker.externalMetadata,
-      requires_action_details: worker.requiresActionDetails,
-      last_heartbeat_at: worker.lastHeartbeatAt?.toISOString() ?? null,
-    },
-  };
-}, { sessionIngressAuth: true, body: "update-worker-request" });
+    if (!automationStatesEqual(prevAutomationState, nextAutomationState)) {
+      eventService.publishEvent(sessionId, {
+        id: uuid(),
+        sessionId,
+        type: "automation_state",
+        payload: nextAutomationState,
+        direction: "inbound",
+      });
+    }
+
+    return {
+      status: "ok",
+      worker: {
+        worker_status: worker.workerStatus ?? session.status,
+        external_metadata: worker.externalMetadata,
+        requires_action_details: worker.requiresActionDetails,
+        last_heartbeat_at: worker.lastHeartbeatAt?.toISOString() ?? null,
+      },
+    };
+  },
+  { sessionIngressAuth: true, body: "update-worker-request" },
+);
 
 /** POST /v1/code/sessions/:id/worker/heartbeat — Keep worker alive */
-app.post("/:id/worker/heartbeat", async ({ params, error }) => {
-  const sessionId = params.id;
-  const session = await getSession(sessionId);
-  if (!session) {
-    return error(404, { error: { type: "not_found", message: "Session not found" } });
-  }
+app.post(
+  "/:id/worker/heartbeat",
+  async ({ params, error }) => {
+    const sessionId = params.id;
+    const session = await getSession(sessionId);
+    if (!session) {
+      return error(404, { error: { type: "not_found", message: "Session not found" } });
+    }
 
-  const now = new Date();
-  await sessionWorkerRepo.upsert(sessionId, { lastHeartbeatAt: now });
-  return { status: "ok", last_heartbeat_at: now.toISOString() };
-}, { sessionIngressAuth: true });
+    const now = new Date();
+    await sessionWorkerRepo.upsert(sessionId, { lastHeartbeatAt: now });
+    return { status: "ok", last_heartbeat_at: now.toISOString() };
+  },
+  { sessionIngressAuth: true },
+);
 
 /** POST /v1/code/sessions/:id/worker/register — Register worker */
-app.post("/:id/worker/register", async ({ params, error }) => {
-  const sessionId = params.id;
-  const session = await getSession(sessionId);
-  if (!session) {
-    return error(404, { error: { type: "not_found", message: "Session not found" } });
-  }
+app.post(
+  "/:id/worker/register",
+  async ({ params, error }) => {
+    const sessionId = params.id;
+    const session = await getSession(sessionId);
+    if (!session) {
+      return error(404, { error: { type: "not_found", message: "Session not found" } });
+    }
 
-  return { status: "ok" };
-}, { apiKeyAuth: true });
+    return { status: "ok" };
+  },
+  { apiKeyAuth: true },
+);
 
 export default app;

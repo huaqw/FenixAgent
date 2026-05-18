@@ -119,9 +119,7 @@ export function AskUserPanelView({
         </div>
         <div className="space-y-2">
           {(q.options || []).map((opt, j) => {
-            const isSelected = multiSelect
-              ? ((answers[0] as number[]) || []).includes(j)
-              : answers[0] === j;
+            const isSelected = multiSelect ? ((answers[0] as number[]) || []).includes(j) : answers[0] === j;
             return (
               <button
                 key={j}
@@ -147,14 +145,27 @@ export function AskUserPanelView({
               className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand focus:outline-none"
               onKeyDown={(e) => e.key === "Enter" && handleOtherSubmit(0)}
             />
-            <button onClick={() => handleOtherSubmit(0)} className="rounded-lg border border-border px-3 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors">
+            <button
+              onClick={() => handleOtherSubmit(0)}
+              className="rounded-lg border border-border px-3 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors"
+            >
               Send
             </button>
           </div>
         </div>
         <div className="mt-4 flex gap-2">
-          <button onClick={handleSubmit} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors">Submit</button>
-          <button onClick={onSkip} className="rounded-lg border border-border px-4 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors">Skip</button>
+          <button
+            onClick={handleSubmit}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors"
+          >
+            Submit
+          </button>
+          <button
+            onClick={onSkip}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors"
+          >
+            Skip
+          </button>
         </div>
       </div>
     );
@@ -194,10 +205,22 @@ export function AskUserPanelView({
       )}
 
       <div className="mt-4 flex items-center justify-between">
-        <span className="text-xs text-text-muted">{activeTab + 1} / {questions.length}</span>
+        <span className="text-xs text-text-muted">
+          {activeTab + 1} / {questions.length}
+        </span>
         <div className="flex gap-2">
-          <button onClick={handleSubmit} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors">Submit All</button>
-          <button onClick={onSkip} className="rounded-lg border border-border px-4 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors">Skip</button>
+          <button
+            onClick={handleSubmit}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-light transition-colors"
+          >
+            Submit All
+          </button>
+          <button
+            onClick={onSkip}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors"
+          >
+            Skip
+          </button>
         </div>
       </div>
     </div>
@@ -205,7 +228,13 @@ export function AskUserPanelView({
 }
 
 function QuestionTab({
-  question, qIdx, answers, otherTexts, onSelect, onOtherTextChange, onOtherSubmit,
+  question,
+  qIdx,
+  answers,
+  otherTexts,
+  onSelect,
+  onOtherTextChange,
+  onOtherSubmit,
 }: {
   question: Question;
   qIdx: number;
@@ -222,9 +251,7 @@ function QuestionTab({
       <div className="mb-2 text-sm text-text-secondary">{esc(question.question)}</div>
       <div className="space-y-2">
         {(question.options || []).map((opt, j) => {
-          const isSelected = multiSelect
-            ? ((answers[qIdx] as number[]) || []).includes(j)
-            : answers[qIdx] === j;
+          const isSelected = multiSelect ? ((answers[qIdx] as number[]) || []).includes(j) : answers[qIdx] === j;
           return (
             <button
               key={j}
@@ -250,7 +277,12 @@ function QuestionTab({
             className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand focus:outline-none"
             onKeyDown={(e) => e.key === "Enter" && onOtherSubmit(qIdx)}
           />
-          <button onClick={() => onOtherSubmit(qIdx)} className="rounded-lg border border-border px-3 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors">Send</button>
+          <button
+            onClick={() => onOtherSubmit(qIdx)}
+            className="rounded-lg border border-border px-3 py-2 text-sm text-text-secondary hover:bg-surface-2 transition-colors"
+          >
+            Send
+          </button>
         </div>
       </div>
     </div>
@@ -304,9 +336,24 @@ export function PlanPanelView({
           </>
         ) : (
           <>
-            <PlanOption selected={selected === "yes-accept-edits"} onClick={() => setSelected("yes-accept-edits")} label="Yes, auto-accept edits" desc="Approve plan and auto-accept file edits" />
-            <PlanOption selected={selected === "yes-default"} onClick={() => setSelected("yes-default")} label="Yes, manually approve edits" desc="Approve plan but confirm each edit" />
-            <PlanOption selected={selected === "no"} onClick={() => setSelected("no")} label="No, keep planning" desc="Provide feedback to refine the plan" />
+            <PlanOption
+              selected={selected === "yes-accept-edits"}
+              onClick={() => setSelected("yes-accept-edits")}
+              label="Yes, auto-accept edits"
+              desc="Approve plan and auto-accept file edits"
+            />
+            <PlanOption
+              selected={selected === "yes-default"}
+              onClick={() => setSelected("yes-default")}
+              label="Yes, manually approve edits"
+              desc="Approve plan but confirm each edit"
+            />
+            <PlanOption
+              selected={selected === "no"}
+              onClick={() => setSelected("no")}
+              label="No, keep planning"
+              desc="Provide feedback to refine the plan"
+            />
           </>
         )}
       </div>
@@ -332,20 +379,34 @@ export function PlanPanelView({
   );
 }
 
-function PlanOption({ selected, onClick, label, desc }: { selected: boolean; onClick: () => void; label: string; desc?: string }) {
+function PlanOption({
+  selected,
+  onClick,
+  label,
+  desc,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  desc?: string;
+}) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full rounded-lg border px-4 py-2.5 text-left text-sm transition-colors",
-        selected ? "border-brand bg-brand/10 text-text-primary" : "border-border bg-surface-2 text-text-secondary hover:border-border-light",
+        selected
+          ? "border-brand bg-brand/10 text-text-primary"
+          : "border-border bg-surface-2 text-text-secondary hover:border-border-light",
       )}
     >
       <div className="flex items-center gap-2">
-        <span className={cn(
-          "flex h-4 w-4 items-center justify-center rounded-full border text-[10px] transition-colors",
-          selected ? "border-brand bg-brand text-white" : "border-border",
-        )}>
+        <span
+          className={cn(
+            "flex h-4 w-4 items-center justify-center rounded-full border text-[10px] transition-colors",
+            selected ? "border-brand bg-brand text-white" : "border-border",
+          )}
+        >
           {selected && "\u2713"}
         </span>
         <span className="font-medium">{label}</span>
@@ -357,8 +418,10 @@ function PlanOption({ selected, onClick, label, desc }: { selected: boolean; onC
 
 function formatPlanContent(content: string): string {
   let html = esc(content);
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, _l, code) =>
-    `<pre class="my-2 overflow-x-auto rounded-lg bg-tool-card p-3 font-mono text-xs">${code.trim()}</pre>`
+  html = html.replace(
+    /```(\w*)\n?([\s\S]*?)```/g,
+    (_, _l, code) =>
+      `<pre class="my-2 overflow-x-auto rounded-lg bg-tool-card p-3 font-mono text-xs">${code.trim()}</pre>`,
   );
   html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-tool-card px-1.5 py-0.5 font-mono text-xs">$1</code>');
   html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");

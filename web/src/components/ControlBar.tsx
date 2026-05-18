@@ -12,13 +12,7 @@ interface ControlBarProps {
   onInterrupt: () => Promise<void>;
 }
 
-export function ControlBar({
-  sessionId,
-  sessionStatus,
-  activityMode,
-  onSend,
-  onInterrupt,
-}: ControlBarProps) {
+export function ControlBar({ sessionId, sessionStatus, activityMode, onSend, onInterrupt }: ControlBarProps) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const closed = isClosedSessionStatus(sessionStatus);

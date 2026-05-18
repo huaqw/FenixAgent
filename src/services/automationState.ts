@@ -51,10 +51,7 @@ export function getAutomationStateEventPayload(
   return getAutomationStateSnapshot(metadata) ?? cloneAutomationState(DISABLED_AUTOMATION_STATE);
 }
 
-export function automationStatesEqual(
-  a: AutomationStateResponse,
-  b: AutomationStateResponse,
-): boolean {
+export function automationStatesEqual(a: AutomationStateResponse, b: AutomationStateResponse): boolean {
   return (
     a.enabled === b.enabled &&
     a.phase === b.phase &&

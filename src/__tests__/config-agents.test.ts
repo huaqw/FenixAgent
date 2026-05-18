@@ -1,10 +1,15 @@
-import { describe, test, expect, beforeEach, mock , afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
 import { setTestAuth, resetTestAuth } from "../plugins/auth";
 import { setTestTeamContext } from "../services/team-context";
 
 // In-memory mock for agent configs and user config
 let _agentStore: Record<string, any> = {};
-let _userConfig: { defaultAgent: string | null; currentModel: string | null; smallModel: string | null; permission: unknown } = { defaultAgent: null, currentModel: null, smallModel: null, permission: null };
+let _userConfig: {
+  defaultAgent: string | null;
+  currentModel: string | null;
+  smallModel: string | null;
+  permission: unknown;
+} = { defaultAgent: null, currentModel: null, smallModel: null, permission: null };
 let _agentKnowledgeBindings: Record<string, { knowledgeBaseId: string; priority: number; enabled: boolean }[]> = {};
 
 mock.module("../services/config-pg", () => ({
@@ -49,7 +54,11 @@ mock.module("../services/agent-knowledge", () => ({
   InvalidKnowledgeBindingError: class InvalidKnowledgeBindingError extends Error {
     code = "INVALID_KNOWLEDGE_BINDINGS";
   },
-  syncAgentKnowledgeBindingsById: async (teamId: string, agentConfigId: string, knowledge: { knowledgeBaseIds: string[] } | null | undefined) => {
+  syncAgentKnowledgeBindingsById: async (
+    teamId: string,
+    agentConfigId: string,
+    knowledge: { knowledgeBaseIds: string[] } | null | undefined,
+  ) => {
     const missingIds = (knowledge?.knowledgeBaseIds ?? []).filter((id) => id === "kb_missing");
     if (missingIds.length > 0) {
       const error = new Error(`知识库不存在或无权限访问: ${missingIds.join(", ")}`) as Error & { code: string };
@@ -77,7 +86,9 @@ mock.module("../services/agent-knowledge", () => ({
     }
     return counts;
   },
-  resolveAgentKnowledgePolicy: (policy?: { searchFirst?: boolean; maxResults?: number; defaultNamespaces?: string[] } | null) => ({
+  resolveAgentKnowledgePolicy: (
+    policy?: { searchFirst?: boolean; maxResults?: number; defaultNamespaces?: string[] } | null,
+  ) => ({
     searchFirst: policy?.searchFirst ?? true,
     maxResults: policy?.maxResults ?? 5,
     defaultNamespaces: policy?.defaultNamespaces ?? [],
@@ -87,7 +98,7 @@ mock.module("../services/agent-knowledge", () => ({
 const agentsRoute = (await import("../routes/web/config/agents")).default;
 
 describe("Agents Config Route", () => {
-    afterEach(() => {
+  afterEach(() => {
     resetTestAuth();
     setTestTeamContext(null);
   });
@@ -108,11 +119,13 @@ describe("Agents Config Route", () => {
   });
 
   test("list 返回所有 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.default_agent).toBe("build");
@@ -122,11 +135,13 @@ describe("Agents Config Route", () => {
   });
 
   test("get 已有 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get", name: "build" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", name: "build" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("build");
@@ -137,22 +152,26 @@ describe("Agents Config Route", () => {
   });
 
   test("get 不存在 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get", name: "nonexistent" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", name: "nonexistent" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("set 更新已有 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set", name: "build", data: { steps: 100 } }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "build", data: { steps: 100 } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(_agentStore.build.steps).toBe(100);
@@ -160,53 +179,61 @@ describe("Agents Config Route", () => {
   });
 
   test("set returns validation error when knowledge base ids are invalid", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "set",
-        name: "build",
-        data: {
-          knowledge: {
-            knowledgeBaseIds: ["kb_missing"],
-            policy: { searchFirst: true, maxResults: 5 },
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set",
+          name: "build",
+          data: {
+            knowledge: {
+              knowledgeBaseIds: ["kb_missing"],
+              policy: { searchFirst: true, maxResults: 5 },
+            },
           },
-        },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("INVALID_KNOWLEDGE_BINDINGS");
   });
 
   test("set 不存在 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set", name: "ghost", data: { model: "x" } }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "ghost", data: { model: "x" } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("set 校验 steps 无效", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set", name: "build", data: { steps: 999 } }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "build", data: { steps: 999 } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
 
   test("create 新 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create", name: "reviewer", data: { model: "gpt-4o", mode: "subagent" } }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", name: "reviewer", data: { model: "gpt-4o", mode: "subagent" } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(_agentStore.reviewer).toBeDefined();
@@ -214,77 +241,91 @@ describe("Agents Config Route", () => {
   });
 
   test("create 已存在", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create", name: "build", data: { model: "x" } }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", name: "build", data: { model: "x" } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("ALREADY_EXISTS");
   });
 
   test("create 无效 name", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create", name: "Invalid!", data: { model: "x" } }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", name: "Invalid!", data: { model: "x" } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
 
   test("delete 自定义 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "code-reviewer" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "code-reviewer" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect("code-reviewer" in _agentStore).toBe(false);
   });
 
   test("delete 内置 agent 返回 FORBIDDEN", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "build" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "build" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("FORBIDDEN");
   });
 
   test("delete 不存在 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "ghost" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "ghost" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("set_default 已有 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set_default", name: "plan" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_default", name: "plan" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(_userConfig.defaultAgent).toBe("plan");
   });
 
   test("set_default 不存在 agent", async () => {
-    const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set_default", name: "nope" }),
-    }));
+    const res = await agentsRoute.handle(
+      new Request("http://localhost/web/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_default", name: "nope" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
@@ -293,11 +334,13 @@ describe("Agents Config Route", () => {
   describe("handleList — description 和 color 字段", () => {
     test("handleList 返回 description 和 color", async () => {
       _agentStore["test-agent"] = { model: "gpt-4o", mode: "primary", description: "测试描述", color: "primary" };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list" }),
+        }),
+      );
       const json = await res.json();
       const agent = json.data.agents.find((a: any) => a.name === "test-agent");
       expect(agent.description).toBe("测试描述");
@@ -306,11 +349,13 @@ describe("Agents Config Route", () => {
 
     test("handleList 无 description/color 时返回 null", async () => {
       _agentStore["no-meta"] = { model: "gpt-4o" };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list" }),
+        }),
+      );
       const json = await res.json();
       const agent = json.data.agents.find((a: any) => a.name === "no-meta");
       expect(agent.description).toBe(null);
@@ -321,11 +366,13 @@ describe("Agents Config Route", () => {
   describe("handleGet — tools→permission 转换", () => {
     test("handleGet tools→permission 转换", async () => {
       _agentStore["tool-agent"] = { tools: { bash: true, read: false } };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get", name: "tool-agent" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get", name: "tool-agent" }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.data.permission).toEqual({ bash: "allow", read: "deny" });
@@ -333,33 +380,39 @@ describe("Agents Config Route", () => {
 
     test("handleGet 无 tools 无 permission", async () => {
       _agentStore["no-perm"] = { model: "gpt-4o" };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get", name: "no-perm" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get", name: "no-perm" }),
+        }),
+      );
       const json = await res.json();
       expect(json.data.permission).toBe(null);
     });
 
     test("handleGet 已有 permission 不转换", async () => {
       _agentStore["perm-agent"] = { tools: { bash: true }, permission: { bash: "ask" } };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get", name: "perm-agent" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get", name: "perm-agent" }),
+        }),
+      );
       const json = await res.json();
       expect(json.data.permission).toEqual({ bash: "ask" });
     });
 
     test("handleGet 新增字段默认值", async () => {
       _agentStore["new-fields"] = { model: "gpt-4o" };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get", name: "new-fields" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get", name: "new-fields" }),
+        }),
+      );
       const json = await res.json();
       expect(json.data.variant).toBe(null);
       expect(json.data.temperature).toBe(null);
@@ -382,11 +435,13 @@ describe("Agents Config Route", () => {
         description: "测试",
         knowledge: { knowledgeBaseIds: ["kb_a"], policy: { searchFirst: false, maxResults: 3 } },
       };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get", name: "val-agent" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get", name: "val-agent" }),
+        }),
+      );
       const json = await res.json();
       expect(json.data.variant).toBe("thinking");
       expect(json.data.temperature).toBe(0.7);
@@ -405,11 +460,13 @@ describe("Agents Config Route", () => {
   describe("handleSet — 白名单过滤和新字段", () => {
     test("handleSet 写入 permission", async () => {
       _agentStore["set-agent"] = { model: "gpt-4o", tools: { bash: true } };
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "set-agent", data: { permission: { bash: "deny" } } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "set-agent", data: { permission: { bash: "deny" } } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore["set-agent"].tools).toBeUndefined();
@@ -417,11 +474,13 @@ describe("Agents Config Route", () => {
     });
 
     test("handleSet 过滤非法字段", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { model: "x", evil: "hack" } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "build", data: { model: "x", evil: "hack" } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore.build.model).toBe("x");
@@ -429,11 +488,13 @@ describe("Agents Config Route", () => {
     });
 
     test("handleSet 校验 temperature 无效", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { temperature: 3 } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "build", data: { temperature: 3 } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -441,11 +502,13 @@ describe("Agents Config Route", () => {
     });
 
     test("handleSet 校验 top_p 无效", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { top_p: 1.5 } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "build", data: { top_p: 1.5 } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -453,11 +516,13 @@ describe("Agents Config Route", () => {
     });
 
     test("handleSet 校验 color 无效", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { color: "notacolor" } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "build", data: { color: "notacolor" } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -465,33 +530,43 @@ describe("Agents Config Route", () => {
     });
 
     test("handleSet 校验 color 合法 hex", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { color: "#FF5500" } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "build", data: { color: "#FF5500" } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore.build.color).toBe("#FF5500");
     });
 
     test("handleSet 校验 color 合法预设", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { color: "primary" } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", name: "build", data: { color: "primary" } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore.build.color).toBe("primary");
     });
 
     test("handleSet 写入新字段", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set", name: "build", data: { variant: "thinking", disable: true, description: "测试" } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "set",
+            name: "build",
+            data: { variant: "thinking", disable: true, description: "测试" },
+          }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore.build.variant).toBe("thinking");
@@ -501,20 +576,22 @@ describe("Agents Config Route", () => {
 
     test("set 更新 knowledge 并覆盖旧绑定", async () => {
       _agentKnowledgeBindings["ac_build"] = [{ knowledgeBaseId: "kb_old", priority: 0, enabled: true }];
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "set",
-          name: "build",
-          data: {
-            knowledge: {
-              knowledgeBaseIds: ["kb_new_a", "kb_new_b"],
-              policy: { searchFirst: false, maxResults: 8 },
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "set",
+            name: "build",
+            data: {
+              knowledge: {
+                knowledgeBaseIds: ["kb_new_a", "kb_new_b"],
+                policy: { searchFirst: false, maxResults: 8 },
+              },
             },
-          },
+          }),
         }),
-      }));
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore.build.knowledge).toEqual({
@@ -530,11 +607,13 @@ describe("Agents Config Route", () => {
 
   describe("handleCreate — 白名单过滤和新字段校验", () => {
     test("handleCreate 白名单过滤", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "filtered-create", data: { model: "gpt-4o", evil: "hack" } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "filtered-create", data: { model: "gpt-4o", evil: "hack" } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(_agentStore["filtered-create"].model).toBe("gpt-4o");
@@ -542,11 +621,13 @@ describe("Agents Config Route", () => {
     });
 
     test("handleCreate 校验新字段", async () => {
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "bad-temp", data: { temperature: 5 } }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "bad-temp", data: { temperature: 5 } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -557,11 +638,13 @@ describe("Agents Config Route", () => {
         { knowledgeBaseId: "kb_a", priority: 0, enabled: true },
         { knowledgeBaseId: "kb_b", priority: 1, enabled: true },
       ];
-      const res = await agentsRoute.handle(new Request("http://localhost/web/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
-      }));
+      const res = await agentsRoute.handle(
+        new Request("http://localhost/web/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list" }),
+        }),
+      );
       const json = await res.json();
       const build = json.data.agents.find((agent: any) => agent.name === "build");
       expect(build.knowledgeBaseCount).toBe(2);

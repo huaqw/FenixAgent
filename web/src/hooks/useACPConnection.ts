@@ -12,9 +12,7 @@ export interface UseACPConnectionResult {
  * 非 owning — 传入 client，hook 只管订阅 state 事件。
  */
 export function useACPConnection(client: ACPClient): UseACPConnectionResult {
-  const [connectionState, setConnectionState] = useState<ConnectionState>(
-    client.state.connectionState,
-  );
+  const [connectionState, setConnectionState] = useState<ConnectionState>(client.state.connectionState);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,7 +21,9 @@ export function useACPConnection(client: ACPClient): UseACPConnectionResult {
       setError(err ?? null);
     };
     client.state.on("connectionStateChange", handler);
-    return () => { client.state.off("connectionStateChange", handler); };
+    return () => {
+      client.state.off("connectionStateChange", handler);
+    };
   }, [client]);
 
   return { connectionState, error };

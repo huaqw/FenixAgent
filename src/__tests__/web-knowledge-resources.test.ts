@@ -93,19 +93,22 @@ async function ensureTeam() {
 let seededKbId: string;
 async function seedKnowledgeBase() {
   const now = new Date();
-  const [row] = await db.insert(knowledgeBase).values({
-    userId: TEST_USER_ID,
-    teamId: TEST_TEAM_ID,
-    name: "Docs",
-    slug: "docs",
-    description: null,
-    provider: "openviking",
-    remoteId: null,
-    status: "empty",
-    lastError: null,
-    createdAt: now,
-    updatedAt: now,
-  }).returning();
+  const [row] = await db
+    .insert(knowledgeBase)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID,
+      name: "Docs",
+      slug: "docs",
+      description: null,
+      provider: "openviking",
+      remoteId: null,
+      status: "empty",
+      lastError: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
   seededKbId = row.id;
 }
 
@@ -211,17 +214,20 @@ describe("Knowledge resource routes", () => {
       },
     } as any);
     const now = new Date();
-    const [res] = await db.insert(knowledgeResource).values({
-      knowledgeBaseId: seededKbId,
-      sourceType: "upload",
-      sourceName: "delete.md",
-      sourcePath: "/tmp/delete.md",
-      remoteId: "viking://resources/kb_upload/delete.md",
-      status: "ready",
-      lastError: null,
-      createdAt: now,
-      updatedAt: now,
-    }).returning();
+    const [res] = await db
+      .insert(knowledgeResource)
+      .values({
+        knowledgeBaseId: seededKbId,
+        sourceType: "upload",
+        sourceName: "delete.md",
+        sourcePath: "/tmp/delete.md",
+        remoteId: "viking://resources/kb_upload/delete.md",
+        status: "ready",
+        lastError: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
 
     const response = await request(`/web/knowledgeBases/${seededKbId}/resources/${res.id}`, {
       method: "DELETE",
@@ -252,10 +258,13 @@ describe("Knowledge resource routes", () => {
       },
     };
     setKnowledgeUploadProviderForTesting(retryingProvider as any);
-    await db.update(knowledgeBase).set({
-      remoteId: "viking://resources/kb/legacy/docs/",
-      updatedAt: new Date(),
-    }).where(eq(knowledgeBase.id, seededKbId));
+    await db
+      .update(knowledgeBase)
+      .set({
+        remoteId: "viking://resources/kb/legacy/docs/",
+        updatedAt: new Date(),
+      })
+      .where(eq(knowledgeBase.id, seededKbId));
 
     const form = new FormData();
     form.append("files", new File(["# Retry"], "retry.md", { type: "text/markdown" }));

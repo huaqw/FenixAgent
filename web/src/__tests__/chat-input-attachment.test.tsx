@@ -11,18 +11,14 @@ describe("ChatInput Attachment Integration", () => {
   test("ChatInput renders without sessionId", async () => {
     const { ChatInput } = await import("../../components/chat/ChatInput");
     expect(() => {
-      ReactDOMServer.renderToString(
-        <ChatInput onSubmit={() => {}} />
-      );
+      ReactDOMServer.renderToString(<ChatInput onSubmit={() => {}} />);
     }).not.toThrow();
   });
 
   test("ChatInput renders with sessionId", async () => {
     const { ChatInput } = await import("../../components/chat/ChatInput");
     expect(() => {
-      ReactDOMServer.renderToString(
-        <ChatInput onSubmit={() => {}} sessionId="s1" />
-      );
+      ReactDOMServer.renderToString(<ChatInput onSubmit={() => {}} sessionId="s1" />);
     }).not.toThrow();
   });
 

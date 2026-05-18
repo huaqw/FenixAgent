@@ -17,16 +17,31 @@ async function ensureTestData() {
   const now = new Date();
   const existingUser = await db.select().from(userTable).where(eq(userTable.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(userTable).values({
-      id: TEST_USER_ID, name: "MW Test", email: "mw-test@rcs.local",
-      emailVerified: false, createdAt: now, updatedAt: now,
-    }).catch(() => {});
+    await db
+      .insert(userTable)
+      .values({
+        id: TEST_USER_ID,
+        name: "MW Test",
+        email: "mw-test@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .catch(() => {});
   }
   const existing = await db.select().from(teamTable).where(eq(teamTable.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
-  const [created] = await db.insert(teamTable).values({
-    name: "MW Test Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID,
-  }).returning();
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
+  const [created] = await db
+    .insert(teamTable)
+    .values({
+      name: "MW Test Team",
+      slug: TEST_TEAM_SLUG,
+      createdBy: TEST_USER_ID,
+    })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 await ensureTestData();

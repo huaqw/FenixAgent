@@ -13,11 +13,7 @@ let _testAuth: {
   authContext: AuthContext | null;
 } | null = null;
 
-export function setTestAuth(auth: {
-  user: UserInfo;
-  session?: AuthSessionInfo;
-  authContext: AuthContext | null;
-}) {
+export function setTestAuth(auth: { user: UserInfo; session?: AuthSessionInfo; authContext: AuthContext | null }) {
   _testAuth = {
     user: auth.user,
     session: auth.session ?? { id: "test-session", userId: auth.user.id, token: "test" },
@@ -64,9 +60,8 @@ export async function lookupUserById(userId: string): Promise<UserInfo | null> {
 }
 
 /** Mounts better-auth handler at /api/auth/* */
-export const authPlugin = new Elysia({ name: "auth", prefix: "/api/auth" }).all(
-  "/*",
-  ({ request }) => auth.handler(request)
+export const authPlugin = new Elysia({ name: "auth", prefix: "/api/auth" }).all("/*", ({ request }) =>
+  auth.handler(request),
 );
 
 /** Provides `error(code, body)` to route handler context */

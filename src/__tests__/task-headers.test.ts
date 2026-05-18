@@ -12,10 +12,18 @@ function parseHeaders(value: unknown): Record<string, string> | null {
     try {
       const parsed = JSON.parse(value);
       if (typeof parsed === "string") {
-        try { return JSON.parse(parsed); } catch { return null; }
+        try {
+          return JSON.parse(parsed);
+        } catch {
+          return null;
+        }
       }
-      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, string> : null;
-    } catch { return null; }
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, string>)
+        : null;
+    } catch {
+      return null;
+    }
   }
   if (typeof value === "object" && !Array.isArray(value)) return value as Record<string, string>;
   return null;

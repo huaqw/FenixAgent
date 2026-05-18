@@ -69,9 +69,7 @@ export function Topbar({ currentPage }: TopbarProps) {
       <div className="flex items-center gap-1.5 text-[13px]">
         <span className="text-text-dim">Dashboard</span>
         <span className="text-text-dim opacity-50">/</span>
-        <span className="font-semibold text-text-bright font-[var(--font-display)]">
-          {pageLabel}
-        </span>
+        <span className="font-semibold text-text-bright font-[var(--font-display)]">{pageLabel}</span>
       </div>
 
       {/* ---- Spacer ---- */}
@@ -140,9 +138,7 @@ export function Topbar({ currentPage }: TopbarProps) {
             >
               {/* User info */}
               <div className="px-3 py-2 border-b border-border-subtle">
-                <p className="text-[13px] font-medium text-text-bright truncate">
-                  {userEmail}
-                </p>
+                <p className="text-[13px] font-medium text-text-bright truncate">{userEmail}</p>
               </div>
 
               {/* Logout */}

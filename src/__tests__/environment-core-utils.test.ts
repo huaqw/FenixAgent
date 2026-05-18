@@ -2,11 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 // 测试 environment-core.ts 的纯函数：generateEnvSecret、toResponse、sanitizeResponse
 
-const {
-  generateEnvSecret,
-  toResponse,
-  sanitizeResponse,
-} = await import("../services/environment-core");
+const { generateEnvSecret, toResponse, sanitizeResponse } = await import("../services/environment-core");
 
 // ── generateEnvSecret ──
 

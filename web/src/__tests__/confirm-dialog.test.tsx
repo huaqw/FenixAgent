@@ -18,7 +18,7 @@ describe("ConfirmDialog", () => {
           title="测试标题"
           description="测试描述"
           onConfirm={() => {}}
-        />
+        />,
       );
     }).not.toThrow();
   });
@@ -36,7 +36,7 @@ describe("ConfirmDialog", () => {
           variant="destructive"
           onConfirm={() => {}}
           loading={true}
-        />
+        />,
       );
     }).not.toThrow();
   });
@@ -50,9 +50,12 @@ describe("ConfirmDialog", () => {
   });
 
   test("ConfirmDialog.tsx imports from ui/alert-dialog", () => {
-    const content = fs.readFileSync(join(import.meta.dirname, "..", "..", "components/config/ConfirmDialog.tsx"), "utf-8");
+    const content = fs.readFileSync(
+      join(import.meta.dirname, "..", "..", "components/config/ConfirmDialog.tsx"),
+      "utf-8",
+    );
     // import.meta.dirname = web/src/__tests__, so ../../components = web/components
-    expect(content).toContain("from \"../ui/alert-dialog\"");
+    expect(content).toContain('from "../ui/alert-dialog"');
     expect(content).not.toMatch(/from.*ui\/dialog/);
   });
 });

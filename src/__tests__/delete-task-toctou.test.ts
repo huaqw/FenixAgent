@@ -19,7 +19,8 @@ describe("deleteTask TOCTOU 优化", () => {
   // deleteByUserAndId 返回 true 时成功删除
   it("deleteByUserAndId=true 时返回成功", async () => {
     const result = await deleteTaskSimplified(
-      "task_1", "user_a",
+      "task_1",
+      "user_a",
       async () => true,
       () => {},
     );
@@ -29,7 +30,8 @@ describe("deleteTask TOCTOU 优化", () => {
   // deleteByUserAndId 返回 false 时返回 NOT_FOUND
   it("deleteByUserAndId=false 时返回 NOT_FOUND", async () => {
     const result = await deleteTaskSimplified(
-      "task_missing", "user_a",
+      "task_missing",
+      "user_a",
       async () => false,
       () => {},
     );
@@ -41,9 +43,12 @@ describe("deleteTask TOCTOU 优化", () => {
   it("成功删除时调用 unschedule", async () => {
     let unscheduled = false;
     await deleteTaskSimplified(
-      "task_1", "user_a",
+      "task_1",
+      "user_a",
       async () => true,
-      (id) => { if (id === "task_1") unscheduled = true; },
+      (id) => {
+        if (id === "task_1") unscheduled = true;
+      },
     );
     expect(unscheduled).toBe(true);
   });
@@ -52,9 +57,12 @@ describe("deleteTask TOCTOU 优化", () => {
   it("未找到时不调用 unschedule", async () => {
     let unscheduled = false;
     await deleteTaskSimplified(
-      "task_missing", "user_a",
+      "task_missing",
+      "user_a",
       async () => false,
-      () => { unscheduled = true; },
+      () => {
+        unscheduled = true;
+      },
     );
     expect(unscheduled).toBe(false);
   });

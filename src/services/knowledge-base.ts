@@ -1,16 +1,9 @@
 import { randomBytes } from "node:crypto";
-import {
-  knowledgeBaseRepo,
-  knowledgeResourceRepo,
-  agentKnowledgeBindingRepo,
-} from "../repositories/knowledge-base";
+import { knowledgeBaseRepo, knowledgeResourceRepo, agentKnowledgeBindingRepo } from "../repositories/knowledge-base";
 import type { KnowledgeBaseRow } from "../repositories/knowledge-base";
 import { config } from "../config";
 import { getKnowledgeProvider, setKnowledgeProviderForTesting } from "./knowledge-provider/registry";
-import type {
-  KnowledgeBaseStatus,
-  KnowledgeResourceStatus,
-} from "./knowledge-provider/types";
+import type { KnowledgeBaseStatus, KnowledgeResourceStatus } from "./knowledge-provider/types";
 
 export interface KnowledgeTenantIdentity {
   remoteAccountId: string;
@@ -121,10 +114,14 @@ export async function countKnowledgeBaseBindings(knowledgeBaseId: string): Promi
 
 export async function listKnowledgeBasesByTeamId(teamId: string) {
   const rows = await knowledgeBaseRepo.listByTeamId(teamId);
-  const items = await Promise.all(rows.map(async (row) => sanitizeKnowledgeBase(row, {
-    bindingsCount: await countKnowledgeBaseBindings(row.id),
-    resourcesCount: await knowledgeResourceRepo.countByKnowledgeBase(row.id),
-  })));
+  const items = await Promise.all(
+    rows.map(async (row) =>
+      sanitizeKnowledgeBase(row, {
+        bindingsCount: await countKnowledgeBaseBindings(row.id),
+        resourcesCount: await knowledgeResourceRepo.countByKnowledgeBase(row.id),
+      }),
+    ),
+  );
   return items;
 }
 
@@ -269,11 +266,14 @@ export async function deleteKnowledgeBase(teamId: string, knowledgeBaseId: strin
   return { success: true as const, data: { ok: true } };
 }
 
-export async function touchKnowledgeBaseUpdatedAt(knowledgeBaseId: string, patch?: {
-  status?: KnowledgeBaseStatus;
-  lastError?: string | null;
-  remoteId?: string | null;
-}) {
+export async function touchKnowledgeBaseUpdatedAt(
+  knowledgeBaseId: string,
+  patch?: {
+    status?: KnowledgeBaseStatus;
+    lastError?: string | null;
+    remoteId?: string | null;
+  },
+) {
   await knowledgeBaseRepo.update(knowledgeBaseId, {
     updatedAt: new Date(),
     ...(patch?.status ? { status: patch.status } : {}),

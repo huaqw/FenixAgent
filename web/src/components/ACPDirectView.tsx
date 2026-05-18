@@ -54,10 +54,7 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
       {error && connectionState === "error" && !client && (
         <div className="px-4 py-2 bg-status-error/10 text-status-error text-sm border-b">
           {error}
-          <button
-            onClick={onBack}
-            className="ml-3 underline hover:no-underline"
-          >
+          <button onClick={onBack} className="ml-3 underline hover:no-underline">
             Back to Dashboard
           </button>
         </div>
@@ -90,9 +87,7 @@ export function ACPDirectView({ url, token, onBack }: ACPDirectViewProps) {
       )}
 
       {/* Chat view */}
-      {showChat && (
-        <ACPMain client={client} />
-      )}
+      {showChat && <ACPMain client={client} />}
     </div>
   );
 }

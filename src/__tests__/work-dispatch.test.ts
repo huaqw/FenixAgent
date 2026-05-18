@@ -44,7 +44,9 @@ describe("Work Dispatch", () => {
     const existing = await db.select().from(user).where(eq(user.id, "u1")).limit(1);
     if (existing.length === 0) {
       const now = new Date();
-      await db.insert(user).values({ id: "u1", name: "u1", email: "u1@test.com", emailVerified: false, createdAt: now, updatedAt: now });
+      await db
+        .insert(user)
+        .values({ id: "u1", name: "u1", email: "u1@test.com", emailVerified: false, createdAt: now, updatedAt: now });
     }
     await ensureTeam();
     const env = await environmentRepo.create({ userId: "u1", teamId: TEST_TEAM_ID });

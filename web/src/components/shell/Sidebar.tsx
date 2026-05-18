@@ -72,12 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export function Sidebar({
-  collapsed,
-  onToggle,
-  currentPage,
-  onNavigate,
-}: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, currentPage, onNavigate }: SidebarProps) {
   return (
     <aside
       className={[
@@ -85,7 +80,9 @@ export function Sidebar({
         "border-r border-border-subtle bg-surface-0",
         "transition-[width,min-width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
         "z-20",
-        collapsed ? "w-[var(--sidebar-collapsed)] min-w-[var(--sidebar-collapsed)]" : "w-[var(--sidebar-width)] min-w-[var(--sidebar-width)]",
+        collapsed
+          ? "w-[var(--sidebar-collapsed)] min-w-[var(--sidebar-collapsed)]"
+          : "w-[var(--sidebar-width)] min-w-[var(--sidebar-width)]",
       ].join(" ")}
     >
       {/* ---- Brand ---- */}
@@ -143,11 +140,7 @@ export function Sidebar({
           ].join(" ")}
           title={collapsed ? "展开侧栏" : "收起侧栏"}
         >
-          {collapsed ? (
-            <ChevronsRight className="w-4 h-4" />
-          ) : (
-            <ChevronsLeft className="w-4 h-4" />
-          )}
+          {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
         </button>
       </div>
 
@@ -165,11 +158,7 @@ export function Sidebar({
                 collapsed && "text-center px-2 text-[0px] pt-3 pb-1.5",
               ].join(" ")}
             >
-              {collapsed ? (
-                <span className="block w-4 h-px bg-border-default mx-auto mt-1" />
-              ) : (
-                group.label
-              )}
+              {collapsed ? <span className="block w-4 h-px bg-border-default mx-auto mt-1" /> : group.label}
             </div>
 
             {/* Items */}
@@ -196,9 +185,7 @@ export function Sidebar({
                       ? "justify-center gap-0 px-0 py-2 mx-1.5 rounded-lg"
                       : "gap-2.5 px-3 py-2 mx-2 rounded-[var(--radius)]",
                     // active
-                    isActive
-                      ? "bg-brand-subtle text-brand-light"
-                      : "hover:bg-surface-hover hover:text-text-primary",
+                    isActive ? "bg-brand-subtle text-brand-light" : "hover:bg-surface-hover hover:text-text-primary",
                   ].join(" ")}
                 >
                   {/* Active indicator bar */}

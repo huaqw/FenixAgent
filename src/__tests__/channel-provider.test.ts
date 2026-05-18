@@ -27,15 +27,18 @@ describe("channel provider with Hermes connected", () => {
   });
 
   test("Hermes 已连接时对应平台为 enabled", () => {
-    setHermesClientGetter(() => ({
-      getStatus: () => ({
-        connected: true,
-        url: "ws://127.0.0.1:8642/messaging",
-        platforms: ["feishu"],
-        reconnecting: false,
-        lastConnectedAt: 1715184000000,
-      }),
-    }) as any);
+    setHermesClientGetter(
+      () =>
+        ({
+          getStatus: () => ({
+            connected: true,
+            url: "ws://127.0.0.1:8642/messaging",
+            platforms: ["feishu"],
+            reconnecting: false,
+            lastConnectedAt: 1715184000000,
+          }),
+        }) as any,
+    );
 
     const providers = listChannelProviders();
     const wechat = providers.find((p) => p.type === "wechat");

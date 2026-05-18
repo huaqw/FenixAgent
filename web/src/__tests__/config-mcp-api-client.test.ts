@@ -7,14 +7,22 @@ beforeEach(() => {
   fetchMock.status = 200;
   fetchMock.body = {};
   globalThis.fetch = mock(() =>
-    Promise.resolve(new Response(JSON.stringify(fetchMock.body), { status: fetchMock.status, headers: { "Content-Type": "application/json" } }))
+    Promise.resolve(
+      new Response(JSON.stringify(fetchMock.body), {
+        status: fetchMock.status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
   ) as typeof fetch;
 });
 
 describe("MCP Eden Treaty 客户端", () => {
   // 测试 MCP 服务器列表正常返回
   test("list MCP servers 正常返回", async () => {
-    fetchMock.body = { success: true, data: { servers: [{ name: "my-local", type: "local", enabled: true, summary: "npx" }] } };
+    fetchMock.body = {
+      success: true,
+      data: { servers: [{ name: "my-local", type: "local", enabled: true, summary: "npx" }] },
+    };
     const { client } = await import("../api/client");
     const { data, error } = await client.web.config.mcp.post({ action: "list" } as any);
     expect(error).toBeNull();
@@ -35,7 +43,10 @@ describe("MCP Eden Treaty 客户端", () => {
 
   // 测试获取 MCP 服务器详情正常返回
   test("get MCP server 正常返回", async () => {
-    fetchMock.body = { success: true, data: { name: "my-local", config: { type: "local", command: ["npx", "mcp-server"] } } };
+    fetchMock.body = {
+      success: true,
+      data: { name: "my-local", config: { type: "local", command: ["npx", "mcp-server"] } },
+    };
     const { client } = await import("../api/client");
     const { data, error } = await client.web.config.mcp.post({ action: "get", name: "my-local" } as any);
     expect(error).toBeNull();
@@ -58,7 +69,11 @@ describe("MCP Eden Treaty 客户端", () => {
   test("create MCP server 正常返回", async () => {
     fetchMock.body = { success: true, data: { name: "new-server" } };
     const { client } = await import("../api/client");
-    const { data, error } = await client.web.config.mcp.post({ action: "create", name: "new-server", config: { type: "local", command: ["npx"] } } as any);
+    const { data, error } = await client.web.config.mcp.post({
+      action: "create",
+      name: "new-server",
+      config: { type: "local", command: ["npx"] },
+    } as any);
     expect(error).toBeNull();
     const result = (data as any)?.data ?? data;
     expect(result.name).toBe("new-server");

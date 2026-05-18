@@ -112,41 +112,57 @@ describe("environment table schema", () => {
 
   test("name unique constraint", () => {
     const now = Math.floor(Date.now() / 1000);
-    sqlite.prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run("u1", "Test", "test@test.com", now, now);
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run("u1", "Test", "test@test.com", now, now);
 
-    sqlite.prepare(
-      "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).run("e1", "env-a", "/tmp/ws", "secret1", "u1", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("e1", "env-a", "/tmp/ws", "secret1", "u1", now, now);
 
     expect(() => {
-      sqlite.prepare(
-        "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      ).run("e2", "env-a", "/tmp/ws2", "secret2", "u1", now, now);
+      sqlite
+        .prepare(
+          "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run("e2", "env-a", "/tmp/ws2", "secret2", "u1", now, now);
     }).toThrow();
   });
 
   test("secret unique constraint", () => {
     const now = Math.floor(Date.now() / 1000);
-    sqlite.prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run("u1", "Test", "test@test.com", now, now);
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run("u1", "Test", "test@test.com", now, now);
 
-    sqlite.prepare(
-      "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).run("e1", "env-a", "/tmp/ws", "secret1", "u1", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("e1", "env-a", "/tmp/ws", "secret1", "u1", now, now);
 
     expect(() => {
-      sqlite.prepare(
-        "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      ).run("e2", "env-b", "/tmp/ws2", "secret1", "u1", now, now);
+      sqlite
+        .prepare(
+          "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run("e2", "env-b", "/tmp/ws2", "secret1", "u1", now, now);
     }).toThrow();
   });
 
   test("userId foreign key cascade delete", () => {
     const now = Math.floor(Date.now() / 1000);
-    sqlite.prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run("u1", "Test", "test@test.com", now, now);
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run("u1", "Test", "test@test.com", now, now);
 
-    sqlite.prepare(
-      "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).run("e1", "env-a", "/tmp/ws", "secret1", "u1", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO environment (id, name, workspace_path, secret, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("e1", "env-a", "/tmp/ws", "secret1", "u1", now, now);
 
     sqlite.prepare("DELETE FROM user WHERE id = ?").run("u1");
 
@@ -167,13 +183,19 @@ describe("environment table schema", () => {
 
   test("knowledge_resource cascades when deleting knowledge_base", () => {
     const now = Math.floor(Date.now() / 1000);
-    sqlite.prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run("u1", "Test", "test@test.com", now, now);
-    sqlite.prepare(
-      "INSERT INTO knowledge_base (id, user_id, name, slug, provider, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    ).run("kb1", "u1", "Docs", "docs", "openviking", "empty", now, now);
-    sqlite.prepare(
-      "INSERT INTO knowledge_resource (id, knowledge_base_id, source_type, source_name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).run("res1", "kb1", "upload", "README.md", "pending", now, now);
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run("u1", "Test", "test@test.com", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO knowledge_base (id, user_id, name, slug, provider, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("kb1", "u1", "Docs", "docs", "openviking", "empty", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO knowledge_resource (id, knowledge_base_id, source_type, source_name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("res1", "kb1", "upload", "README.md", "pending", now, now);
 
     sqlite.prepare("DELETE FROM knowledge_base WHERE id = ?").run("kb1");
 
@@ -183,13 +205,19 @@ describe("environment table schema", () => {
 
   test("agent_knowledge_binding can be queried by agent_name", () => {
     const now = Math.floor(Date.now() / 1000);
-    sqlite.prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run("u1", "Test", "test@test.com", now, now);
-    sqlite.prepare(
-      "INSERT INTO knowledge_base (id, user_id, name, slug, provider, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    ).run("kb1", "u1", "Docs", "docs", "openviking", "empty", now, now);
-    sqlite.prepare(
-      "INSERT INTO agent_knowledge_binding (id, agent_name, knowledge_base_id, priority, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).run("bind1", "build", "kb1", 0, 1, now, now);
+    sqlite
+      .prepare("INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run("u1", "Test", "test@test.com", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO knowledge_base (id, user_id, name, slug, provider, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("kb1", "u1", "Docs", "docs", "openviking", "empty", now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO agent_knowledge_binding (id, agent_name, knowledge_base_id, priority, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run("bind1", "build", "kb1", 0, 1, now, now);
 
     const rows = sqlite.prepare("SELECT * FROM agent_knowledge_binding WHERE agent_name = ?").all("build");
     expect(rows).toHaveLength(1);

@@ -44,9 +44,7 @@ export function LoadingIndicator({ verb = "Thinking", stalled = false }: Loading
       >
         {verb}…
       </span>
-      <span className="ml-auto text-xs font-mono text-text-muted">
-        {elapsed}s
-      </span>
+      <span className="ml-auto text-xs font-mono text-text-muted">{elapsed}s</span>
     </div>
   );
 }

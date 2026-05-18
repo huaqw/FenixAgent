@@ -14,11 +14,19 @@ import {
   isBuiltInAgent,
   AGENT_SETTABLE_FIELDS,
 } from "../../../services/config/agent-config";
-import { configSuccess, configError, configValidationError, configNotFound, isValidResourceName } from "../../../services/config-utils";
+import {
+  configSuccess,
+  configError,
+  configValidationError,
+  configNotFound,
+  isValidResourceName,
+} from "../../../services/config-utils";
 import { loadTeamContext } from "../../../services/team-context";
 
 /** 将 PG 行数据映射为前端兼容的 agent 字段 */
-function pgRowToAgentFields(row: typeof configPg extends { listAgentConfigs: (ctx: AuthContext) => Promise<(infer T)[]> } ? T : never) {
+function pgRowToAgentFields(
+  row: typeof configPg extends { listAgentConfigs: (ctx: AuthContext) => Promise<(infer T)[]> } ? T : never,
+) {
   // tools → permission 兼容转换：PG 中不再有 tools，但保留接口
   let permission = (row as any).permission ?? null;
   return {
@@ -43,16 +51,18 @@ async function handleList(ctx: AuthContext) {
   const agents = await configPg.listAgentConfigs(ctx);
   const uc = await configPg.getUserConfig(ctx);
   const defaultAgent = uc.defaultAgent ?? null;
-  const list = await Promise.all(agents.map(async (a) => ({
-    id: a.id,
-    name: a.name,
-    builtIn: isBuiltInAgent(a.name),
-    model: a.model ?? null,
-    mode: a.mode ?? null,
-    description: a.description ?? null,
-    color: a.color ?? null,
-    knowledgeBaseCount: (await listAgentKnowledgeBindingsById(a.id)).length,
-  })));
+  const list = await Promise.all(
+    agents.map(async (a) => ({
+      id: a.id,
+      name: a.name,
+      builtIn: isBuiltInAgent(a.name),
+      model: a.model ?? null,
+      mode: a.mode ?? null,
+      description: a.description ?? null,
+      color: a.color ?? null,
+      knowledgeBaseCount: (await listAgentKnowledgeBindingsById(a.id)).length,
+    })),
+  );
   return configSuccess({ default_agent: defaultAgent, agents: list });
 }
 
@@ -93,7 +103,7 @@ async function handleSet(ctx: AuthContext, name: string, data: Record<string, un
   // 白名单过滤
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (AGENT_SETTABLE_FIELDS.includes(key as typeof AGENT_SETTABLE_FIELDS[number])) {
+    if (AGENT_SETTABLE_FIELDS.includes(key as (typeof AGENT_SETTABLE_FIELDS)[number])) {
       filtered[key] = key === "knowledge" ? normalizeKnowledgeConfig(value) : value;
     }
   }
@@ -119,7 +129,11 @@ async function handleSet(ctx: AuthContext, name: string, data: Record<string, un
   await configPg.updateAgentConfig(ctx, name, updateData);
   const updatedAgent = await configPg.getAgentConfig(ctx, name);
   if (updatedAgent) {
-    await syncAgentKnowledgeBindingsById(ctx.teamId, updatedAgent.id, filtered.knowledge as AgentKnowledgeConfig | null | undefined);
+    await syncAgentKnowledgeBindingsById(
+      ctx.teamId,
+      updatedAgent.id,
+      filtered.knowledge as AgentKnowledgeConfig | null | undefined,
+    );
   }
   return configSuccess({ name, ...filtered });
 }
@@ -134,7 +148,7 @@ async function handleCreate(ctx: AuthContext, name: string, data: Record<string,
   // 白名单过滤
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (AGENT_SETTABLE_FIELDS.includes(key as typeof AGENT_SETTABLE_FIELDS[number])) {
+    if (AGENT_SETTABLE_FIELDS.includes(key as (typeof AGENT_SETTABLE_FIELDS)[number])) {
       filtered[key] = key === "knowledge" ? normalizeKnowledgeConfig(value) : value;
     }
   }
@@ -157,7 +171,11 @@ async function handleCreate(ctx: AuthContext, name: string, data: Record<string,
   await configPg.createAgentConfig(ctx, name, pgData);
   const createdAgent = await configPg.getAgentConfig(ctx, name);
   if (createdAgent) {
-    await syncAgentKnowledgeBindingsById(ctx.teamId, createdAgent.id, filtered.knowledge as AgentKnowledgeConfig | null | undefined);
+    await syncAgentKnowledgeBindingsById(
+      ctx.teamId,
+      createdAgent.id,
+      filtered.knowledge as AgentKnowledgeConfig | null | undefined,
+    );
   }
   return configSuccess({ name });
 }
@@ -180,42 +198,59 @@ async function handleSetDefault(ctx: AuthContext, name: string) {
 
 import { ConfigBodySchema } from "../../../schemas/config.schema";
 
-const app = new Elysia({ name: "web-config-agents", prefix: "/web" })
-  .use(authGuardPlugin)
-  .model({
-    "config-body": ConfigBodySchema,
-  });
+const app = new Elysia({ name: "web-config-agents", prefix: "/web" }).use(authGuardPlugin).model({
+  "config-body": ConfigBodySchema,
+});
 
-app.post("/config/agents", async ({ store, body, error, request }: any) => {
-  const authContext = await loadTeamContext(store.user!, request);
-  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
-  const authCtx = authContext;
-  const b = (body as any) ?? {};
-  const { action, name, data } = { action: b.action ?? "", name: b.name, data: b.data as Record<string, unknown> | undefined };
-  // get/set/create/delete/set_default 都需要 name
-  if (action !== "list" && !name) {
-    return error(400, configValidationError("Missing 'name' field"));
-  }
-  try {
-    switch (action) {
-      case "list": return await handleList(authCtx);
-      case "get": return await handleGet(authCtx, name!);
-      case "set": return await handleSet(authCtx, name!, data!);
-      case "create": return await handleCreate(authCtx, name!, data!);
-      case "delete": return await handleDelete(authCtx, name!);
-      case "set_default": return await handleSetDefault(authCtx, name!);
-      default: return error(400, configValidationError(`Unknown action '${action}'`));
+app.post(
+  "/config/agents",
+  async ({ store, body, error, request }: any) => {
+    const authContext = await loadTeamContext(store.user!, request);
+    if (!authContext)
+      return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+    const authCtx = authContext;
+    const b = (body as any) ?? {};
+    const { action, name, data } = {
+      action: b.action ?? "",
+      name: b.name,
+      data: b.data as Record<string, unknown> | undefined,
+    };
+    // get/set/create/delete/set_default 都需要 name
+    if (action !== "list" && !name) {
+      return error(400, configValidationError("Missing 'name' field"));
     }
-  } catch (error_) {
-    if (
-      error_ instanceof InvalidKnowledgeBindingError
-      || (typeof error_ === "object" && error_ !== null && "code" in error_ && (error_ as { code?: string }).code === "INVALID_KNOWLEDGE_BINDINGS")
-    ) {
-      const message = error_ instanceof Error ? error_.message : "知识库绑定无效";
-      return error(400, configError("INVALID_KNOWLEDGE_BINDINGS", message));
+    try {
+      switch (action) {
+        case "list":
+          return await handleList(authCtx);
+        case "get":
+          return await handleGet(authCtx, name!);
+        case "set":
+          return await handleSet(authCtx, name!, data!);
+        case "create":
+          return await handleCreate(authCtx, name!, data!);
+        case "delete":
+          return await handleDelete(authCtx, name!);
+        case "set_default":
+          return await handleSetDefault(authCtx, name!);
+        default:
+          return error(400, configValidationError(`Unknown action '${action}'`));
+      }
+    } catch (error_) {
+      if (
+        error_ instanceof InvalidKnowledgeBindingError ||
+        (typeof error_ === "object" &&
+          error_ !== null &&
+          "code" in error_ &&
+          (error_ as { code?: string }).code === "INVALID_KNOWLEDGE_BINDINGS")
+      ) {
+        const message = error_ instanceof Error ? error_.message : "知识库绑定无效";
+        return error(400, configError("INVALID_KNOWLEDGE_BINDINGS", message));
+      }
+      throw error_;
     }
-    throw error_;
-  }
-}, { sessionAuth: true, body: "config-body" });
+  },
+  { sessionAuth: true, body: "config-body" },
+);
 
 export default app;

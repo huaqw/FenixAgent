@@ -16,9 +16,7 @@ export interface UseModelsResult {
  * Uses event-driven updates via ACPState EventEmitter.
  */
 export function useModels(client: ACPClient): UseModelsResult {
-  const [modelState, setModelState] = useState<SessionModelState | null>(
-    client.state.modelState,
-  );
+  const [modelState, setModelState] = useState<SessionModelState | null>(client.state.modelState);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -28,19 +26,22 @@ export function useModels(client: ACPClient): UseModelsResult {
       if (state && state.availableModels.length > 0) {
         const saved = localStorage.getItem("acp_model_id");
         if (saved && saved !== state.currentModelId && state.availableModels.some((m) => m.modelId === saved)) {
-          try { client.setSessionModel(saved); } catch { /* ignore */ }
+          try {
+            client.setSessionModel(saved);
+          } catch {
+            /* ignore */
+          }
         }
       }
     };
 
     client.state.on("modelStateChange", handler);
-    return () => { client.state.off("modelStateChange", handler); };
+    return () => {
+      client.state.off("modelStateChange", handler);
+    };
   }, [client]);
 
-  const availableModels = useMemo(
-    () => modelState?.availableModels ?? [],
-    [modelState],
-  );
+  const availableModels = useMemo(() => modelState?.availableModels ?? [], [modelState]);
 
   const currentModelId = modelState?.currentModelId ?? null;
 

@@ -47,7 +47,10 @@ export const CreateEnvironmentRequestSchema = z.object({
 });
 
 export const UpdateEnvironmentRequestSchema = z.object({
-  name: z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "name 必须为 kebab-case 格式").optional(),
+  name: z
+    .string()
+    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "name 必须为 kebab-case 格式")
+    .optional(),
   workspacePath: z.string().min(1).optional(),
   agentConfigId: z.string().nullable().optional(),
   description: z.string().nullable().optional(),

@@ -94,15 +94,11 @@ function findToolCallIndex(entries: ThreadEntry[], toolCallId: string): number {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 function normalizeToolName(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function stableStringify(value: unknown): string {
@@ -127,18 +123,14 @@ export function normalizeRcsToolCall(
     return { title, rawInput: input, wrappedByRcs: false };
   }
 
-  const nestedTitle = normalizeToolName(input.tool_name)
-    ?? normalizeToolName(input.name)
-    ?? normalizeToolName(input.tool);
+  const nestedTitle =
+    normalizeToolName(input.tool_name) ?? normalizeToolName(input.name) ?? normalizeToolName(input.tool);
   if (!nestedTitle) {
     return { title, rawInput: input, wrappedByRcs: false };
   }
 
-  const nestedInput = asRecord(input.tool_input)
-    ?? asRecord(input.input)
-    ?? asRecord(input.arguments)
-    ?? asRecord(input.args)
-    ?? input;
+  const nestedInput =
+    asRecord(input.tool_input) ?? asRecord(input.input) ?? asRecord(input.arguments) ?? asRecord(input.args) ?? input;
 
   return {
     title: nestedTitle,
@@ -147,11 +139,7 @@ export function normalizeRcsToolCall(
   };
 }
 
-function findToolCallBySignature(
-  entries: ThreadEntry[],
-  title: string,
-  rawInput: Record<string, unknown>,
-): number {
+function findToolCallBySignature(entries: ThreadEntry[], title: string, rawInput: Record<string, unknown>): number {
   const signature = `${title}::${stableStringify(rawInput)}`;
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i];
@@ -277,11 +265,7 @@ export class RCSChatAdapter {
           (p.tool_name as string) || "tool",
           (p.tool_input as Record<string, unknown>) || {},
         );
-        const duplicateIndex = findToolCallBySignature(
-          historyEntries,
-          normalized.title,
-          normalized.rawInput,
-        );
+        const duplicateIndex = findToolCallBySignature(historyEntries, normalized.title, normalized.rawInput);
         if (duplicateIndex >= 0 && normalized.wrappedByRcs) {
           const duplicateEntry = historyEntries[duplicateIndex];
           if (duplicateEntry?.type === "tool_call") {
@@ -358,7 +342,10 @@ export class RCSChatAdapter {
             if (lastChunk?.type === "message") {
               return [
                 ...prev.slice(0, -1),
-                { ...lastEntry, chunks: [...lastEntry.chunks.slice(0, -1), { type: "message", text: lastChunk.text + content }] },
+                {
+                  ...lastEntry,
+                  chunks: [...lastEntry.chunks.slice(0, -1), { type: "message", text: lastChunk.text + content }],
+                },
               ];
             }
             return [
@@ -428,13 +415,13 @@ export class RCSChatAdapter {
             return prev.map((entry, index) =>
               index === existingIndex && entry.type === "tool_call"
                 ? {
-                  type: "tool_call",
-                  toolCall: {
-                    ...entry.toolCall,
-                    status: "running",
-                    rawInput: normalized.rawInput,
-                  },
-                }
+                    type: "tool_call",
+                    toolCall: {
+                      ...entry.toolCall,
+                      status: "running",
+                      rawInput: normalized.rawInput,
+                    },
+                  }
                 : entry,
             );
           }
@@ -464,7 +451,14 @@ export class RCSChatAdapter {
           const entry = prev[idx] as ToolCallEntry;
           return prev.map((e, i) =>
             i === idx
-              ? { type: "tool_call", toolCall: { ...entry.toolCall, status: "complete" as ToolCallStatus, rawOutput: { output: p.content || p.output || "" } } }
+              ? {
+                  type: "tool_call",
+                  toolCall: {
+                    ...entry.toolCall,
+                    status: "complete" as ToolCallStatus,
+                    rawOutput: { output: p.content || p.output || "" },
+                  },
+                }
               : e,
           );
         });
@@ -491,7 +485,14 @@ export class RCSChatAdapter {
               if (entry.toolCall.status === "running") {
                 return prev.map((e, i) =>
                   i === realIdx
-                    ? { type: "tool_call", toolCall: { ...entry.toolCall, status: "waiting_for_confirmation" as ToolCallStatus, permissionRequest: { requestId, options: [] } } }
+                    ? {
+                        type: "tool_call",
+                        toolCall: {
+                          ...entry.toolCall,
+                          status: "waiting_for_confirmation" as ToolCallStatus,
+                          permissionRequest: { requestId, options: [] },
+                        },
+                      }
                     : e,
                 );
               }

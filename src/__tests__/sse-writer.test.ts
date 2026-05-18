@@ -150,7 +150,13 @@ describe("SSE Writer", () => {
 
       // Now publish an event
       const bus = getEventBus("s6");
-      bus.publish({ id: "e1", sessionId: "s6", type: "user", payload: { content: "real-time" }, direction: "outbound" });
+      bus.publish({
+        id: "e1",
+        sessionId: "s6",
+        type: "user",
+        payload: { content: "real-time" },
+        direction: "outbound",
+      });
 
       // Read the event
       const { value: secondChunk } = await reader.read();

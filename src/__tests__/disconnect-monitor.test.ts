@@ -3,11 +3,7 @@ import { describe, test, expect, beforeEach } from "bun:test";
 
 // Mock config with very short timeout for testing
 
-import {
-  resetAllRepos,
-  environmentRepo,
-  sessionRepo,
-} from "../repositories";
+import { resetAllRepos, environmentRepo, sessionRepo } from "../repositories";
 import { db } from "../db";
 import { user, team } from "../db/schema";
 import { eq } from "drizzle-orm";

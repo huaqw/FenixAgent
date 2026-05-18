@@ -3,10 +3,23 @@ import * as z from "zod/v4";
 // ── Config 通用结构 ──
 
 const ConfigActionValues = [
-  "list", "get", "set", "create", "delete", "update",
-  "enable", "disable", "test", "test_url",
-  "add_model", "update_model", "remove_model",
-  "set_default", "refresh", "inspect", "list_tools",
+  "list",
+  "get",
+  "set",
+  "create",
+  "delete",
+  "update",
+  "enable",
+  "disable",
+  "test",
+  "test_url",
+  "add_model",
+  "update_model",
+  "remove_model",
+  "set_default",
+  "refresh",
+  "inspect",
+  "list_tools",
   "workspace_list",
 ] as const;
 
@@ -47,13 +60,15 @@ export const ProviderDetailSchema = z.object({
   keyHint: z.string().nullable(),
   baseURL: z.string().nullable(),
   options: z.record(z.string(), z.unknown()),
-  models: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    modalities: z.unknown().nullable(),
-    limit: z.unknown().nullable(),
-    cost: z.unknown().nullable(),
-  })),
+  models: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      modalities: z.unknown().nullable(),
+      limit: z.unknown().nullable(),
+      cost: z.unknown().nullable(),
+    }),
+  ),
 });
 
 // ── Models ──
@@ -152,11 +167,13 @@ export const McpInspectResultSchema = z.object({
     name: z.string().nullable().optional(),
     version: z.string().nullable().optional(),
   }),
-  tools: z.array(z.object({
-    name: z.string(),
-    description: z.string().nullable().optional(),
-    inputSchema: z.unknown().optional(),
-  })),
+  tools: z.array(
+    z.object({
+      name: z.string(),
+      description: z.string().nullable().optional(),
+      inputSchema: z.unknown().optional(),
+    }),
+  ),
   transport: z.string().nullable().optional(),
   stored: z.boolean(),
 });

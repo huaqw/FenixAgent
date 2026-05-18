@@ -1,1 +1,1 @@
-export type * from 'acp-link/client'
+export type * from "acp-link/client";

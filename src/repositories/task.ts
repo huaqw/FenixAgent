@@ -30,7 +30,11 @@ export interface IScheduledTaskRepo {
 /** TaskExecutionLog 仓储接口 */
 export interface ITaskExecutionLogRepo {
   listByTask(taskId: string): Promise<TaskExecutionLogRow[]>;
-  listByTaskPaged(taskId: string, page: number, pageSize: number): Promise<{ rows: TaskExecutionLogRow[]; total: number }>;
+  listByTaskPaged(
+    taskId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ rows: TaskExecutionLogRow[]; total: number }>;
   getLatest(taskId: string): Promise<TaskExecutionLogRow | null>;
   getById(logId: string): Promise<TaskExecutionLogRow | null>;
   create(data: TaskExecutionLogInsert): Promise<TaskExecutionLogRow>;
@@ -40,7 +44,9 @@ export interface ITaskExecutionLogRepo {
 
 class PgScheduledTaskRepo implements IScheduledTaskRepo {
   async listByUser(userId: string) {
-    return db.select().from(scheduledTask)
+    return db
+      .select()
+      .from(scheduledTask)
       .where(eq(scheduledTask.userId, userId))
       .orderBy(desc(scheduledTask.createdAt));
   }
@@ -51,7 +57,9 @@ class PgScheduledTaskRepo implements IScheduledTaskRepo {
   }
 
   async getByUserAndId(userId: string, taskId: string) {
-    const rows = await db.select().from(scheduledTask)
+    const rows = await db
+      .select()
+      .from(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.userId, userId)))
       .limit(1);
     return rows[0] ?? null;
@@ -68,12 +76,16 @@ class PgScheduledTaskRepo implements IScheduledTaskRepo {
   }
 
   async delete(taskId: string): Promise<boolean> {
-    const result = await db.delete(scheduledTask).where(eq(scheduledTask.id, taskId)).returning({ id: scheduledTask.id });
+    const result = await db
+      .delete(scheduledTask)
+      .where(eq(scheduledTask.id, taskId))
+      .returning({ id: scheduledTask.id });
     return result.length > 0;
   }
 
   async deleteByUserAndId(userId: string, taskId: string): Promise<boolean> {
-    const result = await db.delete(scheduledTask)
+    const result = await db
+      .delete(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.userId, userId)))
       .returning({ id: scheduledTask.id });
     return result.length > 0;
@@ -84,33 +96,42 @@ class PgScheduledTaskRepo implements IScheduledTaskRepo {
   }
 
   async existsByUserAndId(userId: string, taskId: string): Promise<boolean> {
-    const rows = await db.select({ id: scheduledTask.id }).from(scheduledTask)
+    const rows = await db
+      .select({ id: scheduledTask.id })
+      .from(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.userId, userId)));
     return rows.length > 0;
   }
 
   async listByTeam(teamId: string) {
-    return db.select().from(scheduledTask)
+    return db
+      .select()
+      .from(scheduledTask)
       .where(eq(scheduledTask.teamId, teamId))
       .orderBy(desc(scheduledTask.createdAt));
   }
 
   async getByTeamAndId(teamId: string, taskId: string) {
-    const rows = await db.select().from(scheduledTask)
+    const rows = await db
+      .select()
+      .from(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.teamId, teamId)))
       .limit(1);
     return rows[0] ?? null;
   }
 
   async deleteByTeamAndId(teamId: string, taskId: string): Promise<boolean> {
-    const result = await db.delete(scheduledTask)
+    const result = await db
+      .delete(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.teamId, teamId)))
       .returning({ id: scheduledTask.id });
     return result.length > 0;
   }
 
   async existsByTeamAndId(teamId: string, taskId: string): Promise<boolean> {
-    const rows = await db.select({ id: scheduledTask.id }).from(scheduledTask)
+    const rows = await db
+      .select({ id: scheduledTask.id })
+      .from(scheduledTask)
       .where(and(eq(scheduledTask.id, taskId), eq(scheduledTask.teamId, teamId)));
     return rows.length > 0;
   }
@@ -118,17 +139,22 @@ class PgScheduledTaskRepo implements IScheduledTaskRepo {
 
 class PgTaskExecutionLogRepo implements ITaskExecutionLogRepo {
   async listByTask(taskId: string) {
-    return db.select().from(taskExecutionLog)
+    return db
+      .select()
+      .from(taskExecutionLog)
       .where(eq(taskExecutionLog.taskId, taskId))
       .orderBy(desc(taskExecutionLog.createdAt));
   }
 
   async listByTaskPaged(taskId: string, page: number, pageSize: number) {
     const offset = (page - 1) * pageSize;
-    const [{ total }] = await db.select({ total: sql<number>`count(*)` })
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)` })
       .from(taskExecutionLog)
       .where(eq(taskExecutionLog.taskId, taskId));
-    const rows = await db.select().from(taskExecutionLog)
+    const rows = await db
+      .select()
+      .from(taskExecutionLog)
       .where(eq(taskExecutionLog.taskId, taskId))
       .orderBy(desc(taskExecutionLog.createdAt))
       .limit(pageSize)
@@ -137,7 +163,9 @@ class PgTaskExecutionLogRepo implements ITaskExecutionLogRepo {
   }
 
   async getLatest(taskId: string) {
-    const rows = await db.select().from(taskExecutionLog)
+    const rows = await db
+      .select()
+      .from(taskExecutionLog)
       .where(eq(taskExecutionLog.taskId, taskId))
       .orderBy(desc(taskExecutionLog.createdAt))
       .limit(1);

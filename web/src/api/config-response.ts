@@ -6,7 +6,12 @@ export interface ConfigOkResponse<T> {
 
 /** 从 config 路由响应中解包 data，非 success 时返回 null */
 export function unwrapConfigData<T>(response: unknown): T | null {
-  if (response && typeof response === "object" && "success" in response && (response as { success: unknown }).success === true) {
+  if (
+    response &&
+    typeof response === "object" &&
+    "success" in response &&
+    (response as { success: unknown }).success === true
+  ) {
     return (response as ConfigOkResponse<T>).data;
   }
   return null;

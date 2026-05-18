@@ -21,12 +21,7 @@ async function ensureTeam() {
     });
   }
 }
-import {
-  createSession,
-  getSession,
-  updateSessionStatus,
-  archiveSession,
-} from "../services/session";
+import { createSession, getSession, updateSessionStatus, archiveSession } from "../services/session";
 import {
   registerEnvironment,
   deregisterEnvironment,
@@ -327,9 +322,7 @@ describe("Transport Service", () => {
         tasks: [{ id: "1", subject: "Task 1", status: "pending" }],
       });
       expect(result.task_list_id).toBe("team-alpha");
-      expect(result.tasks).toEqual([
-        { id: "1", subject: "Task 1", status: "pending" },
-      ]);
+      expect(result.tasks).toEqual([{ id: "1", subject: "Task 1", status: "pending" }]);
     });
 
     test("preserves status metadata for conversation reset events", () => {

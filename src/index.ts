@@ -100,7 +100,10 @@ const app = new Elysia()
   })
   // Health check
   .get("/health", () => ({ status: "ok", version: config.version }))
-  .get("/", ({ set }) => { set.status = 302; set.headers.Location = "/ctrl/"; })
+  .get("/", ({ set }) => {
+    set.status = 302;
+    set.headers.Location = "/ctrl/";
+  })
   // better-auth handler
   .use(authPlugin)
   // Static files under /ctrl

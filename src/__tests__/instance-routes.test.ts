@@ -15,18 +15,20 @@ function toResponse(inst: any) {
 }
 
 // Mock service functions
-const mockSpawnInstance = mock<(userId: string) => Promise<{
-  id: string;
-  userId: string;
-  port: number;
-  pid: number;
-  status: "running";
-  command: string;
-  error: null;
-  apiKey: string;
-  createdAt: Date;
-  instanceNumber: number;
-}>>(async (userId: string) => ({
+const mockSpawnInstance = mock<
+  (userId: string) => Promise<{
+    id: string;
+    userId: string;
+    port: number;
+    pid: number;
+    status: "running";
+    command: string;
+    error: null;
+    apiKey: string;
+    createdAt: Date;
+    instanceNumber: number;
+  }>
+>(async (userId: string) => ({
   id: "inst_abc123",
   userId,
   port: 8888,
@@ -39,18 +41,20 @@ const mockSpawnInstance = mock<(userId: string) => Promise<{
   instanceNumber: 1,
 }));
 
-const mockListInstances = mock<(userId: string) => Array<{
-  id: string;
-  userId: string;
-  port: number;
-  pid: number;
-  status: "running" | "stopped";
-  command: string;
-  error: null;
-  apiKey: string;
-  createdAt: Date;
-  instanceNumber: number;
-}>>((_ctx: any) => [
+const mockListInstances = mock<
+  (userId: string) => Array<{
+    id: string;
+    userId: string;
+    port: number;
+    pid: number;
+    status: "running" | "stopped";
+    command: string;
+    error: null;
+    apiKey: string;
+    createdAt: Date;
+    instanceNumber: number;
+  }>
+>((_ctx: any) => [
   {
     id: "inst_abc123",
     userId: "test-user-id",
@@ -77,9 +81,7 @@ const mockListInstances = mock<(userId: string) => Array<{
   },
 ]);
 
-type StopInstanceResult =
-  | { ok: true }
-  | { ok: false; error: "Instance not found" | "Not your instance" | string };
+type StopInstanceResult = { ok: true } | { ok: false; error: "Instance not found" | "Not your instance" | string };
 
 const mockStopInstance = mock<(id: string, userId: string) => Promise<StopInstanceResult>>(async () => ({ ok: true }));
 
@@ -89,11 +91,9 @@ function request(app: Elysia, path: string, init?: RequestInit) {
 
 // Build the route inline with mock auth
 function createInstanceApp() {
-  const app = new Elysia()
-    .state({ user: null as { id: string } | null })
-    .onBeforeHandle(({ store }) => {
-      store.user = { id: "test-user-id" };
-    });
+  const app = new Elysia().state({ user: null as { id: string } | null }).onBeforeHandle(({ store }) => {
+    store.user = { id: "test-user-id" };
+  });
 
   app.post("/web/instances", async ({ store }) => {
     const user = store.user!;
@@ -122,9 +122,7 @@ function createInstanceApp() {
     const id = params.id;
     const result = await mockStopInstance(id, user.id);
     if (!result.ok) {
-      const statusCode = result.error === "Instance not found" ? 404
-        : result.error === "Not your instance" ? 403
-        : 400;
+      const statusCode = result.error === "Instance not found" ? 404 : result.error === "Not your instance" ? 403 : 400;
       return new Response(JSON.stringify({ error: { type: "bad_request", message: result.error } }), {
         status: statusCode,
         headers: { "Content-Type": "application/json" },

@@ -33,9 +33,16 @@ import { groupActiveInstancesByEnvironment } from "../services/instance";
 
 function snap(id: string, status: string): RuntimeInstanceSnapshot {
   return {
-    instanceId: id, status: status as any, errorMessage: null,
-    pluginMetadata: {}, createdAt: new Date(), engineType: "opencode",
-    nodeId: "local-default", launchSpec: {}, relayConnected: false, updatedAt: new Date(),
+    instanceId: id,
+    status: status as any,
+    errorMessage: null,
+    pluginMetadata: {},
+    createdAt: new Date(),
+    engineType: "opencode",
+    nodeId: "local-default",
+    launchSpec: {},
+    relayConnected: false,
+    updatedAt: new Date(),
   };
 }
 
@@ -46,11 +53,7 @@ describe("groupActiveInstancesByEnvironment", () => {
 
   // 多环境实例正确分组（无 supplement 匹配时跳过）
   test("groups active instances by environmentId", () => {
-    mockListInstances.mockReturnValueOnce([
-      snap("i1", "running"),
-      snap("i2", "running"),
-      snap("i3", "starting"),
-    ]);
+    mockListInstances.mockReturnValueOnce([snap("i1", "running"), snap("i2", "running"), snap("i3", "starting")]);
 
     const result = groupActiveInstancesByEnvironment();
     expect(result.size).toBe(0);
@@ -72,10 +75,7 @@ describe("groupActiveInstancesByEnvironment", () => {
 
   // 过滤掉 stopped 和 error 状态
   test("filters out stopped and error instances", () => {
-    mockListInstances.mockReturnValueOnce([
-      snap("stopped_1", "stopped"),
-      snap("error_1", "error"),
-    ]);
+    mockListInstances.mockReturnValueOnce([snap("stopped_1", "stopped"), snap("error_1", "error")]);
 
     const result = groupActiveInstancesByEnvironment();
     expect(result.size).toBe(0);

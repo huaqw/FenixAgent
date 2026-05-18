@@ -38,9 +38,7 @@ describe("Dark mode component integration", () => {
   });
 
   test("Skeleton renders with animate-pulse", () => {
-    const html = ReactDOMServer.renderToStaticMarkup(
-      <Skeleton className="h-4 w-20" />
-    );
+    const html = ReactDOMServer.renderToStaticMarkup(<Skeleton className="h-4 w-20" />);
     expect(html).toContain("animate-pulse");
   });
 
@@ -66,7 +64,7 @@ describe("Dark mode component integration", () => {
           <AccordionTrigger>标题</AccordionTrigger>
           <AccordionContent>内容</AccordionContent>
         </AccordionItem>
-      </Accordion>
+      </Accordion>,
     );
     expect(html).toContain("标题");
     // AccordionContent is hidden in SSR by Radix (data-state=closed)

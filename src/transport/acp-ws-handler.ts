@@ -136,7 +136,9 @@ async function handleRegister(wsId: string, msg: Record<string, unknown>): Promi
       entry.unsub = unsub;
     }
 
-    log(`[ACP-WS] ${result.isNew ? "Agent registered" : "Bound agent registered"}: agentId=${result.envId} userId=${entry.userId} name=${agentName}`);
+    log(
+      `[ACP-WS] ${result.isNew ? "Agent registered" : "Bound agent registered"}: agentId=${result.envId} userId=${entry.userId} name=${agentName}`,
+    );
     sendToWs(entry.ws, { type: "registered", agent_id: result.envId });
   } catch (err) {
     logError("[ACP-WS] Error in register handler:", err);
@@ -195,13 +197,18 @@ async function handleIdentify(wsId: string, msg: Record<string, unknown>): Promi
       entry.unsub = unsub;
     }
 
-    log(`[ACP-WS] ${entry.boundEnvId ? "Bound agent identified" : "Agent identified"}: agentId=${result.envId} userId=${entry.userId}`);
+    log(
+      `[ACP-WS] ${entry.boundEnvId ? "Bound agent identified" : "Agent identified"}: agentId=${result.envId} userId=${entry.userId}`,
+    );
     sendToWs(entry.ws, { type: "identified", agent_id: result.envId });
   } catch (err: any) {
     logError("[ACP-WS] Error in identify handler:", err);
-    const message = err.code === "NOT_FOUND" ? "Agent not found"
-      : err.code === "FORBIDDEN" ? "Agent not owned by you"
-      : "Identification failed";
+    const message =
+      err.code === "NOT_FOUND"
+        ? "Agent not found"
+        : err.code === "FORBIDDEN"
+          ? "Agent not owned by you"
+          : "Identification failed";
     sendToWs(entry.ws, { type: "error", message });
   }
 }
@@ -273,7 +280,9 @@ export function handleAcpWsClose(ws: WsConnection, wsId: string, code?: number, 
   if (!entry) return;
 
   const duration = Math.round((Date.now() - entry.openTime) / 1000);
-  log(`[ACP-WS] Connection closed: wsId=${wsId} agentId=${entry.agentId} code=${code ?? "none"} reason=${reason || "(none)"} duration=${duration}s`);
+  log(
+    `[ACP-WS] Connection closed: wsId=${wsId} agentId=${entry.agentId} code=${code ?? "none"} reason=${reason || "(none)"} duration=${duration}s`,
+  );
 
   if (entry.unsub) entry.unsub();
   if (entry.keepalive) clearInterval(entry.keepalive);

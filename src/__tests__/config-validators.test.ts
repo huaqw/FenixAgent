@@ -1,45 +1,39 @@
 import { describe, expect, it } from "bun:test";
 
 // 纯函数验证逻辑的单元测试，不依赖数据库
-const {
-  validateMcpConfig,
-  isValidMcpName,
-  toServerInfo,
-} = await import("../services/config/mcp-server");
+const { validateMcpConfig, isValidMcpName, toServerInfo } = await import("../services/config/mcp-server");
 
-const {
-  validateAgentData,
-  toolsToPermission,
-  isBuiltInAgent,
-  normalizeKnowledgeConfig,
-} = await import("../services/config/agent-config");
+const { validateAgentData, toolsToPermission, isBuiltInAgent, normalizeKnowledgeConfig } = await import(
+  "../services/config/agent-config"
+);
 
-const {
-  validateWorkspacePath,
-  KEBAB_CASE_RE,
-} = await import("../services/environment-core");
+const { validateWorkspacePath, KEBAB_CASE_RE } = await import("../services/environment-core");
 
 // ─�� MCP Server 验证 ──
 
 describe("validateMcpConfig", () => {
   // local 类型完整配置
   it("接受有效的 local 配置", () => {
-    expect(validateMcpConfig({
-      type: "local",
-      command: ["npx", "-y", "some-server"],
-      environment: { KEY: "val" },
-      timeout: 5000,
-    })).toBeNull();
+    expect(
+      validateMcpConfig({
+        type: "local",
+        command: ["npx", "-y", "some-server"],
+        environment: { KEY: "val" },
+        timeout: 5000,
+      }),
+    ).toBeNull();
   });
 
   // remote 类型完整配置
   it("接受有效的 remote 配置", () => {
-    expect(validateMcpConfig({
-      type: "remote",
-      url: "https://api.example.com/sse",
-      headers: { Authorization: "Bearer token" },
-      timeout: 3000,
-    })).toBeNull();
+    expect(
+      validateMcpConfig({
+        type: "remote",
+        url: "https://api.example.com/sse",
+        headers: { Authorization: "Bearer token" },
+        timeout: 3000,
+      }),
+    ).toBeNull();
   });
 
   // 仅 enabled:false 的快捷禁用
@@ -86,11 +80,13 @@ describe("validateMcpConfig", () => {
 
   // streamable-http 类型完整配置（与 remote 共享 url 校验规则）
   it("接受有效的 streamable-http 配置", () => {
-    expect(validateMcpConfig({
-      type: "streamable-http",
-      url: "https://api.example.com/mcp",
-      timeout: 5000,
-    })).toBeNull();
+    expect(
+      validateMcpConfig({
+        type: "streamable-http",
+        url: "https://api.example.com/mcp",
+        timeout: 5000,
+      }),
+    ).toBeNull();
   });
 
   // streamable-http 缺少 url 应报错
@@ -100,7 +96,9 @@ describe("validateMcpConfig", () => {
 
   // streamable-http 无效 headers 应报错
   it("拒绝 streamable-http 无效 headers", () => {
-    expect(validateMcpConfig({ type: "streamable-http", url: "https://x.com", headers: "bad" })).toBe("INVALID_HEADERS");
+    expect(validateMcpConfig({ type: "streamable-http", url: "https://x.com", headers: "bad" })).toBe(
+      "INVALID_HEADERS",
+    );
   });
 });
 

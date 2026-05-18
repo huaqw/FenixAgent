@@ -5,7 +5,8 @@ import { createExecutionLog, executeTaskById, getTaskById } from "./task";
 
 // 可替换的 scheduleJob 实现（测试时覆盖）
 export type ScheduleJobFn = (config: schedule.ScheduleJobArgs, handler: () => void) => schedule.Job | null;
-export let scheduleJobImpl: ScheduleJobFn = (config, handler) => schedule.scheduleJob(config as schedule.JobReference, handler);
+export let scheduleJobImpl: ScheduleJobFn = (config, handler) =>
+  schedule.scheduleJob(config as schedule.JobReference, handler);
 
 export function setScheduleJobImpl(fn: ScheduleJobFn) {
   scheduleJobImpl = fn;
@@ -110,8 +111,9 @@ export function scheduleTask(task: { id: string; cron: string; timezone?: string
   activeJobs.set(task.id, { taskId: task.id, job });
   const nextRunAt = toInvocationDate(job.nextInvocation());
 
-  scheduledTaskRepo.update(task.id, { nextRunAt, updatedAt: new Date() })
-    .catch((err) => { error(`[Scheduler] Failed to update nextRunAt for task ${task.id}:`, err); });
+  scheduledTaskRepo.update(task.id, { nextRunAt, updatedAt: new Date() }).catch((err) => {
+    error(`[Scheduler] Failed to update nextRunAt for task ${task.id}:`, err);
+  });
 
   log(`[Scheduler] Scheduled task ${task.id} with cron "${task.cron}" (tz: ${task.timezone ?? "server-local"})`);
   return true;
@@ -128,7 +130,12 @@ export function unscheduleTask(taskId: string): void {
   runningTasks.delete(taskId);
 }
 
-export function rescheduleTask(task: { id: string; cron: string; timezone?: string | null; enabled?: boolean }): boolean {
+export function rescheduleTask(task: {
+  id: string;
+  cron: string;
+  timezone?: string | null;
+  enabled?: boolean;
+}): boolean {
   unscheduleTask(task.id);
   return scheduleTask(task);
 }

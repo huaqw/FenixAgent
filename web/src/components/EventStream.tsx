@@ -46,7 +46,10 @@ function clearActiveHost(state: ToolTraceState): ToolTraceState {
   return { ...state, activeHostId: null };
 }
 
-function addTraceEntry(state: ToolTraceState, entryKind: "use" | "result"): {
+function addTraceEntry(
+  state: ToolTraceState,
+  entryKind: "use" | "result",
+): {
   state: ToolTraceState;
   host: TraceHost;
   createdHost: TraceHost | null;
@@ -155,11 +158,36 @@ const SPINNER_FRAMES = ["·", "✢", "✱", "✶", "✻", "✽"];
 const SPINNER_CYCLE = [...SPINNER_FRAMES, ...SPINNER_FRAMES.slice().reverse()];
 
 const SPINNER_VERBS = [
-  "Accomplishing", "Baking", "Calculating", "Clauding", "Cogitating", "Computing",
-  "Considering", "Contemplating", "Cooking", "Crafting", "Creating", "Crunching",
-  "Deliberating", "Doing", "Effecting", "Generating", "Hatching", "Ideating",
-  "Imagining", "Inferring", "Manifesting", "Mulling", "Pondering", "Processing",
-  "Ruminating", "Simmering", "Synthesizing", "Thinking", "Tinkering", "Working",
+  "Accomplishing",
+  "Baking",
+  "Calculating",
+  "Clauding",
+  "Cogitating",
+  "Computing",
+  "Considering",
+  "Contemplating",
+  "Cooking",
+  "Crafting",
+  "Creating",
+  "Crunching",
+  "Deliberating",
+  "Doing",
+  "Effecting",
+  "Generating",
+  "Hatching",
+  "Ideating",
+  "Imagining",
+  "Inferring",
+  "Manifesting",
+  "Mulling",
+  "Pondering",
+  "Processing",
+  "Ruminating",
+  "Simmering",
+  "Synthesizing",
+  "Thinking",
+  "Tinkering",
+  "Working",
 ];
 
 // ============================================================
@@ -170,7 +198,11 @@ interface EventStreamProps {
   messages: DisplayMessage[];
   onApprovePermission: (requestId: string) => void;
   onRejectPermission: (requestId: string) => void;
-  onSubmitAnswers: (requestId: string, answers: Record<string, unknown>, questions: import("../types").Question[]) => void;
+  onSubmitAnswers: (
+    requestId: string,
+    answers: Record<string, unknown>,
+    questions: import("../types").Question[],
+  ) => void;
   onSubmitPlanResponse: (requestId: string, value: string, feedback?: string) => void;
 }
 
@@ -193,18 +225,32 @@ export function EventStream({
     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
       <div className="mx-auto max-w-5xl space-y-3">
         {messages.map((msg, i) => (
-          <MessageRow key={i} message={msg} {...{ onApprovePermission, onRejectPermission, onSubmitAnswers, onSubmitPlanResponse }} />
+          <MessageRow
+            key={i}
+            message={msg}
+            {...{ onApprovePermission, onRejectPermission, onSubmitAnswers, onSubmitPlanResponse }}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function MessageRow({ message, onApprovePermission, onRejectPermission, onSubmitAnswers, onSubmitPlanResponse }: {
+function MessageRow({
+  message,
+  onApprovePermission,
+  onRejectPermission,
+  onSubmitAnswers,
+  onSubmitPlanResponse,
+}: {
   message: DisplayMessage;
   onApprovePermission: (requestId: string) => void;
   onRejectPermission: (requestId: string) => void;
-  onSubmitAnswers: (requestId: string, answers: Record<string, unknown>, questions: import("../types").Question[]) => void;
+  onSubmitAnswers: (
+    requestId: string,
+    answers: Record<string, unknown>,
+    questions: import("../types").Question[],
+  ) => void;
   onSubmitPlanResponse: (requestId: string, value: string, feedback?: string) => void;
 }) {
   switch (message.kind) {
@@ -290,7 +336,9 @@ function AssistantBubble({ content, traceEntries }: { content: string; traceEntr
               className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
             >
               <span className={cn("transition-transform", expanded && "rotate-90")}>›</span>
-              <span>{traceEntries.length} tool {traceEntries.length === 1 ? "call" : "calls"}</span>
+              <span>
+                {traceEntries.length} tool {traceEntries.length === 1 ? "call" : "calls"}
+              </span>
             </button>
             {expanded && (
               <div className="mt-1 space-y-1 pl-2">
@@ -339,12 +387,8 @@ function ToolCard({ entry }: { entry: TraceEntry }) {
       onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-center gap-2 px-3 py-2 text-xs">
-        <span className={entry.isError ? "text-status-error" : "text-status-active"}>
-          {entry.isError ? "✕" : "✓"}
-        </span>
-        <span className="font-medium text-text-primary">
-          {entry.isError ? "Error" : "Result"}
-        </span>
+        <span className={entry.isError ? "text-status-error" : "text-status-active"}>{entry.isError ? "✕" : "✓"}</span>
+        <span className="font-medium text-text-primary">{entry.isError ? "Error" : "Result"}</span>
       </div>
       {expanded && (
         <pre className="border-t border-border px-3 py-2 text-xs text-text-secondary overflow-x-auto">
@@ -358,9 +402,7 @@ function ToolCard({ entry }: { entry: TraceEntry }) {
 function SystemBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-center">
-      <div className="rounded-full bg-surface-2 px-4 py-1.5 text-xs text-text-muted">
-        {esc(content)}
-      </div>
+      <div className="rounded-full bg-surface-2 px-4 py-1.5 text-xs text-text-muted">{esc(content)}</div>
     </div>
   );
 }
@@ -470,9 +512,7 @@ function AskUserPanel({
         </div>
         <div className="space-y-2">
           {(q.options || []).map((opt, j) => {
-            const isSelected = multiSelect
-              ? ((answers[0] as number[]) || []).includes(j)
-              : selectedIdx === j;
+            const isSelected = multiSelect ? ((answers[0] as number[]) || []).includes(j) : selectedIdx === j;
             return (
               <button
                 key={j}
@@ -537,9 +577,7 @@ function AskUserPanel({
             onClick={() => setActiveTab(i)}
             className={cn(
               "rounded-md px-3 py-1.5 text-xs whitespace-nowrap transition-colors",
-              activeTab === i
-                ? "bg-brand/20 text-brand"
-                : "text-text-muted hover:bg-surface-2",
+              activeTab === i ? "bg-brand/20 text-brand" : "text-text-muted hover:bg-surface-2",
             )}
           >
             {q.header || `Q${i + 1}`}
@@ -558,7 +596,9 @@ function AskUserPanel({
         />
       )}
       <div className="mt-4 flex items-center justify-between">
-        <span className="text-xs text-text-muted">{activeTab + 1} / {questions.length}</span>
+        <span className="text-xs text-text-muted">
+          {activeTab + 1} / {questions.length}
+        </span>
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
@@ -602,9 +642,7 @@ function QuestionTab({
       <div className="mb-2 text-sm text-text-secondary">{esc(question.question)}</div>
       <div className="space-y-2">
         {(question.options || []).map((opt, j) => {
-          const isSelected = multiSelect
-            ? ((answers[qIdx] as number[]) || []).includes(j)
-            : answers[qIdx] === j;
+          const isSelected = multiSelect ? ((answers[qIdx] as number[]) || []).includes(j) : answers[qIdx] === j;
           return (
             <button
               key={j}
@@ -789,7 +827,17 @@ function LoadingIndicator({ verb }: { verb: string }) {
 // Event Processing Hook
 // ============================================================
 
-export { type DisplayMessage, type TraceEntry, type UserMessage, type AssistantMessage, type SystemMessage, type PermissionMessage, type AskUserMessage, type PlanMessage, type LoadingMessage };
+export {
+  type DisplayMessage,
+  type TraceEntry,
+  type UserMessage,
+  type AssistantMessage,
+  type SystemMessage,
+  type PermissionMessage,
+  type AskUserMessage,
+  type PlanMessage,
+  type LoadingMessage,
+};
 
 export function useEventProcessor() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -833,8 +881,8 @@ export function useEventProcessor() {
           // Process tool results
           for (const block of toolResultBlocks) {
             addToolTraceEntry("result", {
-              content: block.content as string || "",
-              output: block.content as string || "",
+              content: (block.content as string) || "",
+              output: (block.content as string) || "",
               is_error: !!block.is_error,
             });
           }
@@ -894,7 +942,10 @@ export function useEventProcessor() {
         addToolTraceEntry("use", payload as Record<string, unknown> as { tool_name: string; tool_input: unknown });
         break;
       case "tool_result":
-        addToolTraceEntry("result", payload as Record<string, unknown> as { content: string; output: string; is_error: boolean });
+        addToolTraceEntry(
+          "result",
+          payload as Record<string, unknown> as { content: string; output: string; is_error: boolean },
+        );
         break;
       case "control_request":
       case "permission_request": {
@@ -908,7 +959,7 @@ export function useEventProcessor() {
               {
                 kind: "ask_user",
                 requestId: payload.request_id || event.id || "",
-                questions: (toolInput as Record<string, unknown>).questions as import("../types").Question[] || [],
+                questions: ((toolInput as Record<string, unknown>).questions as import("../types").Question[]) || [],
                 description: req.description || "",
               },
             ]);
@@ -956,7 +1007,10 @@ export function useEventProcessor() {
         removeLoading();
         setMessages((prev) => [
           ...prev,
-          { kind: "system", content: `Error: ${(typeof payload.message === "string" ? payload.message : "") || payload.content || "Unknown error"}` },
+          {
+            kind: "system",
+            content: `Error: ${(typeof payload.message === "string" ? payload.message : "") || payload.content || "Unknown error"}`,
+          },
         ]);
         break;
       case "session_status":
@@ -1016,29 +1070,26 @@ export function useEventProcessor() {
     const result = addTraceEntry(traceStateRef.current, entryKind);
     traceStateRef.current = result.state;
 
-    const entry: TraceEntry = entryKind === "use"
-      ? {
-          entryKind: "use",
-          toolName: (payload.tool_name as string) || (payload.name as string) || "tool",
-          toolInput: payload.tool_input || payload.input,
-        }
-      : {
-          entryKind: "result",
-          content: (payload.content as string) || "",
-          output: (payload.output as string) || (payload.content as string) || "",
-          isError: !!payload.is_error,
-        };
+    const entry: TraceEntry =
+      entryKind === "use"
+        ? {
+            entryKind: "use",
+            toolName: (payload.tool_name as string) || (payload.name as string) || "tool",
+            toolInput: payload.tool_input || payload.input,
+          }
+        : {
+            entryKind: "result",
+            content: (payload.content as string) || "",
+            output: (payload.output as string) || (payload.content as string) || "",
+            isError: !!payload.is_error,
+          };
 
     // Add entry to the last assistant message
     setMessages((prev) => {
       for (let i = prev.length - 1; i >= 0; i--) {
         if (prev[i].kind === "assistant") {
           const msg = prev[i] as AssistantMessage;
-          return [
-            ...prev.slice(0, i),
-            { ...msg, traceEntries: [...msg.traceEntries, entry] },
-            ...prev.slice(i + 1),
-          ];
+          return [...prev.slice(0, i), { ...msg, traceEntries: [...msg.traceEntries, entry] }, ...prev.slice(i + 1)];
         }
       }
       return prev;

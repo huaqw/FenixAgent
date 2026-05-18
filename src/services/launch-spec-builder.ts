@@ -58,10 +58,7 @@ function toSdkMcpConfig(name: string, raw: Record<string, unknown>): McpServerCo
   return null;
 }
 
-function resolveModelConfig(
-  modelRef: string | null | undefined,
-  providers: AgentFullConfig["providers"],
-): ModelConfig {
+function resolveModelConfig(modelRef: string | null | undefined, providers: AgentFullConfig["providers"]): ModelConfig {
   const fallback: ModelConfig = {
     provider: "openai",
     protocol: "openai",
@@ -128,9 +125,7 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
   for (const server of fullConfig.mcpServers) {
     let raw: Record<string, unknown>;
     try {
-      raw = typeof server.config === "string"
-        ? JSON.parse(server.config)
-        : server.config as Record<string, unknown>;
+      raw = typeof server.config === "string" ? JSON.parse(server.config) : (server.config as Record<string, unknown>);
     } catch {
       log(`[launch-spec-builder] 跳过无效 JSON 配置: ${server.name}`);
       continue;
@@ -141,9 +136,7 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
     }
   }
 
-  const knowledgeBindings = agentConfigId
-    ? await listAgentKnowledgeBindingsById(agentConfigId)
-    : [];
+  const knowledgeBindings = agentConfigId ? await listAgentKnowledgeBindingsById(agentConfigId) : [];
   if (knowledgeBindings.length > 0) {
     mcpServers.push({
       name: "kb",

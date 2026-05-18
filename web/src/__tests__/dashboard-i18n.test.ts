@@ -22,7 +22,7 @@ describe("Dashboard.tsx i18n Chinese translations", () => {
     expect(src).toContain("智能体");
   });
 
-  test('source contains Chinese loading text', () => {
+  test("source contains Chinese loading text", () => {
     expect(src).toContain("加载系统概览");
   });
 });

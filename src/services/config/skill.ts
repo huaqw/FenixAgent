@@ -10,19 +10,27 @@ import type { AuthContext } from "../../plugins/auth";
 export async function listSkills(ctx: AuthContext, agentConfigId?: string | null) {
   if (agentConfigId) {
     // 返回全局 Skill + 指定 Agent 的专属 Skill
-    return db.select().from(skill)
-      .where(and(
-        eq(skill.teamId, ctx.teamId),
-        isNull(skill.environmentId),
-        sql`(${skill.agentConfigId} IS NULL OR ${skill.agentConfigId} = ${agentConfigId})`,
-      ));
+    return db
+      .select()
+      .from(skill)
+      .where(
+        and(
+          eq(skill.teamId, ctx.teamId),
+          isNull(skill.environmentId),
+          sql`(${skill.agentConfigId} IS NULL OR ${skill.agentConfigId} = ${agentConfigId})`,
+        ),
+      );
   }
-  return db.select().from(skill)
+  return db
+    .select()
+    .from(skill)
     .where(and(eq(skill.teamId, ctx.teamId), isNull(skill.environmentId)));
 }
 
 export async function listWorkspaceSkills(ctx: AuthContext, environmentId: string) {
-  return db.select().from(skill)
+  return db
+    .select()
+    .from(skill)
     .where(and(eq(skill.teamId, ctx.teamId), eq(skill.environmentId, environmentId)));
 }
 
@@ -31,9 +39,7 @@ export async function getSkill(ctx: AuthContext, name: string, environmentId?: s
     ? and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), eq(skill.environmentId, environmentId))
     : and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), isNull(skill.environmentId));
 
-  const rows = await db.select().from(skill)
-    .where(conditions)
-    .limit(1);
+  const rows = await db.select().from(skill).where(conditions).limit(1);
   return rows[0] ?? null;
 }
 
@@ -54,9 +60,7 @@ export async function upsertSkill(
     ? and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), eq(skill.environmentId, envId))
     : and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), isNull(skill.environmentId));
 
-  const existing = await db.select({ id: skill.id }).from(skill)
-    .where(conditions)
-    .limit(1);
+  const existing = await db.select({ id: skill.id }).from(skill).where(conditions).limit(1);
 
   const commonFields = {
     description: data.description,
@@ -68,27 +72,25 @@ export async function upsertSkill(
   };
 
   if (existing.length > 0) {
-    await db.update(skill).set(commonFields)
-      .where(eq(skill.id, existing[0].id));
+    await db.update(skill).set(commonFields).where(eq(skill.id, existing[0].id));
     return existing[0].id;
   }
 
-  const inserted = await db.insert(skill).values({
-    teamId: ctx.teamId,
-    userId: ctx.userId,
-    environmentId: envId,
-    name,
-    ...commonFields,
-    enabled: data.enabled ?? true,
-  }).returning({ id: skill.id });
+  const inserted = await db
+    .insert(skill)
+    .values({
+      teamId: ctx.teamId,
+      userId: ctx.userId,
+      environmentId: envId,
+      name,
+      ...commonFields,
+      enabled: data.enabled ?? true,
+    })
+    .returning({ id: skill.id });
   return inserted[0].id;
 }
 
-export async function deleteSkill(
-  ctx: AuthContext,
-  name: string,
-  environmentId?: string | null,
-): Promise<boolean> {
+export async function deleteSkill(ctx: AuthContext, name: string, environmentId?: string | null): Promise<boolean> {
   const conditions = environmentId
     ? and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), eq(skill.environmentId, environmentId))
     : and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), isNull(skill.environmentId));
@@ -98,7 +100,8 @@ export async function deleteSkill(
 }
 
 export async function enableSkill(ctx: AuthContext, name: string): Promise<boolean> {
-  const result = await db.update(skill)
+  const result = await db
+    .update(skill)
     .set({ enabled: true, updatedAt: new Date() })
     .where(and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), isNull(skill.environmentId)))
     .returning({ id: skill.id });
@@ -106,7 +109,8 @@ export async function enableSkill(ctx: AuthContext, name: string): Promise<boole
 }
 
 export async function disableSkill(ctx: AuthContext, name: string): Promise<boolean> {
-  const result = await db.update(skill)
+  const result = await db
+    .update(skill)
     .set({ enabled: false, updatedAt: new Date() })
     .where(and(eq(skill.teamId, ctx.teamId), eq(skill.name, name), isNull(skill.environmentId)))
     .returning({ id: skill.id });

@@ -4,23 +4,11 @@ import { toast } from "sonner";
 import { client } from "../api/client";
 import { DataTable, type Column } from "@/components/config/DataTable";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -60,7 +48,10 @@ export function ChannelsPage() {
   const loadHermesStatus = useCallback(async () => {
     try {
       const { data, error } = await client.web.channels.hermes.status.get();
-      if (error) { setHermesStatus(null); return; }
+      if (error) {
+        setHermesStatus(null);
+        return;
+      }
       setHermesStatus(data);
     } catch {
       setHermesStatus(null);
@@ -70,7 +61,11 @@ export function ChannelsPage() {
   const loadBindings = useCallback(async () => {
     try {
       const { data, error } = await client.web.channels.bindings.get();
-      if (error) { console.error("加载绑定列表失败", error); toast.error("加载绑定列表失败"); return; }
+      if (error) {
+        console.error("加载绑定列表失败", error);
+        toast.error("加载绑定列表失败");
+        return;
+      }
       setBindings(data as unknown as ChannelBinding[]);
     } catch (e) {
       console.error("加载绑定列表失败", e);
@@ -81,8 +76,15 @@ export function ChannelsPage() {
   const loadEnvironments = useCallback(async () => {
     try {
       const { data, error } = await client.web.environments.get();
-      if (error) { return; }
-      setEnvironments((Array.isArray(data) ? data as unknown as EnvironmentSummary[] : []).map((e: any) => ({ id: e.id, name: e.name })));
+      if (error) {
+        return;
+      }
+      setEnvironments(
+        (Array.isArray(data) ? (data as unknown as EnvironmentSummary[]) : []).map((e: any) => ({
+          id: e.id,
+          name: e.name,
+        })),
+      );
     } catch {}
   }, []);
 
@@ -108,11 +110,13 @@ export function ChannelsPage() {
       const { data, error } = await client.web.channels.bindings[binding.id].patch({
         enabled: !binding.enabled,
       });
-      if (error) { console.error("更新绑定状态失败", error); toast.error("更新绑定状态失败"); return; }
+      if (error) {
+        console.error("更新绑定状态失败", error);
+        toast.error("更新绑定状态失败");
+        return;
+      }
       const updated = data as unknown as ChannelBinding;
-      setBindings((prev) =>
-        prev.map((b) => (b.id === updated.id ? updated : b)),
-      );
+      setBindings((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
     } catch (e) {
       console.error("更新绑定状态失败", e);
       toast.error("更新绑定状态失败");
@@ -122,7 +126,11 @@ export function ChannelsPage() {
   const handleDeleteBinding = async (id: string) => {
     try {
       const { error } = await client.web.channels.bindings[id].delete();
-      if (error) { console.error("删除绑定失败", error); toast.error("删除绑定失败"); return; }
+      if (error) {
+        console.error("删除绑定失败", error);
+        toast.error("删除绑定失败");
+        return;
+      }
       setBindings((prev) => prev.filter((b) => b.id !== id));
       toast.success("绑定已删除");
     } catch (e) {
@@ -157,9 +165,7 @@ export function ChannelsPage() {
       toast.success("绑定创建成功");
     } catch (err) {
       console.error("创建绑定失败", err);
-      toast.error(
-        "创建绑定失败: " + (err instanceof Error ? err.message : "未知错误"),
-      );
+      toast.error("创建绑定失败: " + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setFormSaving(false);
     }
@@ -184,13 +190,7 @@ export function ChannelsPage() {
     {
       key: "enabled",
       header: "启用",
-      render: (row) => (
-        <Switch
-          size="sm"
-          checked={row.enabled}
-          onCheckedChange={() => handleToggleBinding(row)}
-        />
-      ),
+      render: (row) => <Switch size="sm" checked={row.enabled} onCheckedChange={() => handleToggleBinding(row)} />,
     },
   ];
 
@@ -217,15 +217,9 @@ export function ChannelsPage() {
       ? "bg-yellow-500"
       : "bg-gray-400";
 
-  const statusText = hermesStatus?.connected
-    ? "已连接"
-    : hermesStatus?.reconnecting
-      ? "重连中"
-      : "未配置";
+  const statusText = hermesStatus?.connected ? "已连接" : hermesStatus?.reconnecting ? "重连中" : "未配置";
 
-  const maskedUrl = hermesStatus?.url
-    ? hermesStatus.url.replace(/\/\/.*@/, "//***@")
-    : "";
+  const maskedUrl = hermesStatus?.url ? hermesStatus.url.replace(/\/\/.*@/, "//***@") : "";
 
   return (
     <div className="space-y-4 p-6">
@@ -238,26 +232,15 @@ export function ChannelsPage() {
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center gap-3">
           <div className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
-          <span className="text-sm font-medium text-text-bright">
-            Hermes Gateway
-          </span>
-          <Badge variant={hermesStatus?.connected ? "default" : "secondary"}>
-            {statusText}
-          </Badge>
+          <span className="text-sm font-medium text-text-bright">Hermes Gateway</span>
+          <Badge variant={hermesStatus?.connected ? "default" : "secondary"}>{statusText}</Badge>
         </div>
         {hermesStatus && (
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
             {hermesStatus.url && <span>地址: {maskedUrl}</span>}
-            {hermesStatus.platforms.length > 0 && (
-              <span>
-                平台: {hermesStatus.platforms.join(", ")}
-              </span>
-            )}
+            {hermesStatus.platforms.length > 0 && <span>平台: {hermesStatus.platforms.join(", ")}</span>}
             {hermesStatus.lastConnectedAt && (
-              <span>
-                最后连接:{" "}
-                {new Date(hermesStatus.lastConnectedAt).toLocaleString("zh-CN")}
-              </span>
+              <span>最后连接: {new Date(hermesStatus.lastConnectedAt).toLocaleString("zh-CN")}</span>
             )}
           </div>
         )}
@@ -273,11 +256,7 @@ export function ChannelsPage() {
           emptyMessage="暂无绑定"
           actions={(row) => (
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleDeleteBinding(row.id)}
-              >
+              <Button size="sm" variant="destructive" onClick={() => handleDeleteBinding(row.id)}>
                 删除
               </Button>
             </div>
@@ -304,9 +283,7 @@ export function ChannelsPage() {
                       {p}
                     </SelectItem>
                   ))}
-                  {!hermesStatus?.platforms.length && (
-                    <SelectItem value="feishu">feishu</SelectItem>
-                  )}
+                  {!hermesStatus?.platforms.length && <SelectItem value="feishu">feishu</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -335,11 +312,7 @@ export function ChannelsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setDialogOpen(false)}
-              disabled={formSaving}
-            >
+            <Button variant="secondary" onClick={() => setDialogOpen(false)} disabled={formSaving}>
               取消
             </Button>
             <Button onClick={handleCreateBinding} disabled={formSaving}>

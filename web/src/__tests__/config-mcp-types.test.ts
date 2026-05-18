@@ -1,7 +1,12 @@
 import { describe, test, expect } from "bun:test";
 import type {
-  McpLocalConfig, McpRemoteConfig, McpServerConfig, McpOAuthConfig,
-  McpServerInfo, McpServerDetail, OpenCodeConfig,
+  McpLocalConfig,
+  McpRemoteConfig,
+  McpServerConfig,
+  McpOAuthConfig,
+  McpServerInfo,
+  McpServerDetail,
+  OpenCodeConfig,
 } from "../types/config";
 
 describe("MCP 类型定义", () => {
@@ -70,7 +75,7 @@ describe("MCP 类型定义", () => {
 
   test("OpenCodeConfig 包含 mcp 字段", () => {
     const config: OpenCodeConfig = {
-      mcp: { "server1": { type: "local", command: ["npx"] } },
+      mcp: { server1: { type: "local", command: ["npx"] } },
     };
     expect(config.mcp).toBeDefined();
     expect("server1" in (config.mcp as Record<string, unknown>)).toBe(true);

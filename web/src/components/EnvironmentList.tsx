@@ -17,7 +17,12 @@ interface EnvironmentListProps {
   onStopInstance?: (instanceId: string) => void;
 }
 
-export function EnvironmentList({ environments, instances, onSelectEnvironment, onStopInstance }: EnvironmentListProps) {
+export function EnvironmentList({
+  environments,
+  instances,
+  onSelectEnvironment,
+  onStopInstance,
+}: EnvironmentListProps) {
   const instanceMap = new Map<string, InstanceInfo>();
   for (const inst of instances) {
     instanceMap.set(inst.group_id, inst);
@@ -37,7 +42,7 @@ export function EnvironmentList({ environments, instances, onSelectEnvironment, 
       matchedGroupIds.add(env.channel_group_id);
     }
   }
-  const unmatchedInstances = instances.filter(inst => !matchedGroupIds.has(inst.group_id));
+  const unmatchedInstances = instances.filter((inst) => !matchedGroupIds.has(inst.group_id));
 
   if ((!environments || environments.length === 0) && unmatchedInstances.length === 0) {
     return (
@@ -64,12 +69,8 @@ export function EnvironmentList({ environments, instances, onSelectEnvironment, 
             <div className="flex items-center gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-text-primary">
-                    {env.machine_name || env.id}
-                  </span>
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${typeColor}`}>
-                    {typeLabel}
-                  </span>
+                  <span className="text-sm font-medium text-text-primary">{env.machine_name || env.id}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${typeColor}`}>{typeLabel}</span>
                 </div>
                 <div className="text-xs text-text-muted mt-0.5">{env.directory || ""}</div>
               </div>
@@ -87,7 +88,10 @@ export function EnvironmentList({ environments, instances, onSelectEnvironment, 
                     <span className="text-xs text-text-muted">:{inst.port}</span>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); onStopInstance?.(inst.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStopInstance?.(inst.id);
+                      }}
                       className="rounded px-2 py-0.5 text-[10px] font-medium text-status-error hover:bg-status-error/10 transition-colors"
                     >
                       停止
@@ -106,12 +110,12 @@ export function EnvironmentList({ environments, instances, onSelectEnvironment, 
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-text-primary">{inst.id.slice(0, 16)}...</span>
-            <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-brand/10 text-brand">
-              ACP Agent
-            </span>
+            <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-brand/10 text-brand">ACP Agent</span>
           </div>
           <div className="flex items-center gap-2 ml-4 shrink-0">
-            <StatusBadge status={inst.status === "running" ? "active" : inst.status === "error" ? "error" : "disconnected"} />
+            <StatusBadge
+              status={inst.status === "running" ? "active" : inst.status === "error" ? "error" : "disconnected"}
+            />
             <span className="text-xs text-text-muted">:{inst.port}</span>
             {inst.error && <span className="text-xs text-status-error">{inst.error}</span>}
             {inst.status !== "stopped" && (

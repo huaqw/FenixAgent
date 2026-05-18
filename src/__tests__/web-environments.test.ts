@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock , afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
 import { setTestAuth, resetTestAuth } from "../plugins/auth";
 import { setTestTeamContext } from "../services/team-context";
 
@@ -34,21 +34,30 @@ mock.module("../services/instance", () => ({
   groupActiveInstancesByEnvironment: mock(() => new Map()),
   listInstancesResponse: mock((_envId: string) => {
     const instances = instanceMock.listInstancesByEnvironment(_envId);
-    return { environment_id: _envId, instances: instances.map((inst: any) => ({
-      id: inst.id,
-      instance_number: inst.instanceNumber,
-      status: inst.status,
-      session_id: inst.sessionId ?? null,
-      port: inst.port,
-      created_at: Math.floor(inst.createdAt.getTime() / 1000),
-    }))};
+    return {
+      environment_id: _envId,
+      instances: instances.map((inst: any) => ({
+        id: inst.id,
+        instance_number: inst.instanceNumber,
+        status: inst.status,
+        session_id: inst.sessionId ?? null,
+        port: inst.port,
+        created_at: Math.floor(inst.createdAt.getTime() / 1000),
+      })),
+    };
   }),
   listInstances: mock(() => []),
   findInstanceBySessionId: mock(() => undefined),
   getInstance: mock(() => undefined),
   stopInstance: mock(async () => ({ ok: true })),
   stopAllInstances: mock(async () => {}),
-  ensureRunning: mock(async () => ({ instance: { id: "inst_test", instanceNumber: 1, status: "running", sessionId: "ses_test" }, sessionId: "ses_test" } as any)),
+  ensureRunning: mock(
+    async () =>
+      ({
+        instance: { id: "inst_test", instanceNumber: 1, status: "running", sessionId: "ses_test" },
+        sessionId: "ses_test",
+      }) as any,
+  ),
   enterEnvironment: mock(async (_userId: string, envId: string, instanceNumber?: number) => {
     if (instanceNumber !== undefined) {
       const running = instanceMock.getRunningInstancesByEnvironment(envId);
@@ -131,7 +140,7 @@ await ensureTestUser();
 await ensureTestTeam();
 
 describe("Web Environments CRUD API", () => {
-    afterEach(() => {
+  afterEach(() => {
     resetTestAuth();
     setTestTeamContext(null);
   });
@@ -204,7 +213,13 @@ describe("Web Environments CRUD API", () => {
     const before = (await resBefore.json()).length;
 
     const envName = `env-list-${Date.now()}`;
-    await environmentRepo.create({ name: envName, workspacePath: "/tmp/ws1", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    await environmentRepo.create({
+      name: envName,
+      workspacePath: "/tmp/ws1",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
 
     const res = await request("/web/environments");
     expect(res.status).toBe(200);
@@ -216,7 +231,13 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("GET /web/environments/:id — returns detail with secret", async () => {
-    const env = await environmentRepo.create({ name: `env-detail-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-detail-${Date.now()}`,
+      workspacePath: "/tmp/ws",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
 
     const res = await request(`/web/environments/${env.id}`);
     expect(res.status).toBe(200);
@@ -230,7 +251,13 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("PUT /web/environments/:id — updates description", async () => {
-    const env = await environmentRepo.create({ name: `env-put-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-put-${Date.now()}`,
+      workspacePath: "/tmp/ws",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
 
     const res = await request(`/web/environments/${env.id}`, {
       method: "PUT",
@@ -243,7 +270,13 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("DELETE /web/environments/:id — deletes environment", async () => {
-    const env = await environmentRepo.create({ name: `env-del-${Date.now()}`, workspacePath: "/tmp/ws", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-del-${Date.now()}`,
+      workspacePath: "/tmp/ws",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
 
     const res = await request(`/web/environments/${env.id}`, { method: "DELETE" });
     expect(res.status).toBe(200);
@@ -255,7 +288,13 @@ describe("Web Environments CRUD API", () => {
 
   test("GET /web/environments — returns instances array and instances_count", async () => {
     const envName = `env-inst-count-${Date.now()}`;
-    await environmentRepo.create({ name: envName, workspacePath: "/tmp/ws1", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    await environmentRepo.create({
+      name: envName,
+      workspacePath: "/tmp/ws1",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
 
     const res = await request("/web/environments");
     expect(res.status).toBe(200);
@@ -267,16 +306,24 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("GET /web/environments — includes active instance data", async () => {
-    const env = await environmentRepo.create({ name: `env-inst-data-${Date.now()}`, workspacePath: "/tmp/ws2", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-inst-data-${Date.now()}`,
+      workspacePath: "/tmp/ws2",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
     const instMap = new Map();
-    instMap.set(env.id, [{
-      id: "inst_1",
-      instanceNumber: 1,
-      status: "running",
-      sessionId: "session_a",
-      port: 8888,
-      createdAt: new Date("2026-01-01T00:00:00Z"),
-    }]);
+    instMap.set(env.id, [
+      {
+        id: "inst_1",
+        instanceNumber: 1,
+        status: "running",
+        sessionId: "session_a",
+        port: 8888,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+      },
+    ]);
     (instanceMock.groupActiveInstancesByEnvironment as any).mockReturnValue(instMap);
 
     const res = await request("/web/environments");
@@ -291,7 +338,13 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("POST /:id/enter with empty body auto-creates instance", async () => {
-    const env = await environmentRepo.create({ name: `env-enter-auto-${Date.now()}`, workspacePath: "/tmp/ws3", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-enter-auto-${Date.now()}`,
+      workspacePath: "/tmp/ws3",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
 
     const res = await request(`/web/environments/${env.id}/enter`, {
       method: "POST",
@@ -305,7 +358,13 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("POST /:id/enter with instance_number selects specific instance", async () => {
-    const env = await environmentRepo.create({ name: `env-enter-num-${Date.now()}`, workspacePath: "/tmp/ws4", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-enter-num-${Date.now()}`,
+      workspacePath: "/tmp/ws4",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
     (instanceMock.getRunningInstancesByEnvironment as any).mockReturnValue([
       { id: "inst_1", instanceNumber: 1, status: "running", sessionId: "session_a", port: 8888, createdAt: new Date() },
       { id: "inst_2", instanceNumber: 2, status: "running", sessionId: "session_b", port: 8889, createdAt: new Date() },
@@ -323,7 +382,13 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("POST /:id/enter with non-existent instance_number returns 404", async () => {
-    const env = await environmentRepo.create({ name: `env-enter-404-${Date.now()}`, workspacePath: "/tmp/ws5", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-enter-404-${Date.now()}`,
+      workspacePath: "/tmp/ws5",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
     (instanceMock.getRunningInstancesByEnvironment as any).mockReturnValue([
       { id: "inst_1", instanceNumber: 1, status: "running", sessionId: "session_a", port: 8888, createdAt: new Date() },
     ]);
@@ -337,10 +402,30 @@ describe("Web Environments CRUD API", () => {
   });
 
   test("GET /:id/instances returns active instance list", async () => {
-    const env = await environmentRepo.create({ name: `env-list-inst-${Date.now()}`, workspacePath: "/tmp/ws6", userId: "test-user-1", teamId: TEST_TEAM_ID, status: "idle" });
+    const env = await environmentRepo.create({
+      name: `env-list-inst-${Date.now()}`,
+      workspacePath: "/tmp/ws6",
+      userId: "test-user-1",
+      teamId: TEST_TEAM_ID,
+      status: "idle",
+    });
     (instanceMock.listInstancesByEnvironment as any).mockReturnValue([
-      { id: "inst_1", instanceNumber: 1, status: "running", sessionId: "session_a", port: 8888, createdAt: new Date("2026-01-01T00:00:00Z") },
-      { id: "inst_2", instanceNumber: 2, status: "starting", sessionId: "session_b", port: 8889, createdAt: new Date("2026-01-02T00:00:00Z") },
+      {
+        id: "inst_1",
+        instanceNumber: 1,
+        status: "running",
+        sessionId: "session_a",
+        port: 8888,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+      },
+      {
+        id: "inst_2",
+        instanceNumber: 2,
+        status: "starting",
+        sessionId: "session_b",
+        port: 8889,
+        createdAt: new Date("2026-01-02T00:00:00Z"),
+      },
     ]);
 
     const res = await request(`/web/environments/${env.id}/instances`);

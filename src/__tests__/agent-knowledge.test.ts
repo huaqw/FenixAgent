@@ -54,45 +54,51 @@ describe("agent-knowledge service", () => {
     await ensureTeam();
 
     const now = new Date();
-    const kbRows = await db.insert(knowledgeBase).values([
-      {
-        userId: "agent-kb-user",
-        teamId: TEST_TEAM_ID,
-        name: "KB 1",
-        slug: "kb-1",
-        description: null,
-        provider: "openviking",
-        remoteId: "remote-1",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        userId: "agent-kb-user",
-        teamId: TEST_TEAM_ID,
-        name: "KB 2",
-        slug: "kb-2",
-        description: null,
-        provider: "openviking",
-        remoteId: "remote-2",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]).returning();
+    const kbRows = await db
+      .insert(knowledgeBase)
+      .values([
+        {
+          userId: "agent-kb-user",
+          teamId: TEST_TEAM_ID,
+          name: "KB 1",
+          slug: "kb-1",
+          description: null,
+          provider: "openviking",
+          remoteId: "remote-1",
+          status: "ready",
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          userId: "agent-kb-user",
+          teamId: TEST_TEAM_ID,
+          name: "KB 2",
+          slug: "kb-2",
+          description: null,
+          provider: "openviking",
+          remoteId: "remote-2",
+          status: "ready",
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .returning();
     kbAgent1Id = kbRows[0].id;
     kbAgent2Id = kbRows[1].id;
   });
 
   test("syncAgentKnowledgeBindingsById replaces old bindings and preserves priority order", async () => {
     const now = new Date();
-    const [ac] = await db.insert(agentConfig).values({
-      userId: "agent-kb-user",
-      teamId: TEST_TEAM_ID,
-      name: "test-sync",
-    }).returning();
+    const [ac] = await db
+      .insert(agentConfig)
+      .values({
+        userId: "agent-kb-user",
+        teamId: TEST_TEAM_ID,
+        name: "test-sync",
+      })
+      .returning();
 
     // 先创建一个旧绑定
     await syncAgentKnowledgeBindingsById(TEST_TEAM_ID, ac.id, {
@@ -122,10 +128,13 @@ describe("agent-knowledge service", () => {
 
   test("countBindingsByKnowledgeBaseIds returns count per knowledge base", async () => {
     const now = new Date();
-    const [ac1] = await db.insert(agentConfig).values([
-      { userId: "agent-kb-user", teamId: TEST_TEAM_ID, name: "count-test-1" },
-      { userId: "agent-kb-user", teamId: TEST_TEAM_ID, name: "count-test-2" },
-    ]).returning();
+    const [ac1] = await db
+      .insert(agentConfig)
+      .values([
+        { userId: "agent-kb-user", teamId: TEST_TEAM_ID, name: "count-test-1" },
+        { userId: "agent-kb-user", teamId: TEST_TEAM_ID, name: "count-test-2" },
+      ])
+      .returning();
     const ac2 = (await db.select().from(agentConfig).where(eq(agentConfig.name, "count-test-2")))[0];
 
     await syncAgentKnowledgeBindingsById(TEST_TEAM_ID, ac1.id, { knowledgeBaseIds: [kbAgent1Id, kbAgent2Id] });
@@ -140,15 +149,19 @@ describe("agent-knowledge service", () => {
 
   test("syncAgentKnowledgeBindingsById rejects missing knowledge bases before insert", async () => {
     const now = new Date();
-    const [ac] = await db.insert(agentConfig).values({
-      userId: "agent-kb-user",
-      teamId: TEST_TEAM_ID,
-      name: "test-reject-missing",
-    }).returning();
+    const [ac] = await db
+      .insert(agentConfig)
+      .values({
+        userId: "agent-kb-user",
+        teamId: TEST_TEAM_ID,
+        name: "test-reject-missing",
+      })
+      .returning();
 
-    await expect(syncAgentKnowledgeBindingsById(TEST_TEAM_ID, ac.id, {
-      knowledgeBaseIds: [kbAgent1Id, "00000000-0000-0000-0000-000000009999"],
-    })).rejects.toThrow("知识库不存在或无权限访问: 00000000-0000-0000-0000-000000009999");
+    await expect(
+      syncAgentKnowledgeBindingsById(TEST_TEAM_ID, ac.id, {
+        knowledgeBaseIds: [kbAgent1Id, "00000000-0000-0000-0000-000000009999"],
+      }),
+    ).rejects.toThrow("知识库不存在或无权限访问: 00000000-0000-0000-0000-000000009999");
   });
-
 });

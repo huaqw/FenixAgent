@@ -17,8 +17,20 @@ describe("AGENT_SETTABLE_FIELDS top_p 白名单", () => {
 
   test("top_p 和 topP 共存不影响其他字段", () => {
     const expectedFields = [
-      "model", "prompt", "steps", "mode", "permission",
-      "variant", "temperature", "topP", "top_p", "disable", "hidden", "color", "description", "knowledge",
+      "model",
+      "prompt",
+      "steps",
+      "mode",
+      "permission",
+      "variant",
+      "temperature",
+      "topP",
+      "top_p",
+      "disable",
+      "hidden",
+      "color",
+      "description",
+      "knowledge",
     ] as const;
     expect([...AGENT_SETTABLE_FIELDS].sort()).toEqual([...expectedFields].sort());
   });

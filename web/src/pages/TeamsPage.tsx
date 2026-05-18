@@ -3,13 +3,7 @@ import { useTeam } from "../contexts/TeamContext";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -307,12 +301,7 @@ export function TeamsPage() {
       <div className="w-[260px] border-r border-border-subtle flex flex-col bg-surface-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
           <h2 className="text-sm font-semibold text-text-bright">我的团队</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCreateOpen(true)}
-            className="h-7 w-7 p-0"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setCreateOpen(true)} className="h-7 w-7 p-0">
             <Plus className="w-4 h-4" />
           </Button>
         </div>
@@ -335,9 +324,7 @@ export function TeamsPage() {
               <span className="ml-auto text-[11px] text-text-dim">{ROLE_LABELS[t.role]}</span>
             </button>
           ))}
-          {myTeams.length === 0 && (
-            <p className="px-4 py-6 text-sm text-text-dim text-center">暂无团队</p>
-          )}
+          {myTeams.length === 0 && <p className="px-4 py-6 text-sm text-text-dim text-center">暂无团队</p>}
         </div>
       </div>
 
@@ -361,16 +348,8 @@ export function TeamsPage() {
             <div className="space-y-3">
               {editingName ? (
                 <div className="space-y-3">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="团队名称"
-                  />
-                  <Input
-                    value={editDesc}
-                    onChange={(e) => setEditDesc(e.target.value)}
-                    placeholder="描述（可选）"
-                  />
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="团队名称" />
+                  <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="描述（可选）" />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={handleSaveEdit} disabled={editSaving}>
                       {editSaving ? "保存中..." : "保存"}
@@ -409,15 +388,9 @@ export function TeamsPage() {
             {/* Members section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-text-primary">
-                  成员 ({members.length})
-                </h2>
+                <h2 className="text-sm font-semibold text-text-primary">成员 ({members.length})</h2>
                 {canManage && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAddMemberOpen(true)}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => setAddMemberOpen(true)}>
                     <UserPlus className="w-3.5 h-3.5 mr-1.5" />
                     添加成员
                   </Button>
@@ -435,10 +408,7 @@ export function TeamsPage() {
                   </thead>
                   <tbody>
                     {members.map((m) => (
-                      <tr
-                        key={m.id}
-                        className="border-t border-border-subtle hover:bg-surface-hover"
-                      >
+                      <tr key={m.id} className="border-t border-border-subtle hover:bg-surface-hover">
                         <td className="px-4 py-2.5">
                           <div>
                             <p className="font-medium text-text-primary">{m.userName || m.userId}</p>
@@ -490,9 +460,7 @@ export function TeamsPage() {
             {isOwner && (
               <div className="pt-4 border-t border-border-subtle">
                 <h3 className="text-sm font-semibold text-destructive mb-2">危险区域</h3>
-                <p className="text-sm text-text-dim mb-3">
-                  删除团队将同时删除所有关联资源，此操作不可撤销。
-                </p>
+                <p className="text-sm text-text-dim mb-3">删除团队将同时删除所有关联资源，此操作不可撤销。</p>
                 <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   删除团队

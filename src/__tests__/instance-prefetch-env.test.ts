@@ -4,43 +4,46 @@ import { _deps, _resetDeps } from "../services/instance";
 import { resetCoreRuntime } from "../services/core-bootstrap";
 import { setBuildLaunchSpec } from "../services/launch-spec-builder";
 
-const mockGetById = mock(() => Promise.resolve({
-  id: "env_test1",
-  name: "test",
-  description: null,
-  workspacePath: "/tmp/test",
-  agentConfigId: null,
-  secret: "sec_test",
-  machineName: null,
-  directory: null,
-  branch: null,
-  gitRepoUrl: null,
-  maxSessions: 1,
-  workerType: "acp",
-  capabilities: null,
-  status: "active",
-  username: null,
-  userId: "user1",
-  teamId: "test-team",
-  autoStart: false,
-  lastPollAt: new Date(),
-  createdAt: new Date(),
-  updatedAt: new Date(),
-}));
+const mockGetById = mock(() =>
+  Promise.resolve({
+    id: "env_test1",
+    name: "test",
+    description: null,
+    workspacePath: "/tmp/test",
+    agentConfigId: null,
+    secret: "sec_test",
+    machineName: null,
+    directory: null,
+    branch: null,
+    gitRepoUrl: null,
+    maxSessions: 1,
+    workerType: "acp",
+    capabilities: null,
+    status: "active",
+    username: null,
+    userId: "user1",
+    teamId: "test-team",
+    autoStart: false,
+    lastPollAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }),
+);
 
 beforeEach(() => {
   resetCoreRuntime();
-  _deps.getCoreRuntime = () => ({
-    launchInstance: mock(async () => ({
-      instanceId: "inst_test",
-      status: "running",
-      createdAt: new Date(),
-      errorMessage: null,
-      pluginMetadata: {},
-    })),
-    listInstances: mock(() => []),
-    getInstance: mock(() => undefined),
-  }) as any;
+  _deps.getCoreRuntime = () =>
+    ({
+      launchInstance: mock(async () => ({
+        instanceId: "inst_test",
+        status: "running",
+        createdAt: new Date(),
+        errorMessage: null,
+        pluginMetadata: {},
+      })),
+      listInstances: mock(() => []),
+      getInstance: mock(() => undefined),
+    }) as any;
   _deps.getAgentConfigById = mock(async () => null);
   _deps.getAgentFullConfig = mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] }));
   _deps.environmentRepo = { getById: mockGetById } as any;

@@ -8,13 +8,16 @@ import { setBuildLaunchSpec } from "../services/launch-spec-builder";
 const mockListInstances = mock((): RuntimeInstanceSnapshot[] => []);
 const mockGetInstance = mock((_id?: any) => undefined as RuntimeInstanceSnapshot | undefined);
 const mockStopInstance = mock(async (_id?: any) => {});
-const mockLaunchInstance = mock(async (spec: any) => ({
-  instanceId: spec.instanceId,
-  status: "running",
-  pluginMetadata: {},
-  errorMessage: null,
-  createdAt: new Date(),
-} as RuntimeInstanceSnapshot));
+const mockLaunchInstance = mock(
+  async (spec: any) =>
+    ({
+      instanceId: spec.instanceId,
+      status: "running",
+      pluginMetadata: {},
+      errorMessage: null,
+      createdAt: new Date(),
+    }) as RuntimeInstanceSnapshot,
+);
 
 const fakeFacade = {
   listInstances: mockListInstances,
@@ -28,7 +31,16 @@ beforeEach(() => {
   _deps.getCoreRuntime = () => fakeFacade as any;
   _deps.getAgentConfigById = mock(async () => null);
   _deps.getAgentFullConfig = mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] }));
-  _deps.environmentRepo = { getById: mock(async () => ({ id: "env_1", userId: "u1", teamId: "u1", secret: "s1", maxSessions: 5, workspacePath: "/tmp/ws1" })) } as any;
+  _deps.environmentRepo = {
+    getById: mock(async () => ({
+      id: "env_1",
+      userId: "u1",
+      teamId: "u1",
+      secret: "s1",
+      maxSessions: 5,
+      workspacePath: "/tmp/ws1",
+    })),
+  } as any;
   _deps.findOrCreateForEnvironment = mock(async () => ({ id: "ses_1" })) as any;
   setBuildLaunchSpec(mock(async () => ({})) as any);
 });
@@ -38,11 +50,7 @@ afterEach(() => {
   setBuildLaunchSpec(null);
 });
 
-import {
-  stopInstance,
-  spawnInstanceFromEnvironment,
-  getRunningInstancesByEnvironment,
-} from "../services/instance";
+import { stopInstance, spawnInstanceFromEnvironment, getRunningInstancesByEnvironment } from "../services/instance";
 
 describe("stopInstance envInstanceCounters cleanup", () => {
   test("clears counter when last instance stopped", async () => {
@@ -63,9 +71,7 @@ describe("stopInstance envInstanceCounters cleanup", () => {
       };
       snapshots.push(s);
       mockListInstances.mockImplementation(() => [...snapshots]);
-      mockGetInstance.mockImplementation((id: string) =>
-        snapshots.find((s) => s.instanceId === id) as any,
-      );
+      mockGetInstance.mockImplementation((id: string) => snapshots.find((s) => s.instanceId === id) as any);
       return s;
     });
 
@@ -106,9 +112,7 @@ describe("stopInstance envInstanceCounters cleanup", () => {
       };
       snapshots.push(s);
       mockListInstances.mockImplementation(() => [...snapshots]);
-      mockGetInstance.mockImplementation((id: string) =>
-        snapshots.find((s) => s.instanceId === id) as any,
-      );
+      mockGetInstance.mockImplementation((id: string) => snapshots.find((s) => s.instanceId === id) as any);
       return s;
     });
 
@@ -122,9 +126,7 @@ describe("stopInstance envInstanceCounters cleanup", () => {
       const idx = snapshots.findIndex((s) => s.instanceId === id);
       if (idx >= 0) snapshots.splice(idx, 1);
       mockListInstances.mockImplementation(() => [...snapshots]);
-      mockGetInstance.mockImplementation((checkId: string) =>
-        snapshots.find((s) => s.instanceId === checkId) as any,
-      );
+      mockGetInstance.mockImplementation((checkId: string) => snapshots.find((s) => s.instanceId === checkId) as any);
     });
 
     const result = await stopInstance(inst1.id, "u1");

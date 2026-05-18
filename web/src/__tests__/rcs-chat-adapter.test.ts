@@ -15,10 +15,12 @@ function createStateHarness() {
 }
 
 test("normalizeRcsToolCall unwraps nested MCP tool metadata from rcs wrapper", () => {
-  expect(normalizeRcsToolCall("rcs", {
-    tool: "kb_kb_search",
-    input: { query: "release plan" },
-  })).toEqual({
+  expect(
+    normalizeRcsToolCall("rcs", {
+      tool: "kb_kb_search",
+      input: { query: "release plan" },
+    }),
+  ).toEqual({
     title: "kb_kb_search",
     rawInput: { query: "release plan" },
     wrappedByRcs: true,

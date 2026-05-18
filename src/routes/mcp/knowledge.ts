@@ -4,10 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import * as z from "zod/v4";
 import { getEnvironmentBySecret } from "../../services/environment";
-import {
-  readKnowledgeResourceForAgent,
-  searchKnowledgeByConfigId,
-} from "../../services/knowledge-runtime";
+import { readKnowledgeResourceForAgent, searchKnowledgeByConfigId } from "../../services/knowledge-runtime";
 
 function getBearerToken(headerValue: string | undefined): string | null {
   if (!headerValue) return null;
@@ -15,58 +12,69 @@ function getBearerToken(headerValue: string | undefined): string | null {
   return match?.[1]?.trim() || null;
 }
 
-function createKnowledgeMcpServer(environment: { agentConfigId: string | null; userId: string | null; secret: string }) {
+function createKnowledgeMcpServer(environment: {
+  agentConfigId: string | null;
+  userId: string | null;
+  secret: string;
+}) {
   const server = new McpServer({
     name: "kb-mcp",
     version: "1.0.0",
   });
 
-  server.registerTool("kb_search", {
-    description: "Searches the agent's bound knowledge bases.",
-    inputSchema: {
-      query: z.string().min(1),
-      topK: z.number().int().min(1).max(20).optional(),
+  server.registerTool(
+    "kb_search",
+    {
+      description: "Searches the agent's bound knowledge bases.",
+      inputSchema: {
+        query: z.string().min(1),
+        topK: z.number().int().min(1).max(20).optional(),
+      },
     },
-  }, async ({ query, topK }) => {
-    if (!environment.agentConfigId) {
-      throw new Error("Environment agent is not configured");
-    }
-    const results = await searchKnowledgeByConfigId({
-      agentConfigId: environment.agentConfigId,
-      query,
-      topK: topK ?? 5,
-    });
-    return {
-      content: [{ type: "text", text: JSON.stringify({ results }) }],
-      structuredContent: { results },
-    };
-  });
+    async ({ query, topK }) => {
+      if (!environment.agentConfigId) {
+        throw new Error("Environment agent is not configured");
+      }
+      const results = await searchKnowledgeByConfigId({
+        agentConfigId: environment.agentConfigId,
+        query,
+        topK: topK ?? 5,
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify({ results }) }],
+        structuredContent: { results },
+      };
+    },
+  );
 
-  server.registerTool("kb_read", {
-    description: "Reads a knowledge resource already bound to the agent.",
-    inputSchema: {
-      resourceId: z.string().min(1),
+  server.registerTool(
+    "kb_read",
+    {
+      description: "Reads a knowledge resource already bound to the agent.",
+      inputSchema: {
+        resourceId: z.string().min(1),
+      },
     },
-  }, async ({ resourceId }) => {
-    if (!environment.agentConfigId) {
-      throw new Error("Environment agent is not configured");
-    }
-    const result = await readKnowledgeResourceForAgent({
-      agentConfigId: environment.agentConfigId,
-      resourceId,
-      userId: environment.userId ?? undefined,
-    });
-    return {
-      content: [{ type: "text", text: JSON.stringify(result) }],
-      structuredContent: result as unknown as Record<string, unknown>,
-    };
-  });
+    async ({ resourceId }) => {
+      if (!environment.agentConfigId) {
+        throw new Error("Environment agent is not configured");
+      }
+      const result = await readKnowledgeResourceForAgent({
+        agentConfigId: environment.agentConfigId,
+        resourceId,
+        userId: environment.userId ?? undefined,
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
+        structuredContent: result as unknown as Record<string, unknown>,
+      };
+    },
+  );
 
   return server;
 }
 
-const app = new Elysia({ name: "mcp-knowledge" })
-  .decorate({ error: errorResponse });
+const app = new Elysia({ name: "mcp-knowledge" }).decorate({ error: errorResponse });
 
 app.all("/mcp/knowledge", async ({ request, error }) => {
   const token = getBearerToken(request.headers.get("Authorization") ?? undefined);

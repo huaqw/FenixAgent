@@ -48,7 +48,11 @@ describe("listSkillSources skips environments without workspacePath", () => {
       { id: "env-2", workspacePath: "/tmp/ws", name: "Web Env", status: "active" },
     ]);
 
-    const sources = await listSkillSources({ teamId: "f0000000-0000-0000-0000-000000000001", userId: "user-1", role: "owner" });
+    const sources = await listSkillSources({
+      teamId: "f0000000-0000-0000-0000-000000000001",
+      userId: "user-1",
+      role: "owner",
+    });
     expect(sources.length).toBe(2);
     expect(sources[0].type).toBe("global");
     expect(sources[1].type).toBe("workspace");
@@ -62,7 +66,11 @@ describe("listSkillSources skips environments without workspacePath", () => {
       { id: "env-2", workspacePath: undefined, name: "Agent 2", status: "active" },
     ]);
 
-    const sources = await listSkillSources({ teamId: "f0000000-0000-0000-0000-000000000001", userId: "user-1", role: "owner" });
+    const sources = await listSkillSources({
+      teamId: "f0000000-0000-0000-0000-000000000001",
+      userId: "user-1",
+      role: "owner",
+    });
     expect(sources.length).toBe(1);
     expect(sources[0].type).toBe("global");
   });
@@ -71,7 +79,11 @@ describe("listSkillSources skips environments without workspacePath", () => {
   test("returns only global source when no environments exist", async () => {
     mockListByUserId.mockResolvedValueOnce([]);
 
-    const sources = await listSkillSources({ teamId: "f0000000-0000-0000-0000-000000000001", userId: "user-1", role: "owner" });
+    const sources = await listSkillSources({
+      teamId: "f0000000-0000-0000-0000-000000000001",
+      userId: "user-1",
+      role: "owner",
+    });
     expect(sources.length).toBe(1);
     expect(sources[0].type).toBe("global");
   });

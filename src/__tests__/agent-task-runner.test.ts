@@ -33,24 +33,30 @@ async function upsertUser() {
 async function ensureTeam() {
   if (TEST_TEAM_ID) return;
   const now = new Date();
-  const [t] = await db.insert(team).values({
-    name: "runner-team",
-    slug: `runner-team-${Date.now()}`,
-    createdBy: TEST_USER_ID,
-    createdAt: now,
-    updatedAt: now,
-  }).returning();
+  const [t] = await db
+    .insert(team)
+    .values({
+      name: "runner-team",
+      slug: `runner-team-${Date.now()}`,
+      createdBy: TEST_USER_ID,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
   TEST_TEAM_ID = t.id;
 }
 
 async function ensureAgentConfig(name: string) {
   if (TEST_AC_ID) return;
   const now = new Date();
-  const [ac] = await db.insert(agentConfig).values({
-    name,
-    teamId: TEST_TEAM_ID,
-    userId: TEST_USER_ID,
-  }).returning();
+  const [ac] = await db
+    .insert(agentConfig)
+    .values({
+      name,
+      teamId: TEST_TEAM_ID,
+      userId: TEST_USER_ID,
+    })
+    .returning();
   TEST_AC_ID = ac.id;
 }
 
@@ -58,11 +64,14 @@ async function upsertEnvironment(agentConfigId: string | null) {
   const now = new Date();
   const existing = await db.select().from(environment).where(eq(environment.id, TEST_ENV_ID)).limit(1);
   if (existing.length > 0) {
-    await db.update(environment).set({
-      workspacePath: workspaceRoot,
-      agentConfigId,
-      updatedAt: now,
-    }).where(eq(environment.id, TEST_ENV_ID));
+    await db
+      .update(environment)
+      .set({
+        workspacePath: workspaceRoot,
+        agentConfigId,
+        updatedAt: now,
+      })
+      .where(eq(environment.id, TEST_ENV_ID));
     return;
   }
 
@@ -139,10 +148,18 @@ describe("agent-task-runner", () => {
 
   afterAll(async () => {
     process.env.PATH = originalPath;
-    try { await db.delete(environment).where(eq(environment.id, TEST_ENV_ID)); } catch {}
-    try { await db.delete(agentConfig).where(eq(agentConfig.id, TEST_AC_ID)); } catch {}
-    try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(environment).where(eq(environment.id, TEST_ENV_ID));
+    } catch {}
+    try {
+      await db.delete(agentConfig).where(eq(agentConfig.id, TEST_AC_ID));
+    } catch {}
+    try {
+      await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+    } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
     if (workspaceRoot) {
       await rm(workspaceRoot, { recursive: true, force: true });
     }
@@ -188,14 +205,16 @@ describe("agent-task-runner", () => {
   it("throws when the environment does not exist", async () => {
     await db.delete(environment).where(eq(environment.id, TEST_ENV_ID));
 
-    await expect(runAgentTask({
-      userId: TEST_USER_ID,
-      environmentId: TEST_ENV_ID,
-      taskId: "task-missing-env",
-      taskText: "list files",
-      timeoutMinutes: 1,
-      logId: "log-missing",
-    })).rejects.toThrow("Environment not found");
+    await expect(
+      runAgentTask({
+        userId: TEST_USER_ID,
+        environmentId: TEST_ENV_ID,
+        taskId: "task-missing-env",
+        taskText: "list files",
+        timeoutMinutes: 1,
+        logId: "log-missing",
+      }),
+    ).rejects.toThrow("Environment not found");
   });
 
   it("writes an empty config when environment has no agent config", async () => {

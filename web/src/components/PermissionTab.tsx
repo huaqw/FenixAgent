@@ -2,32 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { client } from "../api/client";
 import type { PermissionAction, PermissionObjectConfig } from "../types/config";
 
 // ── 常量定义 ──
 
 /** 开关型工具列表 */
-const TOGGLE_TOOLS = [
-  "todowrite", "question", "webfetch", "websearch", "codesearch", "doom_loop",
-] as const;
+const TOGGLE_TOOLS = ["todowrite", "question", "webfetch", "websearch", "codesearch", "doom_loop"] as const;
 
 /** 规则型工具列表 */
-const RULE_TOOLS = [
-  "read", "edit", "glob", "grep", "list", "bash", "task", "external_directory", "lsp",
-] as const;
+const RULE_TOOLS = ["read", "edit", "glob", "grep", "list", "bash", "task", "external_directory", "lsp"] as const;
 
 /** Select 选项: 未设置 + 三态 */
 const PERMISSION_OPTIONS = [
@@ -47,9 +33,18 @@ const RULE_ACTION_OPTIONS = [
 // ── 内部状态类型 ──
 
 type ToggleValue = PermissionAction | "";
-interface RuleEntry { pattern: string; action: PermissionAction; }
-interface RuleToolState { global: ToggleValue; rules: RuleEntry[]; }
-interface SkillPermState { global: ToggleValue; rules: RuleEntry[]; }
+interface RuleEntry {
+  pattern: string;
+  action: PermissionAction;
+}
+interface RuleToolState {
+  global: ToggleValue;
+  rules: RuleEntry[];
+}
+interface SkillPermState {
+  global: ToggleValue;
+  rules: RuleEntry[];
+}
 
 // ── 初始化辅助：从 permission prop 解析内部状态（仅在组件挂载时调用一次） ──
 
@@ -63,8 +58,10 @@ function parsePermission(permission: Record<string, unknown> | null | undefined)
   if (!permission || typeof permission === "string") {
     return {
       globalStrategy: (permission as unknown as ToggleValue) ?? "",
-      toggleTools: Object.fromEntries(TOGGLE_TOOLS.map(t => [t, ""] as const)) as Record<string, ToggleValue>,
-      ruleTools: Object.fromEntries(RULE_TOOLS.map(t => [t, { global: "" as ToggleValue, rules: [] as RuleEntry[] }])) as Record<string, RuleToolState>,
+      toggleTools: Object.fromEntries(TOGGLE_TOOLS.map((t) => [t, ""] as const)) as Record<string, ToggleValue>,
+      ruleTools: Object.fromEntries(
+        RULE_TOOLS.map((t) => [t, { global: "" as ToggleValue, rules: [] as RuleEntry[] }]),
+      ) as Record<string, RuleToolState>,
       skillPerm: { global: "", rules: [] } as SkillPermState,
       skillValues: {} as Record<string, ToggleValue>,
     };
@@ -73,7 +70,7 @@ function parsePermission(permission: Record<string, unknown> | null | undefined)
   const newToggle: Record<string, ToggleValue> = {};
   for (const tool of TOGGLE_TOOLS) {
     const val = perm[tool];
-    newToggle[tool] = (val === "ask" || val === "allow" || val === "deny") ? val : "";
+    newToggle[tool] = val === "ask" || val === "allow" || val === "deny" ? val : "";
   }
   const newRule: Record<string, RuleToolState> = {};
   for (const tool of RULE_TOOLS) {
@@ -130,19 +127,22 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [skillLoading, setSkillLoading] = useState(false);
 
-
   // ── 加载 skill 列表 ──
   useEffect(() => {
     let cancelled = false;
     setSkillLoading(true);
-    client.web.config.skills.post({ action: "list" } as any)
+    client.web.config.skills
+      .post({ action: "list" } as any)
       .then(({ data, error }) => {
         if (!cancelled) {
-          if (error) { setSkillNames([]); return; }
+          if (error) {
+            setSkillNames([]);
+            return;
+          }
           const skills = ((data as any)?.data ?? (data as any) ?? []) as any[];
           const names = skills.map((s: any) => s.name);
           setSkillNames(names);
-          setSkillValues(prev => {
+          setSkillValues((prev) => {
             const next = { ...prev };
             for (const name of names) {
               if (!(name in next)) next[name] = "";
@@ -157,58 +157,63 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
       .finally(() => {
         if (!cancelled) setSkillLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [agentName]);
 
   // ── 通用通知辅助：状态更新后通知父组件 ──
-  const notifyParent = useCallback((
-    nextToggle: typeof toggleTools,
-    nextRule: typeof ruleTools,
-    nextSkillPerm: typeof skillPerm,
-    nextSkillValues: typeof skillValues,
-    nextGlobal: typeof globalStrategy,
-  ) => {
-    if (nextGlobal) {
-      // 全局策略展开为所有工具的对象，不发送裸字符串
-      const result: Record<string, unknown> = {};
-      for (const tool of TOGGLE_TOOLS) result[tool] = nextGlobal;
-      for (const tool of RULE_TOOLS) result[tool] = nextGlobal;
-      result["skill"] = nextGlobal;
-      onPermissionChange(result);
-      return;
-    }
-    const result: Record<string, unknown> = {};
-    for (const tool of TOGGLE_TOOLS) {
-      const val = nextToggle[tool];
-      if (val) result[tool] = val;
-    }
-    for (const tool of RULE_TOOLS) {
-      const state = nextRule[tool];
-      if (state.global) {
-        result[tool] = state.global;
-      } else if (state.rules.length > 0) {
-        const ruleMap: Record<string, PermissionAction> = {};
-        for (const r of state.rules) {
-          if (r.pattern) ruleMap[r.pattern] = r.action;
-        }
-        if (Object.keys(ruleMap).length > 0) result[tool] = ruleMap;
+  const notifyParent = useCallback(
+    (
+      nextToggle: typeof toggleTools,
+      nextRule: typeof ruleTools,
+      nextSkillPerm: typeof skillPerm,
+      nextSkillValues: typeof skillValues,
+      nextGlobal: typeof globalStrategy,
+    ) => {
+      if (nextGlobal) {
+        // 全局策略展开为所有工具的对象，不发送裸字符串
+        const result: Record<string, unknown> = {};
+        for (const tool of TOGGLE_TOOLS) result[tool] = nextGlobal;
+        for (const tool of RULE_TOOLS) result[tool] = nextGlobal;
+        result["skill"] = nextGlobal;
+        onPermissionChange(result);
+        return;
       }
-    }
-    const skillEntries: Record<string, PermissionAction> = {};
-    for (const name of skillNames) {
-      const val = nextSkillValues[name];
-      if (val) skillEntries[name] = val;
-    }
-    for (const r of nextSkillPerm.rules) {
-      if (r.pattern) skillEntries[r.pattern] = r.action;
-    }
-    if (nextSkillPerm.global) {
-      result["skill"] = nextSkillPerm.global;
-    } else if (Object.keys(skillEntries).length > 0) {
-      result["skill"] = skillEntries;
-    }
-    onPermissionChange(Object.keys(result).length > 0 ? result : null);
-  }, [skillNames, onPermissionChange]);
+      const result: Record<string, unknown> = {};
+      for (const tool of TOGGLE_TOOLS) {
+        const val = nextToggle[tool];
+        if (val) result[tool] = val;
+      }
+      for (const tool of RULE_TOOLS) {
+        const state = nextRule[tool];
+        if (state.global) {
+          result[tool] = state.global;
+        } else if (state.rules.length > 0) {
+          const ruleMap: Record<string, PermissionAction> = {};
+          for (const r of state.rules) {
+            if (r.pattern) ruleMap[r.pattern] = r.action;
+          }
+          if (Object.keys(ruleMap).length > 0) result[tool] = ruleMap;
+        }
+      }
+      const skillEntries: Record<string, PermissionAction> = {};
+      for (const name of skillNames) {
+        const val = nextSkillValues[name];
+        if (val) skillEntries[name] = val;
+      }
+      for (const r of nextSkillPerm.rules) {
+        if (r.pattern) skillEntries[r.pattern] = r.action;
+      }
+      if (nextSkillPerm.global) {
+        result["skill"] = nextSkillPerm.global;
+      } else if (Object.keys(skillEntries).length > 0) {
+        result["skill"] = skillEntries;
+      }
+      onPermissionChange(Object.keys(result).length > 0 ? result : null);
+    },
+    [skillNames, onPermissionChange],
+  );
 
   // ── 开关型工具变更 ──
   const handleToggleChange = (tool: string, value: string) => {
@@ -229,7 +234,7 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
 
   // ── 规则型工具展开/折叠 ──
   const toggleExpand = (tool: string) => {
-    setExpandedTools(prev => {
+    setExpandedTools((prev) => {
       const next = new Set(prev);
       if (next.has(tool)) next.delete(tool);
       else next.add(tool);
@@ -248,7 +253,7 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
     };
     setRuleTools(updated);
     notifyParent(toggleTools, updated, skillPerm, skillValues, globalStrategy);
-    setExpandedTools(prev => new Set(prev).add(tool));
+    setExpandedTools((prev) => new Set(prev).add(tool));
   };
 
   // ── 规则型工具: 更新规则 pattern ──
@@ -337,16 +342,19 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
         <p className="text-xs text-muted-foreground mb-1">
           设置后所有工具继承此策略，未设置则使用 Agent引擎 内置默认值
         </p>
-        <Select value={globalStrategy} onValueChange={v => {
-          const next = v === "__unset__" ? "" : v as ToggleValue;
-          setGlobalStrategy(next);
-          notifyParent(toggleTools, ruleTools, skillPerm, skillValues, next);
-        }}>
+        <Select
+          value={globalStrategy}
+          onValueChange={(v) => {
+            const next = v === "__unset__" ? "" : (v as ToggleValue);
+            setGlobalStrategy(next);
+            notifyParent(toggleTools, ruleTools, skillPerm, skillValues, next);
+          }}
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="未设置" />
           </SelectTrigger>
           <SelectContent>
-            {PERMISSION_OPTIONS.map(opt => (
+            {PERMISSION_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value || "__unset__"}>
                 {opt.label}
               </SelectItem>
@@ -362,18 +370,18 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
         {/* 开关型工具 */}
         <div className="space-y-2 mb-4">
           <div className="text-xs text-muted-foreground">开关型工具</div>
-          {TOGGLE_TOOLS.map(tool => (
+          {TOGGLE_TOOLS.map((tool) => (
             <div key={tool} className="flex items-center gap-3">
               <span className="text-sm w-36 font-mono">{tool}</span>
               <Select
                 value={toggleTools[tool] || "__unset__"}
-                onValueChange={v => handleToggleChange(tool, v === "__unset__" ? "" : v)}
+                onValueChange={(v) => handleToggleChange(tool, v === "__unset__" ? "" : v)}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="未设置" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PERMISSION_OPTIONS.map(opt => (
+                  {PERMISSION_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value || "__unset__"}>
                       {opt.label}
                     </SelectItem>
@@ -387,23 +395,19 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
         {/* 规则型工具 */}
         <div className="space-y-2">
           <div className="text-xs text-muted-foreground">规则型工具（支持通配符规则）</div>
-          {RULE_TOOLS.map(tool => (
-            <Collapsible
-              key={tool}
-              open={expandedTools.has(tool)}
-              onOpenChange={() => toggleExpand(tool)}
-            >
+          {RULE_TOOLS.map((tool) => (
+            <Collapsible key={tool} open={expandedTools.has(tool)} onOpenChange={() => toggleExpand(tool)}>
               <div className="flex items-center gap-3">
                 <span className="text-sm w-36 font-mono">{tool}</span>
                 <Select
                   value={ruleTools[tool]?.global || "__unset__"}
-                  onValueChange={v => handleRuleGlobalChange(tool, v === "__unset__" ? "" : v)}
+                  onValueChange={(v) => handleRuleGlobalChange(tool, v === "__unset__" ? "" : v)}
                 >
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="未设置" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PERMISSION_OPTIONS.map(opt => (
+                    {PERMISSION_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value || "__unset__"}>
                         {opt.label}
                       </SelectItem>
@@ -422,42 +426,29 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
                     <div key={idx} className="flex items-center gap-2">
                       <Input
                         value={rule.pattern}
-                        onChange={e => handleRulePatternChange(tool, idx, e.target.value)}
+                        onChange={(e) => handleRulePatternChange(tool, idx, e.target.value)}
                         placeholder="通配符，如 *.env"
                         className="w-44 h-8 text-sm"
                       />
                       <span className="text-muted-foreground text-xs">&rarr;</span>
-                      <Select
-                        value={rule.action}
-                        onValueChange={v => handleRuleActionChange(tool, idx, v)}
-                      >
+                      <Select value={rule.action} onValueChange={(v) => handleRuleActionChange(tool, idx, v)}>
                         <SelectTrigger className="w-24 h-8">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {RULE_ACTION_OPTIONS.map(opt => (
+                          {RULE_ACTION_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
                               {opt.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        onClick={() => handleDeleteRule(tool, idx)}
-                      >
+                      <Button variant="ghost" size="sm" type="button" onClick={() => handleDeleteRule(tool, idx)}>
                         &times;
                       </Button>
                     </div>
                   ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    onClick={() => handleAddRule(tool)}
-                  >
+                  <Button variant="outline" size="sm" type="button" onClick={() => handleAddRule(tool)}>
                     + 添加规则
                   </Button>
                 </div>
@@ -475,13 +466,13 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
             <span className="text-sm w-36">全局策略</span>
             <Select
               value={skillPerm.global || "__unset__"}
-              onValueChange={v => handleSkillGlobalChange(v === "__unset__" ? "" : v)}
+              onValueChange={(v) => handleSkillGlobalChange(v === "__unset__" ? "" : v)}
             >
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="未设置" />
               </SelectTrigger>
               <SelectContent>
-                {PERMISSION_OPTIONS.map(opt => (
+                {PERMISSION_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value || "__unset__"}>
                     {opt.label}
                   </SelectItem>
@@ -490,30 +481,31 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
             </Select>
           </div>
 
-          {skillLoading && (
-            <div className="text-xs text-muted-foreground py-2">加载 Skill 列表...</div>
-          )}
+          {skillLoading && <div className="text-xs text-muted-foreground py-2">加载 Skill 列表...</div>}
 
-          {!skillLoading && skillNames.map(name => (
-            <div key={name} className="flex items-center gap-3">
-              <span className="text-sm w-36 truncate" title={name}>{name}</span>
-              <Select
-                value={skillValues[name] || "__unset__"}
-                onValueChange={v => handleSkillValueChange(name, v === "__unset__" ? "" : v)}
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="未设置" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERMISSION_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value || "__unset__"}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+          {!skillLoading &&
+            skillNames.map((name) => (
+              <div key={name} className="flex items-center gap-3">
+                <span className="text-sm w-36 truncate" title={name}>
+                  {name}
+                </span>
+                <Select
+                  value={skillValues[name] || "__unset__"}
+                  onValueChange={(v) => handleSkillValueChange(name, v === "__unset__" ? "" : v)}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="未设置" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERMISSION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value || "__unset__"}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
 
           {/* 自定义规则 */}
           <div className="text-xs text-muted-foreground mt-3 pt-2 border-t">自定义规则（通配符模式）</div>
@@ -521,42 +513,29 @@ export function PermissionTab({ agentName, permission, onPermissionChange }: Per
             <div key={idx} className="flex items-center gap-2">
               <Input
                 value={rule.pattern}
-                onChange={e => handleSkillRulePatternChange(idx, e.target.value)}
+                onChange={(e) => handleSkillRulePatternChange(idx, e.target.value)}
                 placeholder='通配符，如 "internal-*"'
                 className="w-44 h-8 text-sm"
               />
               <span className="text-muted-foreground text-xs">&rarr;</span>
-              <Select
-                value={rule.action}
-                onValueChange={v => handleSkillRuleActionChange(idx, v)}
-              >
+              <Select value={rule.action} onValueChange={(v) => handleSkillRuleActionChange(idx, v)}>
                 <SelectTrigger className="w-24 h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {RULE_ACTION_OPTIONS.map(opt => (
+                  {RULE_ACTION_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={() => handleDeleteSkillRule(idx)}
-              >
+              <Button variant="ghost" size="sm" type="button" onClick={() => handleDeleteSkillRule(idx)}>
                 &times;
               </Button>
             </div>
           ))}
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={handleAddSkillRule}
-          >
+          <Button variant="outline" size="sm" type="button" onClick={handleAddSkillRule}>
             + 添加自定义规则
           </Button>
         </div>

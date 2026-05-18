@@ -50,7 +50,10 @@ function normalizeKey(key: string): string {
     throw new Error(`Invalid S3 key: null byte detected (${key})`);
   }
   // 去除前导/尾随空白、斜杠、./ 前缀
-  let normalized = key.trim().replace(/^\.\/+/, "").replace(/^\/+|\/+$/g, "");
+  let normalized = key
+    .trim()
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+|\/+$/g, "");
   // 防止路径遍历（仅匹配作为路径段的 ..）
   if (/(?:^|\/)\.\.(?:\/|$)/.test(normalized)) {
     throw new Error(`Invalid S3 key: path traversal detected (${key})`);
@@ -61,28 +64,27 @@ function normalizeKey(key: string): string {
 // ── 服务端 CRUD ──────────────────────────────────────────────
 
 /** 上传 Buffer 到 S3 */
-export async function upload(
-  bucket: string,
-  key: string,
-  body: Buffer,
-  contentType?: string,
-): Promise<void> {
+export async function upload(bucket: string, key: string, body: Buffer, contentType?: string): Promise<void> {
   const client = getClient();
-  await client.send(new PutObjectCommand({
-    Bucket: bucket,
-    Key: normalizeKey(key),
-    Body: body,
-    ...(contentType ? { ContentType: contentType } : {}),
-  }));
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: normalizeKey(key),
+      Body: body,
+      ...(contentType ? { ContentType: contentType } : {}),
+    }),
+  );
 }
 
 /** 从 S3 下载对象，返回完整 Buffer */
 export async function download(bucket: string, key: string): Promise<Buffer> {
   const client = getClient();
-  const res = await client.send(new GetObjectCommand({
-    Bucket: bucket,
-    Key: normalizeKey(key),
-  }));
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: normalizeKey(key),
+    }),
+  );
   const bytes = await res.Body?.transformToByteArray();
   if (!bytes) throw new Error(`S3 object not found: ${key}`);
   return Buffer.from(bytes);
@@ -91,10 +93,12 @@ export async function download(bucket: string, key: string): Promise<Buffer> {
 /** 删除单个对象 */
 export async function remove(bucket: string, key: string): Promise<void> {
   const client = getClient();
-  await client.send(new DeleteObjectCommand({
-    Bucket: bucket,
-    Key: normalizeKey(key),
-  }));
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: normalizeKey(key),
+    }),
+  );
 }
 
 /** 删除前缀下所有对象（用于会话/目录清理） */
@@ -104,17 +108,21 @@ export async function removePrefix(bucket: string, prefix: string): Promise<void
   let continuationToken: string | undefined;
 
   do {
-    const res = await client.send(new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: normalizedPrefix.endsWith("/") ? normalizedPrefix : `${normalizedPrefix}/`,
-      ContinuationToken: continuationToken,
-    }));
+    const res = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: normalizedPrefix.endsWith("/") ? normalizedPrefix : `${normalizedPrefix}/`,
+        ContinuationToken: continuationToken,
+      }),
+    );
     const objects = res.Contents?.map((obj) => ({ Key: obj.Key! }));
     if (objects && objects.length > 0) {
-      await client.send(new DeleteObjectsCommand({
-        Bucket: bucket,
-        Delete: { Objects: objects },
-      }));
+      await client.send(
+        new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: { Objects: objects },
+        }),
+      );
     }
     continuationToken = res.NextContinuationToken;
   } while (continuationToken);
@@ -131,11 +139,13 @@ export async function list(
   let continuationToken: string | undefined;
 
   do {
-    const res = await client.send(new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: normalizedPrefix,
-      ContinuationToken: continuationToken,
-    }));
+    const res = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: normalizedPrefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
     for (const obj of res.Contents ?? []) {
       if (obj.Key && obj.Size != null && obj.LastModified) {
         results.push({ key: obj.Key, size: obj.Size, lastModified: obj.LastModified });
@@ -151,10 +161,12 @@ export async function list(
 export async function exists(bucket: string, key: string): Promise<boolean> {
   const client = getClient();
   try {
-    await client.send(new HeadObjectCommand({
-      Bucket: bucket,
-      Key: normalizeKey(key),
-    }));
+    await client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: normalizeKey(key),
+      }),
+    );
     return true;
   } catch (err: any) {
     if (err?.$metadata?.httpStatusCode === 404 || err?.name === "NotFound") return false;
@@ -166,16 +178,16 @@ export async function exists(bucket: string, key: string): Promise<boolean> {
 // ── Presigned URL ────────────────────────────────────────────
 
 /** 生成 GET presigned URL（浏览器直连下载） */
-export async function getPresignedGetUrl(
-  bucket: string,
-  key: string,
-  expiresIn?: number,
-): Promise<string> {
+export async function getPresignedGetUrl(bucket: string, key: string, expiresIn?: number): Promise<string> {
   const client = getClient();
-  return getSignedUrl(client, new GetObjectCommand({
-    Bucket: bucket,
-    Key: normalizeKey(key),
-  }), { expiresIn: expiresIn ?? config.s3.presignExpires });
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: normalizeKey(key),
+    }),
+    { expiresIn: expiresIn ?? config.s3.presignExpires },
+  );
 }
 
 /** 生成 PUT presigned URL（浏览器直连上传） */
@@ -186,11 +198,15 @@ export async function getPresignedPutUrl(
   expiresIn?: number,
 ): Promise<string> {
   const client = getClient();
-  return getSignedUrl(client, new PutObjectCommand({
-    Bucket: bucket,
-    Key: normalizeKey(key),
-    ContentType: contentType,
-  }), { expiresIn: expiresIn ?? config.s3.presignUploadExpires });
+  return getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: normalizeKey(key),
+      ContentType: contentType,
+    }),
+    { expiresIn: expiresIn ?? config.s3.presignUploadExpires },
+  );
 }
 
 // ── 便捷函数（默认 bucket + key 前缀） ───────────────────────
@@ -204,7 +220,10 @@ function assetKey(relativePath: string): string {
 }
 
 export async function uploadSessionFile(
-  sessionId: string, relativePath: string, body: Buffer, contentType?: string,
+  sessionId: string,
+  relativePath: string,
+  body: Buffer,
+  contentType?: string,
 ): Promise<void> {
   return upload(config.s3.bucketSessions, sessionKey(sessionId, relativePath), body, contentType);
 }
@@ -218,7 +237,8 @@ export async function deleteSessionFile(sessionId: string, relativePath: string)
 }
 
 export async function listSessionFiles(
-  sessionId: string, prefix?: string,
+  sessionId: string,
+  prefix?: string,
 ): Promise<Array<{ key: string; size: number; lastModified: Date }>> {
   return list(config.s3.bucketSessions, sessionKey(sessionId, prefix || ""));
 }
@@ -228,7 +248,9 @@ export async function getSessionFileUrl(sessionId: string, relativePath: string)
 }
 
 export async function getSessionUploadUrl(
-  sessionId: string, relativePath: string, contentType: string,
+  sessionId: string,
+  relativePath: string,
+  contentType: string,
 ): Promise<string> {
   return getPresignedPutUrl(config.s3.bucketSessions, sessionKey(sessionId, relativePath), contentType);
 }

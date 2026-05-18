@@ -16,18 +16,20 @@ export interface AgentFullConfig {
 
 /** 获取团队全局 skills（environmentId=NULL, agentConfigId=NULL） */
 function listGlobalSkills(teamId: string) {
-  return db.select().from(skill).where(and(
-    eq(skill.teamId, teamId),
-    isNull(skill.environmentId),
-    isNull(skill.agentConfigId),
-  ));
+  return db
+    .select()
+    .from(skill)
+    .where(and(eq(skill.teamId, teamId), isNull(skill.environmentId), isNull(skill.agentConfigId)));
 }
 
 export async function getAgentFullConfig(ctx: AuthContext, agentConfigId: string | null): Promise<AgentFullConfig> {
   if (!agentConfigId) {
     const [providers, mcpServers, skills] = await Promise.all([
       db.select().from(provider).where(eq(provider.teamId, ctx.teamId)),
-      db.select().from(mcpServer).where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.enabled, true))),
+      db
+        .select()
+        .from(mcpServer)
+        .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.enabled, true))),
       listGlobalSkills(ctx.teamId),
     ]);
     return { agentConfig: null, providers, skills, mcpServers };
@@ -37,15 +39,25 @@ export async function getAgentFullConfig(ctx: AuthContext, agentConfigId: string
   // skills 使用较宽的 filter（全局 + agent-scoped），若 agentConfig 不存在则在内存中过滤
   const [providers, mcpServers, acRows, allSkills] = await Promise.all([
     db.select().from(provider).where(eq(provider.teamId, ctx.teamId)),
-    db.select().from(mcpServer).where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.enabled, true))),
-    db.select().from(agentConfig)
+    db
+      .select()
+      .from(mcpServer)
+      .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.enabled, true))),
+    db
+      .select()
+      .from(agentConfig)
       .where(and(eq(agentConfig.id, agentConfigId), eq(agentConfig.teamId, ctx.teamId)))
       .limit(1),
-    db.select().from(skill).where(and(
-      eq(skill.teamId, ctx.teamId),
-      isNull(skill.environmentId),
-      sql`(${skill.agentConfigId} IS NULL OR ${skill.agentConfigId} = ${agentConfigId})`,
-    )),
+    db
+      .select()
+      .from(skill)
+      .where(
+        and(
+          eq(skill.teamId, ctx.teamId),
+          isNull(skill.environmentId),
+          sql`(${skill.agentConfigId} IS NULL OR ${skill.agentConfigId} = ${agentConfigId})`,
+        ),
+      ),
   ]);
 
   const [ac] = acRows;

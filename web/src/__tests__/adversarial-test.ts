@@ -6,9 +6,7 @@ import { z } from "zod";
 // === DataTable edge cases ===
 
 describe("DataTable adversarial: empty data", () => {
-  const columns: Column<Record<string, string>>[] = [
-    { key: "name", header: "Name", filterable: true },
-  ];
+  const columns: Column<Record<string, string>>[] = [{ key: "name", header: "Name", filterable: true }];
 
   test("filterData on empty array returns empty", () => {
     expect(filterData([], columns, "test")).toHaveLength(0);
@@ -38,35 +36,22 @@ describe("DataTable adversarial: empty data", () => {
 });
 
 describe("DataTable adversarial: null/undefined values", () => {
-  const columns: Column<Record<string, unknown>>[] = [
-    { key: "name", header: "Name", filterable: true },
-  ];
+  const columns: Column<Record<string, unknown>>[] = [{ key: "name", header: "Name", filterable: true }];
 
   test("filterData handles null/undefined values gracefully", () => {
-    const data: Record<string, unknown>[] = [
-      { name: null },
-      { name: undefined },
-      { name: "valid" },
-    ];
+    const data: Record<string, unknown>[] = [{ name: null }, { name: undefined }, { name: "valid" }];
     expect(filterData(data, columns, "valid")).toHaveLength(1);
   });
 
   test("sortData handles null/undefined values gracefully", () => {
-    const data: Record<string, unknown>[] = [
-      { name: null },
-      { name: undefined },
-      { name: "alpha" },
-      { name: "beta" },
-    ];
+    const data: Record<string, unknown>[] = [{ name: null }, { name: undefined }, { name: "alpha" }, { name: "beta" }];
     const sorted = sortData(data, "name", "asc");
     expect(sorted).toHaveLength(4);
   });
 });
 
 describe("DataTable adversarial: unicode and special characters", () => {
-  const columns: Column<Record<string, string>>[] = [
-    { key: "name", header: "Name", filterable: true },
-  ];
+  const columns: Column<Record<string, string>>[] = [{ key: "name", header: "Name", filterable: true }];
 
   test("filterData with unicode characters", () => {
     const data = [{ name: "日本語テスト" }, { name: "中文测试" }, { name: "emoji 🎉" }];

@@ -36,7 +36,10 @@ export async function createWorkItem(environmentId: string, sessionId: string): 
 
 /** Long-poll for work — blocks until work is available or timeout.
  *  Returns null when no work is available, matching the CLI bridge client protocol. */
-export async function pollWork(environmentId: string, timeoutSeconds = config.pollTimeout): Promise<WorkResponse | null> {
+export async function pollWork(
+  environmentId: string,
+  timeoutSeconds = config.pollTimeout,
+): Promise<WorkResponse | null> {
   const deadline = Date.now() + timeoutSeconds * 1000;
 
   while (Date.now() < deadline) {
@@ -73,7 +76,9 @@ export async function stopWork(workId: string) {
   await workItemRepo.update(workId, { state: "completed" });
 }
 
-export async function heartbeatWork(workId: string): Promise<{ lease_extended: boolean; state: string; last_heartbeat: string; ttl_seconds: number }> {
+export async function heartbeatWork(
+  workId: string,
+): Promise<{ lease_extended: boolean; state: string; last_heartbeat: string; ttl_seconds: number }> {
   await workItemRepo.update(workId, {}); // bump updatedAt
   const item = await workItemRepo.getById(workId);
   const now = new Date();

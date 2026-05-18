@@ -200,8 +200,11 @@ describe("ws-handler", () => {
       bus.subscribe((e) => events.push(e));
 
       const ws = createMockWs();
-      const data = JSON.stringify({ type: "user", message: { role: "user", content: "hello" } }) + "\n" +
-        JSON.stringify({ type: "assistant", message: { role: "assistant", content: "hi" } }) + "\n";
+      const data =
+        JSON.stringify({ type: "user", message: { role: "user", content: "hello" } }) +
+        "\n" +
+        JSON.stringify({ type: "assistant", message: { role: "assistant", content: "hi" } }) +
+        "\n";
       handleWebSocketMessage(ws, "s1", data);
       expect(events).toHaveLength(2);
     });
@@ -226,7 +229,7 @@ describe("ws-handler", () => {
       // After close, publishing events should not cause errors
       const bus = getEventBus("s3");
       expect(() =>
-        bus.publish({ id: "e1", sessionId: "s3", type: "user", payload: {}, direction: "outbound" })
+        bus.publish({ id: "e1", sessionId: "s3", type: "user", payload: {}, direction: "outbound" }),
       ).not.toThrow();
     });
   });

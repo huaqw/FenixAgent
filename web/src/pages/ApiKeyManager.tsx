@@ -28,7 +28,10 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
   const loadKeys = useCallback(async () => {
     try {
       const { data, error: err } = await client.web.apiKeys.get();
-      if (err) { setError("加载 API Key 失败"); return; }
+      if (err) {
+        setError("加载 API Key 失败");
+        return;
+      }
       setKeys(data ?? []);
     } catch {
       setError("加载 API Key 失败");
@@ -45,7 +48,10 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
     setError("");
     try {
       const { data, error: err } = await client.web.apiKeys.post({ label: newLabel || undefined });
-      if (err) { setError(err.message ?? "创建 Key 失败"); return; }
+      if (err) {
+        setError(err.message ?? "创建 Key 失败");
+        return;
+      }
       setCreatedKey((data as { full_key?: string } | null)?.full_key);
       setNewLabel("");
       await loadKeys();
@@ -74,11 +80,7 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center text-text-muted">
-        加载中...
-      </div>
-    );
+    return <div className="flex h-full items-center justify-center text-text-muted">加载中...</div>;
   }
 
   return (
@@ -91,38 +93,34 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
           <h1 className="text-lg font-semibold text-text-primary">API Key</h1>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4 rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</div>}
 
         {createdKey && (
           <div className="mb-4 rounded-md border border-status-active/30 bg-status-active/5 px-4 py-3">
             <p className="text-sm font-medium text-status-active">API Key 已创建</p>
-            <p className="mt-1 text-xs text-text-muted">
-              请立即复制此 Key，之后将无法再查看。
-            </p>
+            <p className="mt-1 text-xs text-text-muted">请立即复制此 Key，之后将无法再查看。</p>
             <div className="mt-2 flex items-center gap-2">
-              <code className="flex-1 rounded bg-surface-0 px-3 py-2 text-xs font-mono break-all">
-                {createdKey}
-              </code>
+              <code className="flex-1 rounded bg-surface-0 px-3 py-2 text-xs font-mono break-all">{createdKey}</code>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(createdKey);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className={copied
-                  ? "shrink-0 rounded-md bg-status-active/15 px-3 py-2 text-xs font-medium text-status-active"
-                  : "shrink-0 rounded-md bg-surface-2 px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-3"
+                className={
+                  copied
+                    ? "shrink-0 rounded-md bg-status-active/15 px-3 py-2 text-xs font-medium text-status-active"
+                    : "shrink-0 rounded-md bg-surface-2 px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-3"
                 }
               >
                 {copied ? "已复制!" : "复制"}
               </button>
             </div>
             <button
-              onClick={() => { setCreatedKey(null); setCopied(false); }}
+              onClick={() => {
+                setCreatedKey(null);
+                setCopied(false);
+              }}
               className="mt-2 text-xs text-text-muted hover:text-text-primary"
             >
               关闭
@@ -153,9 +151,7 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
         {/* Key list */}
         <div className="space-y-2">
           {keys.length === 0 && (
-            <p className="text-center text-sm text-text-muted py-8">
-              暂无 API Key。请在上方创建一个以连接你的 Agent。
-            </p>
+            <p className="text-center text-sm text-text-muted py-8">暂无 API Key。请在上方创建一个以连接你的 Agent。</p>
           )}
           {keys.map((key) => (
             <div
@@ -176,24 +172,16 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
                       }}
                       autoFocus
                     />
-                    <button
-                      onClick={() => handleUpdateLabel(key.id)}
-                      className="text-xs text-brand hover:underline"
-                    >
+                    <button onClick={() => handleUpdateLabel(key.id)} className="text-xs text-brand hover:underline">
                       保存
                     </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="text-xs text-text-muted hover:underline"
-                    >
+                    <button onClick={() => setEditingId(null)} className="text-xs text-text-muted hover:underline">
                       取消
                     </button>
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm font-medium text-text-primary truncate">
-                      {key.label || "未命名"}
-                    </p>
+                    <p className="text-sm font-medium text-text-primary truncate">{key.label || "未命名"}</p>
                     <p className="text-xs text-text-muted font-mono">{key.keyPrefix}</p>
                   </>
                 )}
@@ -202,7 +190,10 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
                 {editingId !== key.id && (
                   <>
                     <button
-                      onClick={() => { setEditingId(key.id); setEditLabel(key.label); }}
+                      onClick={() => {
+                        setEditingId(key.id);
+                        setEditLabel(key.label);
+                      }}
                       className="text-xs text-text-muted hover:text-text-primary"
                     >
                       编辑
@@ -223,11 +214,15 @@ export function ApiKeyManager({ onBack }: ApiKeyManagerProps) {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
         title="确认删除"
         description="确定要删除此 API Key 吗？使用该 Key 的 Agent 将无法继续连接。此操作不可撤销。"
         variant="destructive"
-        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); }}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget);
+        }}
       />
     </div>
   );

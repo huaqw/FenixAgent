@@ -77,7 +77,9 @@ export function createSSEStream(request: Request, sessionId: string, fromSeqNum 
           seqNum: event.seqNum,
         });
         try {
-          log(`[RC-DEBUG] SSE -> web: sessionId=${sessionId} type=${event.type} dir=${event.direction} seq=${event.seqNum}`);
+          log(
+            `[RC-DEBUG] SSE -> web: sessionId=${sessionId} type=${event.type} dir=${event.direction} seq=${event.seqNum}`,
+          );
           controller.enqueue(encoder.encode(`id: ${event.seqNum}\nevent: message\ndata: ${data}\n\n`));
         } catch {
           unsub();
@@ -128,9 +130,7 @@ function toWorkerClientPayload(event: SessionEvent): Record<string, unknown> {
   }
 
   const normalized =
-    event.payload && typeof event.payload === "object"
-      ? (event.payload as Record<string, unknown>)
-      : undefined;
+    event.payload && typeof event.payload === "object" ? (event.payload as Record<string, unknown>) : undefined;
   const raw =
     normalized?.raw && typeof normalized.raw === "object" && !Array.isArray(normalized.raw)
       ? (normalized.raw as Record<string, unknown>)
@@ -180,9 +180,7 @@ export function createWorkerEventStream(request: Request, sessionId: string, fro
       const encoder = new TextEncoder();
 
       if (fromSeqNum > 0) {
-        const missed = bus
-          .getEventsSince(fromSeqNum)
-          .filter((event) => event.direction === "outbound");
+        const missed = bus.getEventsSince(fromSeqNum).filter((event) => event.direction === "outbound");
         for (const event of missed) {
           controller.enqueue(encoder.encode(toWorkerClientFrame(event)));
         }

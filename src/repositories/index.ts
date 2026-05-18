@@ -1,5 +1,10 @@
 export { environmentRepo } from "./environment";
-export type { EnvironmentRecord, EnvironmentCreateParams, EnvironmentUpdateParams, IEnvironmentRepo } from "./environment";
+export type {
+  EnvironmentRecord,
+  EnvironmentCreateParams,
+  EnvironmentUpdateParams,
+  IEnvironmentRepo,
+} from "./environment";
 
 export { sessionRepo } from "./session";
 export type { SessionRecord, SessionCreateParams, ISessionRepo } from "./session";

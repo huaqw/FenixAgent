@@ -1,6 +1,14 @@
 // ── session.ts async 函数移除冗余 Promise.resolve 验证 ──
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { getSession, resolveExistingSessionId, createSession, updateSessionStatus, archiveSession, _setEventService, _setUuid } from "../services/session";
+import {
+  getSession,
+  resolveExistingSessionId,
+  createSession,
+  updateSessionStatus,
+  archiveSession,
+  _setEventService,
+  _setUuid,
+} from "../services/session";
 
 // 注入 mock eventService
 const mockBuses = new Map<string, { publish: typeof mock }>();

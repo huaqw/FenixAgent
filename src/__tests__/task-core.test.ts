@@ -51,18 +51,27 @@ async function ensureTeam(id: string, name: string, slug: string, createdBy: str
     updatedAt: now,
   });
   // 同时创建 team_member 记录
-  await db.insert(teamMember).values({
-    teamId: id,
-    userId: createdBy,
-    role: "owner",
-    joinedAt: now,
-  }).onConflictDoNothing();
+  await db
+    .insert(teamMember)
+    .values({
+      teamId: id,
+      userId: createdBy,
+      role: "owner",
+      joinedAt: now,
+    })
+    .onConflictDoNothing();
 }
 
 async function cleanupTasks() {
-  try { await db.delete(taskExecutionLog); } catch {}
-  try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_A)); } catch {}
-  try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_B)); } catch {}
+  try {
+    await db.delete(taskExecutionLog);
+  } catch {}
+  try {
+    await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_A));
+  } catch {}
+  try {
+    await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_B));
+  } catch {}
 }
 
 await ensureUser(USER_A, "Alice Task", "alice-task@test.com");
@@ -79,15 +88,33 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  try { await db.delete(taskExecutionLog); } catch {}
-  try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_A)); } catch {}
-  try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_B)); } catch {}
-  try { await db.delete(teamMember).where(eq(teamMember.teamId, TEAM_A)); } catch {}
-  try { await db.delete(teamMember).where(eq(teamMember.teamId, TEAM_B)); } catch {}
-  try { await db.delete(team).where(eq(team.id, TEAM_A)); } catch {}
-  try { await db.delete(team).where(eq(team.id, TEAM_B)); } catch {}
-  try { await db.delete(user).where(eq(user.id, USER_A)); } catch {}
-  try { await db.delete(user).where(eq(user.id, USER_B)); } catch {}
+  try {
+    await db.delete(taskExecutionLog);
+  } catch {}
+  try {
+    await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_A));
+  } catch {}
+  try {
+    await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEAM_B));
+  } catch {}
+  try {
+    await db.delete(teamMember).where(eq(teamMember.teamId, TEAM_A));
+  } catch {}
+  try {
+    await db.delete(teamMember).where(eq(teamMember.teamId, TEAM_B));
+  } catch {}
+  try {
+    await db.delete(team).where(eq(team.id, TEAM_A));
+  } catch {}
+  try {
+    await db.delete(team).where(eq(team.id, TEAM_B));
+  } catch {}
+  try {
+    await db.delete(user).where(eq(user.id, USER_A));
+  } catch {}
+  try {
+    await db.delete(user).where(eq(user.id, USER_B));
+  } catch {}
 });
 
 function getValidInput(overrides: Record<string, unknown> = {}) {
@@ -171,9 +198,13 @@ describe("Task Service", () => {
 
     // 验证 headers 字段从 jsonb 正确解析为对象（非字符串）
     it("createTask 返回的 headers 为解析后的对象", async () => {
-      const result = await createTask(TEAM_A, getValidInput({
-        headers: { "X-Custom": "value", "Authorization": "Bearer abc" },
-      }), USER_A);
+      const result = await createTask(
+        TEAM_A,
+        getValidInput({
+          headers: { "X-Custom": "value", Authorization: "Bearer abc" },
+        }),
+        USER_A,
+      );
       expect(result.success).toBe(true);
       if (!result.success) return;
 
@@ -185,9 +216,13 @@ describe("Task Service", () => {
 
     // 验证 getTask 返回的 headers 也是解析后的对象
     it("getTask 返回的 headers 为解析后的对象", async () => {
-      const created = await createTask(TEAM_A, getValidInput({
-        headers: { "Content-Type": "application/xml" },
-      }), USER_A);
+      const created = await createTask(
+        TEAM_A,
+        getValidInput({
+          headers: { "Content-Type": "application/xml" },
+        }),
+        USER_A,
+      );
       if (!created.success) return;
 
       const result = await getTask(TEAM_A, created.data.id);

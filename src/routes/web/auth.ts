@@ -7,8 +7,7 @@ const BindSessionRequestSchema = {
   uuid: "",
 };
 
-const app = new Elysia({ name: "web-auth", prefix: "/web" })
-  .decorate({ error: errorResponse });
+const app = new Elysia({ name: "web-auth", prefix: "/web" }).decorate({ error: errorResponse });
 
 /** POST /web/bind — Bind a session to a UUID (no-login auth) */
 app.post("/bind", async ({ body, query, error }) => {

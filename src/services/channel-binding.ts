@@ -76,10 +76,7 @@ export async function updateBinding(
 
 // --- Message Matching ---
 
-export async function findBindingForMessage(
-  platform: string,
-  chatId: string,
-): Promise<BindingMatchResult | undefined> {
+export async function findBindingForMessage(platform: string, chatId: string): Promise<BindingMatchResult | undefined> {
   const rows = await channelBindingRepo.listByPlatformAndEnabled(platform);
 
   const bindings = rows.map(rowToBinding);

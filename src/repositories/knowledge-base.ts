@@ -1,10 +1,6 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import {
-  agentKnowledgeBinding,
-  knowledgeBase,
-  knowledgeResource,
-} from "../db/schema";
+import { agentKnowledgeBinding, knowledgeBase, knowledgeResource } from "../db/schema";
 
 /** KnowledgeBase 行类型 */
 export type KnowledgeBaseRow = typeof knowledgeBase.$inferSelect;
@@ -64,13 +60,17 @@ export interface IAgentKnowledgeBindingRepo {
   createMany(dataList: AgentKnowledgeBindingInsert[]): Promise<void>;
   deleteByAgentConfigId(agentConfigId: string): Promise<void>;
   deleteByKnowledgeBaseId(knowledgeBaseId: string): Promise<void>;
-  listJoinedWithKnowledgeBaseByConfigId(agentConfigId: string): Promise<Array<AgentKnowledgeBindingRow & {
-    kbId: string;
-    kbRemoteId: string | null;
-    kbRemoteAccountId: string | null;
-    kbRemoteUserId: string | null;
-    kbUserId: string;
-  }>>;
+  listJoinedWithKnowledgeBaseByConfigId(agentConfigId: string): Promise<
+    Array<
+      AgentKnowledgeBindingRow & {
+        kbId: string;
+        kbRemoteId: string | null;
+        kbRemoteAccountId: string | null;
+        kbRemoteUserId: string | null;
+        kbUserId: string;
+      }
+    >
+  >;
   getResourceWithKnowledgeBase(resourceId: string): Promise<{
     resource: KnowledgeResourceRow;
     kbUserId: string;
@@ -81,43 +81,54 @@ export interface IAgentKnowledgeBindingRepo {
 
 class PgKnowledgeBaseRepo implements IKnowledgeBaseRepo {
   async getById(knowledgeBaseId: string) {
-    const rows = await db.select().from(knowledgeBase)
-      .where(eq(knowledgeBase.id, knowledgeBaseId)).limit(1);
+    const rows = await db.select().from(knowledgeBase).where(eq(knowledgeBase.id, knowledgeBaseId)).limit(1);
     return rows[0] ?? null;
   }
 
   async getByUserAndId(userId: string, knowledgeBaseId: string) {
-    const rows = await db.select().from(knowledgeBase)
+    const rows = await db
+      .select()
+      .from(knowledgeBase)
       .where(and(eq(knowledgeBase.id, knowledgeBaseId), eq(knowledgeBase.userId, userId)));
     return rows[0] ?? null;
   }
 
   async listByUserId(userId: string) {
-    return db.select().from(knowledgeBase)
+    return db
+      .select()
+      .from(knowledgeBase)
       .where(eq(knowledgeBase.userId, userId))
       .orderBy(desc(knowledgeBase.updatedAt));
   }
 
   async findByUserAndSlug(userId: string, slug: string) {
-    const rows = await db.select().from(knowledgeBase)
+    const rows = await db
+      .select()
+      .from(knowledgeBase)
       .where(and(eq(knowledgeBase.userId, userId), eq(knowledgeBase.slug, slug)));
     return rows[0] ?? null;
   }
 
   async listByTeamId(teamId: string) {
-    return db.select().from(knowledgeBase)
+    return db
+      .select()
+      .from(knowledgeBase)
       .where(eq(knowledgeBase.teamId, teamId))
       .orderBy(desc(knowledgeBase.updatedAt));
   }
 
   async getByTeamAndId(teamId: string, knowledgeBaseId: string) {
-    const rows = await db.select().from(knowledgeBase)
+    const rows = await db
+      .select()
+      .from(knowledgeBase)
       .where(and(eq(knowledgeBase.id, knowledgeBaseId), eq(knowledgeBase.teamId, teamId)));
     return rows[0] ?? null;
   }
 
   async findByTeamAndSlug(teamId: string, slug: string) {
-    const rows = await db.select().from(knowledgeBase)
+    const rows = await db
+      .select()
+      .from(knowledgeBase)
       .where(and(eq(knowledgeBase.teamId, teamId), eq(knowledgeBase.slug, slug)));
     return rows[0] ?? null;
   }
@@ -132,14 +143,17 @@ class PgKnowledgeBaseRepo implements IKnowledgeBaseRepo {
   }
 
   async delete(knowledgeBaseId: string): Promise<boolean> {
-    const result = await db.delete(knowledgeBase)
+    const result = await db
+      .delete(knowledgeBase)
       .where(eq(knowledgeBase.id, knowledgeBaseId))
       .returning({ id: knowledgeBase.id });
     return result.length > 0;
   }
 
   async countBindings(knowledgeBaseId: string) {
-    const [row] = await db.select({ count: count() }).from(agentKnowledgeBinding)
+    const [row] = await db
+      .select({ count: count() })
+      .from(agentKnowledgeBinding)
       .where(eq(agentKnowledgeBinding.knowledgeBaseId, knowledgeBaseId));
     return row?.count ?? 0;
   }
@@ -147,41 +161,46 @@ class PgKnowledgeBaseRepo implements IKnowledgeBaseRepo {
 
 class PgKnowledgeResourceRepo implements IKnowledgeResourceRepo {
   async getById(resourceId: string) {
-    const rows = await db.select().from(knowledgeResource)
-      .where(eq(knowledgeResource.id, resourceId)).limit(1);
+    const rows = await db.select().from(knowledgeResource).where(eq(knowledgeResource.id, resourceId)).limit(1);
     return rows[0] ?? null;
   }
 
   async getByRemoteId(knowledgeBaseId: string, remoteId: string) {
-    const rows = await db.select().from(knowledgeResource)
-      .where(and(
-        eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId),
-        eq(knowledgeResource.remoteId, remoteId),
-      ))
+    const rows = await db
+      .select()
+      .from(knowledgeResource)
+      .where(and(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId), eq(knowledgeResource.remoteId, remoteId)))
       .limit(1);
     return rows[0] ?? null;
   }
 
   async listByKnowledgeBase(knowledgeBaseId: string, limit?: number) {
-    return db.select().from(knowledgeResource)
+    return db
+      .select()
+      .from(knowledgeResource)
       .where(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId))
       .orderBy(desc(knowledgeResource.updatedAt))
       .limit(limit ?? 100);
   }
 
   async countByKnowledgeBase(knowledgeBaseId: string) {
-    const [row] = await db.select({ count: count() }).from(knowledgeResource)
+    const [row] = await db
+      .select({ count: count() })
+      .from(knowledgeResource)
       .where(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId));
     return row?.count ?? 0;
   }
 
   async getStatusSummary(knowledgeBaseId: string) {
-    const [summary] = await db.select({
-      readyCount: sql<number>`sum(case when ${knowledgeResource.status} = 'ready' then 1 else 0 end)`,
-      activeCount: sql<number>`sum(case when ${knowledgeResource.status} in ('pending', 'processing') then 1 else 0 end)`,
-      errorCount: sql<number>`sum(case when ${knowledgeResource.status} = 'error' then 1 else 0 end)`,
-      totalCount: count(),
-    }).from(knowledgeResource).where(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId));
+    const [summary] = await db
+      .select({
+        readyCount: sql<number>`sum(case when ${knowledgeResource.status} = 'ready' then 1 else 0 end)`,
+        activeCount: sql<number>`sum(case when ${knowledgeResource.status} in ('pending', 'processing') then 1 else 0 end)`,
+        errorCount: sql<number>`sum(case when ${knowledgeResource.status} = 'error' then 1 else 0 end)`,
+        totalCount: count(),
+      })
+      .from(knowledgeResource)
+      .where(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId));
     return {
       readyCount: summary?.readyCount ?? 0,
       activeCount: summary?.activeCount ?? 0,
@@ -201,55 +220,60 @@ class PgKnowledgeResourceRepo implements IKnowledgeResourceRepo {
 
   async updateByRemoteIds(remoteIds: string[], data: Partial<KnowledgeResourceInsert>) {
     if (remoteIds.length === 0) return;
-    await db.update(knowledgeResource).set(data)
-      .where(inArray(knowledgeResource.remoteId, remoteIds));
+    await db.update(knowledgeResource).set(data).where(inArray(knowledgeResource.remoteId, remoteIds));
   }
 
   async delete(resourceId: string): Promise<boolean> {
-    const result = await db.delete(knowledgeResource)
+    const result = await db
+      .delete(knowledgeResource)
       .where(eq(knowledgeResource.id, resourceId))
       .returning({ id: knowledgeResource.id });
     return result.length > 0;
   }
 
   async deleteByKnowledgeBase(knowledgeBaseId: string) {
-    await db.delete(knowledgeResource)
-      .where(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId));
+    await db.delete(knowledgeResource).where(eq(knowledgeResource.knowledgeBaseId, knowledgeBaseId));
   }
 
   async findByRemoteIds(remoteIds: string[]) {
     if (remoteIds.length === 0) return [];
-    return db.select().from(knowledgeResource)
-      .where(inArray(knowledgeResource.remoteId, remoteIds));
+    return db.select().from(knowledgeResource).where(inArray(knowledgeResource.remoteId, remoteIds));
   }
 }
 
 class PgAgentKnowledgeBindingRepo implements IAgentKnowledgeBindingRepo {
   async listByAgentConfigId(agentConfigId: string) {
-    return db.select().from(agentKnowledgeBinding)
+    return db
+      .select()
+      .from(agentKnowledgeBinding)
       .where(eq(agentKnowledgeBinding.agentConfigId, agentConfigId))
       .orderBy(agentKnowledgeBinding.priority);
   }
 
   async listEnabledByAgentConfigId(agentConfigId: string) {
-    return db.select().from(agentKnowledgeBinding)
+    return db
+      .select()
+      .from(agentKnowledgeBinding)
       .where(and(eq(agentKnowledgeBinding.agentConfigId, agentConfigId), eq(agentKnowledgeBinding.enabled, true)));
   }
 
   async listByKnowledgeBaseId(knowledgeBaseId: string) {
-    return db.select().from(agentKnowledgeBinding)
-      .where(eq(agentKnowledgeBinding.knowledgeBaseId, knowledgeBaseId));
+    return db.select().from(agentKnowledgeBinding).where(eq(agentKnowledgeBinding.knowledgeBaseId, knowledgeBaseId));
   }
 
   async countByKnowledgeBaseId(knowledgeBaseId: string) {
-    const [row] = await db.select({ count: count() }).from(agentKnowledgeBinding)
+    const [row] = await db
+      .select({ count: count() })
+      .from(agentKnowledgeBinding)
       .where(eq(agentKnowledgeBinding.knowledgeBaseId, knowledgeBaseId));
     return row?.count ?? 0;
   }
 
   async countByKnowledgeBaseIds(knowledgeBaseIds: string[]) {
     if (knowledgeBaseIds.length === 0) return {};
-    const rows = await db.select().from(agentKnowledgeBinding)
+    const rows = await db
+      .select()
+      .from(agentKnowledgeBinding)
       .where(inArray(agentKnowledgeBinding.knowledgeBaseId, knowledgeBaseIds));
     const counts: Record<string, number> = {};
     for (const id of knowledgeBaseIds) {
@@ -280,41 +304,43 @@ class PgAgentKnowledgeBindingRepo implements IAgentKnowledgeBindingRepo {
   }
 
   async listJoinedWithKnowledgeBaseByConfigId(agentConfigId: string) {
-    return db.select({
-      id: agentKnowledgeBinding.id,
-      agentConfigId: agentKnowledgeBinding.agentConfigId,
-      knowledgeBaseId: agentKnowledgeBinding.knowledgeBaseId,
-      priority: agentKnowledgeBinding.priority,
-      enabled: agentKnowledgeBinding.enabled,
-      createdAt: agentKnowledgeBinding.createdAt,
-      updatedAt: agentKnowledgeBinding.updatedAt,
-      kbId: knowledgeBase.id,
-      kbRemoteId: knowledgeBase.remoteId,
-      kbRemoteAccountId: knowledgeBase.remoteAccountId,
-      kbRemoteUserId: knowledgeBase.remoteUserId,
-      kbUserId: knowledgeBase.userId,
-    })
+    return db
+      .select({
+        id: agentKnowledgeBinding.id,
+        agentConfigId: agentKnowledgeBinding.agentConfigId,
+        knowledgeBaseId: agentKnowledgeBinding.knowledgeBaseId,
+        priority: agentKnowledgeBinding.priority,
+        enabled: agentKnowledgeBinding.enabled,
+        createdAt: agentKnowledgeBinding.createdAt,
+        updatedAt: agentKnowledgeBinding.updatedAt,
+        kbId: knowledgeBase.id,
+        kbRemoteId: knowledgeBase.remoteId,
+        kbRemoteAccountId: knowledgeBase.remoteAccountId,
+        kbRemoteUserId: knowledgeBase.remoteUserId,
+        kbUserId: knowledgeBase.userId,
+      })
       .from(agentKnowledgeBinding)
       .innerJoin(knowledgeBase, eq(agentKnowledgeBinding.knowledgeBaseId, knowledgeBase.id))
       .where(and(eq(agentKnowledgeBinding.agentConfigId, agentConfigId), eq(agentKnowledgeBinding.enabled, true)));
   }
 
   async getResourceWithKnowledgeBase(resourceId: string) {
-    const rows = await db.select({
-      id: knowledgeResource.id,
-      knowledgeBaseId: knowledgeResource.knowledgeBaseId,
-      sourceType: knowledgeResource.sourceType,
-      sourceName: knowledgeResource.sourceName,
-      sourcePath: knowledgeResource.sourcePath,
-      remoteId: knowledgeResource.remoteId,
-      status: knowledgeResource.status,
-      lastError: knowledgeResource.lastError,
-      createdAt: knowledgeResource.createdAt,
-      updatedAt: knowledgeResource.updatedAt,
-      kbUserId: knowledgeBase.userId,
-      kbRemoteAccountId: knowledgeBase.remoteAccountId,
-      kbRemoteUserId: knowledgeBase.remoteUserId,
-    })
+    const rows = await db
+      .select({
+        id: knowledgeResource.id,
+        knowledgeBaseId: knowledgeResource.knowledgeBaseId,
+        sourceType: knowledgeResource.sourceType,
+        sourceName: knowledgeResource.sourceName,
+        sourcePath: knowledgeResource.sourcePath,
+        remoteId: knowledgeResource.remoteId,
+        status: knowledgeResource.status,
+        lastError: knowledgeResource.lastError,
+        createdAt: knowledgeResource.createdAt,
+        updatedAt: knowledgeResource.updatedAt,
+        kbUserId: knowledgeBase.userId,
+        kbRemoteAccountId: knowledgeBase.remoteAccountId,
+        kbRemoteUserId: knowledgeBase.remoteUserId,
+      })
       .from(knowledgeResource)
       .innerJoin(knowledgeBase, eq(knowledgeResource.knowledgeBaseId, knowledgeBase.id))
       .where(eq(knowledgeResource.id, resourceId))

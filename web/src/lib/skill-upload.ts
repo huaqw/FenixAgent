@@ -76,7 +76,10 @@ export function validateUploadBatch(items: UploadSkillSummary[]): string | null 
   return null;
 }
 
-export function buildSkillUploadFormData(items: UploadSkillSummary[], strategy?: SkillUploadConflictStrategy): FormData {
+export function buildSkillUploadFormData(
+  items: UploadSkillSummary[],
+  strategy?: SkillUploadConflictStrategy,
+): FormData {
   const formData = new FormData();
   const manifest: UploadManifestEntry[] = [];
 

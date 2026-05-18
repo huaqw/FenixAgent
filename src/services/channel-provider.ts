@@ -42,15 +42,11 @@ export function listChannelProviders(): ChannelProviderDescriptor[] {
 
   return CHANNEL_PROVIDERS.map((provider) => ({
     ...provider,
-    status: (hermesConnected && hermesPlatforms.includes(provider.type))
-      ? "enabled" as const
-      : provider.status,
+    status: hermesConnected && hermesPlatforms.includes(provider.type) ? ("enabled" as const) : provider.status,
   }));
 }
 
-export function getChannelProvider(
-  type: string,
-): ChannelProviderDescriptor | undefined {
+export function getChannelProvider(type: string): ChannelProviderDescriptor | undefined {
   const provider = CHANNEL_PROVIDERS.find((item) => item.type === type);
   return provider ? { ...provider } : undefined;
 }

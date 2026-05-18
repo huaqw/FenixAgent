@@ -39,7 +39,7 @@ export function intRangeSchema(opts: { label?: string; min?: number; max?: numbe
         .number()
         .int(`${label}必须是整数`)
         .min(min, `${label}须在 ${min}-${max} 之间`)
-        .max(max, `${label}须在 ${min}-${max} 之间`)
+        .max(max, `${label}须在 ${min}-${max} 之间`),
     );
 }
 
@@ -60,7 +60,7 @@ export function optionalFloatSchema(opts: { label?: string; min?: number; max?: 
         .number({ message: `${label}必须是数字` })
         .min(min, `${label}须在 ${min}-${max} 之间`)
         .max(max, `${label}须在 ${min}-${max} 之间`)
-        .optional()
+        .optional(),
     );
 }
 
@@ -70,10 +70,7 @@ export function optionalFloatSchema(opts: { label?: string; min?: number; max?: 
 export function requiredStringSchema(opts?: { label?: string; max?: number }) {
   const label = opts?.label ?? "内容";
   const max = opts?.max ?? 65536;
-  return z
-    .string()
-    .min(1, `${label}不能为空`)
-    .max(max, `${label}长度不能超过 ${max} 字符`);
+  return z.string().min(1, `${label}不能为空`).max(max, `${label}长度不能超过 ${max} 字符`);
 }
 
 /**
@@ -89,10 +86,7 @@ export function optionalStringSchema(opts?: { max?: number }) {
  * - 供非 react-hook-form 场景手动调用验证
  * - 返回 null 表示验证通过
  */
-export function validateWithSchema<T>(
-  schema: z.ZodType<T>,
-  data: unknown
-): string[] | null {
+export function validateWithSchema<T>(schema: z.ZodType<T>, data: unknown): string[] | null {
   const result = schema.safeParse(data);
   if (result.success) return null;
   return result.error.issues.map((issue) => issue.message);

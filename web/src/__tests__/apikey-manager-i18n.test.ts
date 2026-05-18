@@ -27,11 +27,11 @@ describe("ApiKeyManager.tsx i18n Chinese translations", () => {
     expect(src).not.toContain("Loading...");
   });
 
-  test('source does not contain >API Keys<', () => {
+  test("source does not contain >API Keys<", () => {
     expect(src).not.toContain(">API Keys<");
   });
 
-  test('source does not contain >API Key Created<', () => {
+  test("source does not contain >API Key Created<", () => {
     expect(src).not.toContain(">API Key Created<");
   });
 
@@ -47,7 +47,7 @@ describe("ApiKeyManager.tsx i18n Chinese translations", () => {
     expect(src).not.toContain(">Dismiss<");
   });
 
-  test('source does not contain >Create New Key<', () => {
+  test("source does not contain >Create New Key<", () => {
     expect(src).not.toContain(">Create New Key<");
   });
 
@@ -108,7 +108,7 @@ describe("ApiKeyManager.tsx i18n Chinese translations", () => {
     expect(src).toContain("返回");
   });
 
-  test('source contains >API Key< (h1 title)', () => {
+  test("source contains >API Key< (h1 title)", () => {
     expect(src).toContain(">API Key<");
   });
 
@@ -128,7 +128,7 @@ describe("ApiKeyManager.tsx i18n Chinese translations", () => {
     expect(src).toContain("关闭");
   });
 
-  test('source contains >创建新 Key<', () => {
+  test("source contains >创建新 Key<", () => {
     expect(src).toContain(">创建新 Key<");
   });
 

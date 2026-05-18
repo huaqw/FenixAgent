@@ -28,8 +28,12 @@ beforeEach(() => {
   _deps.getAgentFullConfig = mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] }));
   _deps.environmentRepo = {
     getById: mock(async () => ({
-      id: "env_1", userId: "user1", teamId: "user1", workspacePath: "/tmp/test",
-      secret: "env_secret_test", maxSessions: 2,
+      id: "env_1",
+      userId: "user1",
+      teamId: "user1",
+      workspacePath: "/tmp/test",
+      secret: "env_secret_test",
+      maxSessions: 2,
     })),
   } as any;
   _deps.findOrCreateForEnvironment = mock(async () => ({ id: "ses_1" })) as any;

@@ -71,7 +71,11 @@ describe("importSkillDirectories PG deletes 并行化", () => {
       contentPath: `/path/${name}/SKILL.md`,
     }));
 
-    await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("skill-a"), makeFile("skill-b"), makeFile("skill-c")], "overwrite");
+    await importSkillDirectories(
+      { teamId: "test-team", userId: "user_1", role: "owner" },
+      [makeFile("skill-a"), makeFile("skill-b"), makeFile("skill-c")],
+      "overwrite",
+    );
 
     expect(deleteSkillMock).toHaveBeenCalledTimes(3);
     const deletedNames = deleteSkillMock.mock.calls.map((c: unknown[]) => c[1] as string).sort();
@@ -81,7 +85,11 @@ describe("importSkillDirectories PG deletes 并行化", () => {
   test("无冲突时不应调用 deleteSkill", async () => {
     getSkillMock.mockImplementation(async () => null);
 
-    await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("new-skill")], "overwrite");
+    await importSkillDirectories(
+      { teamId: "test-team", userId: "user_1", role: "owner" },
+      [makeFile("new-skill")],
+      "overwrite",
+    );
 
     expect(deleteSkillMock).not.toHaveBeenCalled();
     expect(upsertSkillMock).toHaveBeenCalledTimes(1);
@@ -111,7 +119,9 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     });
 
     getSkillMock.mockImplementation(async () => null);
-    deleteSkillMock.mockImplementation(async () => { throw new Error("db down"); });
+    deleteSkillMock.mockImplementation(async () => {
+      throw new Error("db down");
+    });
 
     await expect(
       importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("fail2")]),

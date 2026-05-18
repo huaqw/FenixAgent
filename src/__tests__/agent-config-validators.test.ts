@@ -12,9 +12,20 @@ describe("AGENT_SETTABLE_FIELDS", () => {
   // 确认已知字段都包含在列表中
   it("包含所���期望的可设置字段", () => {
     const expected = [
-      "model", "prompt", "steps", "mode", "permission",
-      "variant", "temperature", "topP", "top_p", "disable", "hidden",
-      "color", "description", "knowledge",
+      "model",
+      "prompt",
+      "steps",
+      "mode",
+      "permission",
+      "variant",
+      "temperature",
+      "topP",
+      "top_p",
+      "disable",
+      "hidden",
+      "color",
+      "description",
+      "knowledge",
     ];
     for (const field of expected) {
       expect((AGENT_SETTABLE_FIELDS as readonly string[]).includes(field)).toBe(true);

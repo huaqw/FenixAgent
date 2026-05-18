@@ -63,11 +63,15 @@ describe("buildModelData", () => {
 // 复制 mapCoreStatus 逻辑（private 函数）
 function mapCoreStatus(status: string): "running" | "stopped" | "error" | "starting" {
   switch (status) {
-    case "running": return "running";
+    case "running":
+      return "running";
     case "stopped":
-    case "stopping": return "stopped";
-    case "error": return "error";
-    default: return "starting";
+    case "stopping":
+      return "stopped";
+    case "error":
+      return "error";
+    default:
+      return "starting";
   }
 }
 

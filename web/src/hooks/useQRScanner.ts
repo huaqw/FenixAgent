@@ -31,10 +31,7 @@ export interface UseQRScannerResult {
  * Hook for QR code scanning functionality.
  * Manages QrScanner lifecycle and camera access.
  */
-export function useQRScanner({
-  onScan,
-  onError,
-}: UseQRScannerOptions): UseQRScannerResult {
+export function useQRScanner({ onScan, onError }: UseQRScannerOptions): UseQRScannerResult {
   const [isScanning, setIsScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
@@ -112,7 +109,7 @@ export function useQRScanner({
             returnDetailedScanResult: true,
             highlightScanRegion: true,
             highlightCodeOutline: true,
-          }
+          },
         );
 
         if (isCancelled) {

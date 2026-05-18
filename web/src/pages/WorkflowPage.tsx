@@ -24,7 +24,9 @@ export function WorkflowPage() {
       {error && (
         <div className="flex h-full flex-col items-center justify-center gap-3">
           <p className="text-sm text-text-muted">智能体编排引擎连接失败，请确认 acpx-g 服务已启动</p>
-          <button onClick={handleReload} className="text-brand text-sm underline">重试</button>
+          <button onClick={handleReload} className="text-brand text-sm underline">
+            重试
+          </button>
         </div>
       )}
       <iframe

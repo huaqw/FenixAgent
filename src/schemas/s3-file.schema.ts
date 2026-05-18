@@ -33,11 +33,13 @@ export const S3UploadQuerySchema = z.object({
 });
 
 export const S3UploadResponseSchema = z.object({
-  files: z.array(z.object({
-    key: z.string(),
-    name: z.string(),
-    size: z.number(),
-  })),
+  files: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      size: z.number(),
+    }),
+  ),
 });
 
 export const S3FileListQuerySchema = z.object({

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock , afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
 import { setTestAuth, resetTestAuth } from "../plugins/auth";
 import { setTestTeamContext } from "../services/team-context";
 
@@ -85,15 +85,17 @@ mock.module("drizzle-orm", () => ({
 const mcpRoute = (await import("../routes/web/config/mcp")).default;
 
 function postRequest(body: Record<string, unknown>) {
-  return mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }));
+  return mcpRoute.handle(
+    new Request("http://localhost/web/config/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
 }
 
 describe("MCP Config Route - Network Actions", () => {
-    afterEach(() => {
+  afterEach(() => {
     resetTestAuth();
     setTestTeamContext(null);
   });
@@ -105,8 +107,16 @@ describe("MCP Config Route - Network Actions", () => {
     });
     setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
     _mcpStore = {
-      "my-local": { type: "local", config: { type: "local", command: ["npx", "mcp-server"], environment: { KEY: "VALUE" }, timeout: 5000 }, enabled: true },
-      "my-remote": { type: "remote", config: { type: "remote", url: "https://example.com/mcp", headers: { Auth: "Bearer t" }, timeout: 10000 }, enabled: true },
+      "my-local": {
+        type: "local",
+        config: { type: "local", command: ["npx", "mcp-server"], environment: { KEY: "VALUE" }, timeout: 5000 },
+        enabled: true,
+      },
+      "my-remote": {
+        type: "remote",
+        config: { type: "remote", url: "https://example.com/mcp", headers: { Auth: "Bearer t" }, timeout: 10000 },
+        enabled: true,
+      },
     };
     _inspectResult = {
       reachable: true,
@@ -188,7 +198,11 @@ describe("MCP Config Route - Network Actions", () => {
     });
 
     test("local 服务器命令未找到", async () => {
-      _mcpStore["bad-cmd"] = { type: "local", config: { type: "local", command: ["nonexistent-command-xyz-12345"] }, enabled: true };
+      _mcpStore["bad-cmd"] = {
+        type: "local",
+        config: { type: "local", command: ["nonexistent-command-xyz-12345"] },
+        enabled: true,
+      };
 
       const res = await postRequest({ action: "test", name: "bad-cmd" });
       const json = await res.json();
@@ -228,7 +242,12 @@ describe("MCP Config Route - Network Actions", () => {
         transport: "streamable-http",
       };
 
-      const res = await postRequest({ action: "test_url", url: "https://example.com/mcp", headers: { Auth: "Bearer tok" }, timeout: 5000 });
+      const res = await postRequest({
+        action: "test_url",
+        url: "https://example.com/mcp",
+        headers: { Auth: "Bearer tok" },
+        timeout: 5000,
+      });
       const json = await res.json();
 
       expect(json.success).toBe(true);
@@ -348,7 +367,13 @@ describe("MCP Config Route - Network Actions", () => {
     test("返回工具列表", async () => {
       const now = new Date();
       _mockDbState.tools = [
-        { id: "1", toolName: "read_file", description: "Read a file", inputSchema: '{"type":"object"}', inspectedAt: now },
+        {
+          id: "1",
+          toolName: "read_file",
+          description: "Read a file",
+          inputSchema: '{"type":"object"}',
+          inspectedAt: now,
+        },
         { id: "2", toolName: "write_file", description: "Write a file", inputSchema: null, inspectedAt: now },
       ];
 

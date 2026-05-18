@@ -10,23 +10,19 @@ import type { AuthContext } from "../../plugins/auth";
 // ────────────────────────────────────────────
 
 export async function listMcpServers(ctx: AuthContext) {
-  return db.select().from(mcpServer)
-    .where(eq(mcpServer.teamId, ctx.teamId));
+  return db.select().from(mcpServer).where(eq(mcpServer.teamId, ctx.teamId));
 }
 
 export async function getMcpServer(ctx: AuthContext, name: string) {
-  const rows = await db.select().from(mcpServer)
+  const rows = await db
+    .select()
+    .from(mcpServer)
     .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .limit(1);
   return rows[0] ?? null;
 }
 
-export async function createMcpServer(
-  ctx: AuthContext,
-  name: string,
-  type: string,
-  config: Record<string, unknown>,
-) {
+export async function createMcpServer(ctx: AuthContext, name: string, type: string, config: Record<string, unknown>) {
   const values = {
     teamId: ctx.teamId,
     userId: ctx.userId,
@@ -36,7 +32,9 @@ export async function createMcpServer(
     enabled: true,
     updatedAt: new Date(),
   };
-  await db.insert(mcpServer).values(values)
+  await db
+    .insert(mcpServer)
+    .values(values)
     .onConflictDoUpdate({
       target: [mcpServer.teamId, mcpServer.name],
       set: {
@@ -56,7 +54,8 @@ export async function updateMcpServer(
   if (typeof config.type === "string" && VALID_MCP_TYPES.includes(config.type)) {
     updates.type = config.type;
   }
-  const result = await db.update(mcpServer)
+  const result = await db
+    .update(mcpServer)
     .set(updates)
     .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .returning({ id: mcpServer.id });
@@ -64,14 +63,16 @@ export async function updateMcpServer(
 }
 
 export async function deleteMcpServer(ctx: AuthContext, name: string): Promise<boolean> {
-  const result = await db.delete(mcpServer)
+  const result = await db
+    .delete(mcpServer)
     .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .returning({ id: mcpServer.id });
   return result.length > 0;
 }
 
 export async function setMcpServerEnabled(ctx: AuthContext, name: string, enabled: boolean): Promise<boolean> {
-  const result = await db.update(mcpServer)
+  const result = await db
+    .update(mcpServer)
     .set({ enabled, updatedAt: new Date() })
     .where(and(eq(mcpServer.teamId, ctx.teamId), eq(mcpServer.name, name)))
     .returning({ id: mcpServer.id });
@@ -84,7 +85,8 @@ export async function setMcpServerEnabled(ctx: AuthContext, name: string, enable
 
 /** 统计指定 server 的 tool 数量（使用 SQL COUNT，避免全量拉取） */
 export async function countToolsByServer(serverName: string): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)` })
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
     .from(mcpTool)
     .where(eq(mcpTool.serverName, serverName));
   return Number(row?.count ?? 0);
@@ -119,9 +121,7 @@ export async function replaceToolsForServer(
 
 /** 列出指定 server 的缓存 tool */
 export async function listToolsByServer(serverName: string) {
-  return db.select()
-    .from(mcpTool)
-    .where(eq(mcpTool.serverName, serverName));
+  return db.select().from(mcpTool).where(eq(mcpTool.serverName, serverName));
 }
 
 // ────────────────────────────────────────────
@@ -130,10 +130,13 @@ export async function listToolsByServer(serverName: string) {
 
 /** MCP 服务器名称校验 */
 export function isValidMcpName(name: string): boolean {
-  return typeof name === "string"
-    && name.length >= 1 && name.length <= 64
-    && !/--/.test(name)
-    && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name);
+  return (
+    typeof name === "string" &&
+    name.length >= 1 &&
+    name.length <= 64 &&
+    !/--/.test(name) &&
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name)
+  );
 }
 
 /** 允许的 MCP 服务器类型 */
@@ -150,7 +153,11 @@ export function validateMcpConfig(config: unknown): string | null {
   const type = cfg.type as string;
 
   if (type === "local") {
-    if (!Array.isArray(cfg.command) || cfg.command.length === 0 || cfg.command.some((c: unknown) => typeof c !== "string")) {
+    if (
+      !Array.isArray(cfg.command) ||
+      cfg.command.length === 0 ||
+      cfg.command.some((c: unknown) => typeof c !== "string")
+    ) {
       return "INVALID_COMMAND";
     }
     if (cfg.environment !== undefined && (typeof cfg.environment !== "object" || cfg.environment === null)) {
@@ -181,7 +188,7 @@ export function toServerInfo(name: string, row: { type: string; config: unknown;
   }
   const cfgType = config.type as string;
   if (cfgType === "local") {
-    const command = Array.isArray(config.command) ? config.command as string[] : [];
+    const command = Array.isArray(config.command) ? (config.command as string[]) : [];
     return {
       name,
       type: "local" as const,
@@ -191,7 +198,7 @@ export function toServerInfo(name: string, row: { type: string; config: unknown;
     };
   }
   // streamable-http 和 remote 统一展示为 remote 类型（使用 URL）
-  const typeLabel = cfgType === "streamable-http" ? "streamable-http" as const : "remote" as const;
+  const typeLabel = cfgType === "streamable-http" ? ("streamable-http" as const) : ("remote" as const);
   return {
     name,
     type: typeLabel,

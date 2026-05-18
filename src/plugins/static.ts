@@ -15,7 +15,7 @@ export const ctrlStaticPlugin = new Elysia({ name: "ctrl-static" })
       assets: webDir,
       prefix: "/ctrl",
       indexHTML: true,
-    })
+    }),
   )
   // /ctrl/:sessionId/user/* → redirect to file preview API (for iframe embedding)
   .get("/ctrl/:sessionId/user/:filePath", ({ params, redirect }) => {

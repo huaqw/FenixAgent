@@ -1,30 +1,11 @@
 import { useState } from "react";
 import type { Environment, Session } from "../types";
 import { client } from "../api/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "../../components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -69,7 +50,15 @@ export function NewSessionDialog({ open, environments, onClose, onCreated }: New
   });
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { form.reset(); onClose(); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          form.reset();
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-md rounded-2xl border-border bg-surface-1 p-6 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="font-display text-lg font-semibold text-text-primary">New Session</DialogTitle>

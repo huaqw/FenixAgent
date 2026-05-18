@@ -15,9 +15,7 @@ mock.module("../services/hermes-client", () => ({
 }));
 
 mock.module("../services/channel-binding", () => ({
-  listBindings: async () => [
-    { id: "bind_001", platform: "feishu", chatId: null, agentId: "env_001", enabled: true },
-  ],
+  listBindings: async () => [{ id: "bind_001", platform: "feishu", chatId: null, agentId: "env_001", enabled: true }],
   createBinding: async (data: any) => ({
     id: "bind_new",
     ...data,

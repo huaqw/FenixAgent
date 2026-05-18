@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock , afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
 import { setTestAuth, resetTestAuth } from "../plugins/auth";
 import { setTestTeamContext } from "../services/team-context";
 
@@ -57,7 +57,7 @@ mock.module("../services/config/mcp-server", () => ({
 const mcpRoute = (await import("../routes/web/config/mcp")).default;
 
 describe("MCP Config Route", () => {
-    afterEach(() => {
+  afterEach(() => {
     resetTestAuth();
     setTestTeamContext(null);
   });
@@ -69,31 +69,43 @@ describe("MCP Config Route", () => {
     });
     setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
     _mcpStore = {
-      "my-local": { type: "local", config: { type: "local", command: ["npx", "mcp-server"], environment: { KEY: "VALUE" }, timeout: 5000 }, enabled: true },
+      "my-local": {
+        type: "local",
+        config: { type: "local", command: ["npx", "mcp-server"], environment: { KEY: "VALUE" }, timeout: 5000 },
+        enabled: true,
+      },
       "another-local": { type: "local", config: { type: "local", command: ["node", "server.js"] }, enabled: true },
-      "my-remote": { type: "remote", config: { type: "remote", url: "https://example.com/mcp", headers: { Auth: "Bearer t" } }, enabled: true },
+      "my-remote": {
+        type: "remote",
+        config: { type: "remote", url: "https://example.com/mcp", headers: { Auth: "Bearer t" } },
+        enabled: true,
+      },
     };
     _mockToolsState.tools = [];
   });
 
   test("handleList 空配置", async () => {
     _mcpStore = {};
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.servers).toEqual([]);
   });
 
   test("handleList 含多个服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.servers).toHaveLength(3);
@@ -108,11 +120,13 @@ describe("MCP Config Route", () => {
   });
 
   test("handleGet 存在的服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get", name: "my-local" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", name: "my-local" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("my-local");
@@ -121,26 +135,30 @@ describe("MCP Config Route", () => {
   });
 
   test("handleGet 不存在的服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get", name: "nonexistent" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", name: "nonexistent" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("handleCreate 正常创建 local 服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "new-server",
-        config: { type: "local", command: ["npx", "mcp-server"], environment: { K: "V" }, timeout: 5000 },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "new-server",
+          config: { type: "local", command: ["npx", "mcp-server"], environment: { K: "V" }, timeout: 5000 },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("new-server");
@@ -149,15 +167,17 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 正常创建 remote 服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "remote-srv",
-        config: { type: "remote", url: "https://example.com/mcp" },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "remote-srv",
+          config: { type: "remote", url: "https://example.com/mcp" },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("remote-srv");
@@ -165,30 +185,34 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 重名", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "my-local",
-        config: { type: "local", command: ["npx"] },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "my-local",
+          config: { type: "local", command: ["npx"] },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("ALREADY_EXISTS");
   });
 
   test("handleCreate 无效名称 UPPER_CASE", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "UPPER_CASE",
-        config: { type: "local", command: ["npx"] },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "UPPER_CASE",
+          config: { type: "local", command: ["npx"] },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -196,60 +220,68 @@ describe("MCP Config Route", () => {
   });
 
   test("handleCreate 无效配置缺少 type", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "bad-config",
-        config: { command: ["npx"] },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "bad-config",
+          config: { command: ["npx"] },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.message).toBe("INVALID_CONFIG_TYPE");
   });
 
   test("handleCreate local 缺少 command", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "no-cmd",
-        config: { type: "local" },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "no-cmd",
+          config: { type: "local" },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.message).toBe("INVALID_COMMAND");
   });
 
   test("handleCreate remote 缺少 url", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        name: "no-url",
-        config: { type: "remote" },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "no-url",
+          config: { type: "remote" },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.message).toBe("INVALID_URL");
   });
 
   test("handleUpdate 正常更新", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "update",
-        name: "my-local",
-        config: { type: "local", command: ["npx", "updated-server"], timeout: 10000 },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          name: "my-local",
+          config: { type: "local", command: ["npx", "updated-server"], timeout: 10000 },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("my-local");
@@ -258,37 +290,43 @@ describe("MCP Config Route", () => {
   });
 
   test("handleUpdate 不存在的服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "update",
-        name: "ghost",
-        config: { type: "local", command: ["npx"] },
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          name: "ghost",
+          config: { type: "local", command: ["npx"] },
+        }),
       }),
-    }));
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("handleDelete 正常删除", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "my-local" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "my-local" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect("my-local" in _mcpStore).toBe(false);
   });
 
   test("handleDelete 不存在的服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "ghost" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "ghost" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
@@ -296,11 +334,13 @@ describe("MCP Config Route", () => {
 
   test("handleEnable 正常启用", async () => {
     _mcpStore["my-local"].enabled = false;
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "enable", name: "my-local" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enable", name: "my-local" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.enabled).toBe(true);
@@ -309,11 +349,13 @@ describe("MCP Config Route", () => {
 
   test("handleEnable 禁用变体（无原始配置）", async () => {
     _mcpStore["lost-server"] = { type: "disabled", config: { enabled: false }, enabled: false };
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "enable", name: "lost-server" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enable", name: "lost-server" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -321,11 +363,13 @@ describe("MCP Config Route", () => {
   });
 
   test("handleDisable 正常禁用", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "disable", name: "my-local" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable", name: "my-local" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.enabled).toBe(false);
@@ -333,11 +377,13 @@ describe("MCP Config Route", () => {
   });
 
   test("handleDisable 不存在的服务器", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "disable", name: "ghost" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable", name: "ghost" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error.code).toBe("NOT_FOUND");
@@ -345,11 +391,13 @@ describe("MCP Config Route", () => {
 
   // 未知 action 被 Elysia body schema 验证拦截
   test("未知 action 返回验证错误", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "unknown" }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unknown" }),
+      }),
+    );
     expect(res.status).toBe(422);
     const json = await res.json();
     expect(json.type).toBe("validation");
@@ -357,11 +405,13 @@ describe("MCP Config Route", () => {
 
   describe("isValidMcpName 边界", () => {
     test("空字符串 → 失败", async () => {
-      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "", config: { type: "local", command: ["npx"] } }),
-      }));
+      const res = await mcpRoute.handle(
+        new Request("http://localhost/web/config/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "", config: { type: "local", command: ["npx"] } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -369,43 +419,51 @@ describe("MCP Config Route", () => {
 
     test("单字符 a → 成功", async () => {
       _mcpStore = {};
-      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "a", config: { type: "local", command: ["npx"] } }),
-      }));
+      const res = await mcpRoute.handle(
+        new Request("http://localhost/web/config/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "a", config: { type: "local", command: ["npx"] } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
     });
 
     test("my-server → 成功", async () => {
       _mcpStore = {};
-      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "my-server", config: { type: "local", command: ["npx"] } }),
-      }));
+      const res = await mcpRoute.handle(
+        new Request("http://localhost/web/config/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "my-server", config: { type: "local", command: ["npx"] } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(true);
     });
 
     test("my--server（连续连字符）→ 失败", async () => {
-      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "my--server", config: { type: "local", command: ["npx"] } }),
-      }));
+      const res = await mcpRoute.handle(
+        new Request("http://localhost/web/config/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "my--server", config: { type: "local", command: ["npx"] } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
     });
 
     test("以连字符开头 -abc → 失败", async () => {
-      const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: "-abc", config: { type: "local", command: ["npx"] } }),
-      }));
+      const res = await mcpRoute.handle(
+        new Request("http://localhost/web/config/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", name: "-abc", config: { type: "local", command: ["npx"] } }),
+        }),
+      );
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -414,11 +472,13 @@ describe("MCP Config Route", () => {
 
   // config: null 被 Elysia body schema 验证拦截（config 字段定义为 record）
   test("validateMcpConfig 非对象输入 null", async () => {
-    const res = await mcpRoute.handle(new Request("http://localhost/web/config/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create", name: "test", config: null }),
-    }));
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", name: "test", config: null }),
+      }),
+    );
     expect(res.status).toBe(422);
     const json = await res.json();
     expect(json.type).toBe("validation");

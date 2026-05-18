@@ -151,9 +151,7 @@ function skillContentPath(name: string): string {
 
 /** 过滤 metadata 中的 name 和 description 字段 */
 function stripNameAndDescription(metadata: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(metadata).filter(([k]) => k !== "name" && k !== "description"),
-  );
+  return Object.fromEntries(Object.entries(metadata).filter(([k]) => k !== "name" && k !== "description"));
 }
 
 export async function listSkills(ctx: AuthContext): Promise<SkillInfo[]> {
@@ -276,16 +274,28 @@ async function executeImportCore(
 
     return { imported, skipped: [], conflicts: [] };
   } catch (err) {
-    try { await _deps.skillFs.cleanupWrittenSkills(targetDir, attemptedNames); } catch (e) { logError("[Skill] Failed to cleanup written skills:", e); }
+    try {
+      await _deps.skillFs.cleanupWrittenSkills(targetDir, attemptedNames);
+    } catch (e) {
+      logError("[Skill] Failed to cleanup written skills:", e);
+    }
     if (onRollbackCleanup) {
       await onRollbackCleanup(attemptedNames).catch((e) => {
         logError("[Skill] Failed to rollback PG records:", e);
       });
     }
-    try { await _deps.skillFs.restoreFromBackup(snapshots, targetDir); } catch (e) { logError("[Skill] Failed to restore from backup:", e); }
+    try {
+      await _deps.skillFs.restoreFromBackup(snapshots, targetDir);
+    } catch (e) {
+      logError("[Skill] Failed to restore from backup:", e);
+    }
     throw err;
   } finally {
-    try { await _deps.skillFs.cleanupBackupDir(backupRoot); } catch (e) { logError("[Skill] Failed to cleanup backup dir:", e); }
+    try {
+      await _deps.skillFs.cleanupBackupDir(backupRoot);
+    } catch (e) {
+      logError("[Skill] Failed to cleanup backup dir:", e);
+    }
   }
 }
 
@@ -327,9 +337,11 @@ export async function importSkillDirectories(
     strategy === "overwrite" ? overwriteNames : [],
     "rcs-skill-import-",
     // onConflictCleanup: overwrite 时清理 PG 冲突记录（pre-write）
-    strategy === "overwrite" ? async (names) => {
-      await Promise.all(names.map((name) => _deps.configPg.deleteSkill(ctx, name)));
-    } : undefined,
+    strategy === "overwrite"
+      ? async (names) => {
+          await Promise.all(names.map((name) => _deps.configPg.deleteSkill(ctx, name)));
+        }
+      : undefined,
     // onSkillWritten: 并行写入 PG 元数据
     async (info) => {
       await _deps.configPg.upsertSkill(ctx, info.name, {
@@ -365,13 +377,15 @@ export async function listSkillSources(ctx: AuthContext): Promise<SkillSourceInf
     _deps.environmentRepo.listByUserId(ctx.userId),
     listSkills(ctx),
   ]);
-  const sources: SkillSourceInfo[] = [{
-    type: "global",
-    name: "全局技能",
-    path: SKILLS_DIR,
-    status: "online",
-    skills: globalSkills,
-  }];
+  const sources: SkillSourceInfo[] = [
+    {
+      type: "global",
+      name: "全局技能",
+      path: SKILLS_DIR,
+      status: "online",
+      skills: globalSkills,
+    },
+  ];
 
   if (environments.length === 0) return sources;
 

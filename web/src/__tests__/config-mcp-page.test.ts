@@ -105,7 +105,18 @@ describe("buildMcpPayload", () => {
   });
 
   test("remote 带 OAuth", () => {
-    const result = buildMcpPayload("remote", "", "https://x.com", [], [{ key: "Auth", value: "Bearer t" }], "id1", "sec1", "read", "https://cb", "");
+    const result = buildMcpPayload(
+      "remote",
+      "",
+      "https://x.com",
+      [],
+      [{ key: "Auth", value: "Bearer t" }],
+      "id1",
+      "sec1",
+      "read",
+      "https://cb",
+      "",
+    );
     expect(result.type).toBe("remote");
     if ("url" in result) {
       expect(result.url).toBe("https://x.com");

@@ -1,4 +1,4 @@
-export { ACPClient, DisconnectRequestedError } from 'acp-link/client'
+export { ACPClient, DisconnectRequestedError } from "acp-link/client";
 export type {
   ConnectionStateHandler,
   SessionUpdateHandler,
@@ -12,4 +12,4 @@ export type {
   AvailableCommandsChangedHandler,
   SessionLoadedHandler,
   SessionSwitchingHandler,
-} from 'acp-link/client'
+} from "acp-link/client";

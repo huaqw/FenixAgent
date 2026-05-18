@@ -60,7 +60,11 @@ function makeFile(skillName: string): UploadSkillFile {
 
 describe("importSkillDirectories upsertSkill 并行化", () => {
   test("多个 skill 导入时 upsertSkill 应被并行调用（非 for 循环顺序）", async () => {
-    await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("a"), makeFile("b"), makeFile("c")]);
+    await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [
+      makeFile("a"),
+      makeFile("b"),
+      makeFile("c"),
+    ]);
 
     expect(upsertSkillMock).toHaveBeenCalledTimes(3);
     const names = upsertSkillMock.mock.calls.map((c: unknown[]) => c[1] as string).sort();
@@ -70,7 +74,7 @@ describe("importSkillDirectories upsertSkill 并行化", () => {
   test("每个 upsertSkill 调用应包含正确的 description 和 contentPath", async () => {
     await importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("my-skill")]);
 
-    const calls = (upsertSkillMock.mock.calls as unknown as [{ userId: string }, string, Record<string, unknown>][]);
+    const calls = upsertSkillMock.mock.calls as unknown as [{ userId: string }, string, Record<string, unknown>][];
     const [ctx, name, data] = calls[0];
     expect(ctx.userId).toBe("user_1");
     expect(name).toBe("my-skill");

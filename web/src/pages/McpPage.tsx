@@ -9,9 +9,7 @@ import { StatusBadge } from "@/components/config/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { client } from "../api/client";
 import type { McpServerInfo, McpServerConfig, McpLocalConfig, McpRemoteConfig, McpToolInfo } from "../types/config";
@@ -20,12 +18,7 @@ import type { McpServerInfo, McpServerConfig, McpLocalConfig, McpRemoteConfig, M
 export type KeyValueEntry = { key: string; value: string };
 
 /** 校验 MCP 服务器表单，返回错误消息或 null */
-export function validateMcpForm(
-  name: string,
-  type: "local" | "remote",
-  command: string,
-  url: string,
-): string | null {
+export function validateMcpForm(name: string, type: "local" | "remote", command: string, url: string): string | null {
   if (!name.trim()) return "名称不能为空";
   if (/--/.test(name)) return "名称不能包含连续连字符";
   if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name)) {
@@ -39,7 +32,11 @@ export function validateMcpForm(
   }
   if (type === "remote") {
     if (!url.trim()) return "URL 不能为空";
-    try { new URL(url); } catch { return "URL 格式不正确"; }
+    try {
+      new URL(url);
+    } catch {
+      return "URL 格式不正确";
+    }
   }
   return null;
 }
@@ -57,9 +54,7 @@ export function parseCommandString(input: string): string[] {
 
 /** 将命令字符串数组转为用户可编辑的空格分隔字符串 */
 export function commandToString(command: string[]): string {
-  return command
-    .map((part) => (/\s/.test(part) ? `"${part}"` : part))
-    .join(" ");
+  return command.map((part) => (/\s/.test(part) ? `"${part}"` : part)).join(" ");
 }
 
 /** 从 MCP 配置中构建列表摘要文本 */
@@ -175,7 +170,10 @@ export function McpPage() {
           serversWithTools.map(async (s: McpServerInfo) => {
             if (toolsCache[s.name]) return;
             try {
-              const { data: toolsData, error: toolsErr } = await client.web.config.mcp.post({ action: "list_tools", name: s.name });
+              const { data: toolsData, error: toolsErr } = await client.web.config.mcp.post({
+                action: "list_tools",
+                name: s.name,
+              });
               if (toolsErr) return;
               const result = unwrapConfigData(toolsData) ?? toolsData;
               setToolsCache((prev) => ({ ...prev, [s.name]: Array.isArray(result?.tools) ? result.tools : [] }));
@@ -193,12 +191,18 @@ export function McpPage() {
     }
   }, []);
 
-  useEffect(() => { loadServers(); }, [loadServers]);
+  useEffect(() => {
+    loadServers();
+  }, [loadServers]);
 
   const columns: Column<McpServerInfo>[] = [
-    { key: "name", header: "名称", sortable: true, filterable: true, render: (row) => (
-      <span className="font-mono text-sm text-text-bright">{row.name}</span>
-    )},
+    {
+      key: "name",
+      header: "名称",
+      sortable: true,
+      filterable: true,
+      render: (row) => <span className="font-mono text-sm text-text-bright">{row.name}</span>,
+    },
     {
       key: "type",
       header: "类型",
@@ -207,13 +211,15 @@ export function McpPage() {
         const isLocal = row.type === "local";
         const isRemote = row.type === "remote";
         return (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
-            isLocal
-              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-              : isRemote
-                ? "bg-cyan-subtle text-cyan dark:text-cyan"
-                : "bg-surface-2 text-text-muted"
-          }`}>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
+              isLocal
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                : isRemote
+                  ? "bg-cyan-subtle text-cyan dark:text-cyan"
+                  : "bg-surface-2 text-text-muted"
+            }`}
+          >
             {isLocal ? "Local" : isRemote ? "Remote" : "已禁用"}
           </span>
         );
@@ -240,11 +246,11 @@ export function McpPage() {
       render: (row) => {
         const count = row.toolsCount ?? 0;
         return (
-          <span className={`inline-flex items-center justify-center min-w-[24px] h-5 px-1.5 rounded-full text-xs font-medium ${
-            count > 0
-              ? "bg-brand-subtle text-brand dark:text-brand-light"
-              : "bg-surface-2 text-text-muted"
-          }`}>
+          <span
+            className={`inline-flex items-center justify-center min-w-[24px] h-5 px-1.5 rounded-full text-xs font-medium ${
+              count > 0 ? "bg-brand-subtle text-brand dark:text-brand-light" : "bg-surface-2 text-text-muted"
+            }`}
+          >
             {count > 0 ? count : "—"}
           </span>
         );
@@ -273,7 +279,10 @@ export function McpPage() {
     setEditingServer(server);
     setFormName(server.name);
     try {
-      const { data: detailData, error: detailErr } = await client.web.config.mcp.post({ action: "get", name: server.name });
+      const { data: detailData, error: detailErr } = await client.web.config.mcp.post({
+        action: "get",
+        name: server.name,
+      });
       if (detailErr) throw new Error(detailErr.message ?? "加载详情失败");
       const detail = unwrapConfigData(detailData) ?? detailData;
       const config = detail.config;
@@ -283,7 +292,7 @@ export function McpPage() {
         setFormEnvironment(
           config.environment
             ? Object.entries(config.environment).map(([key, value]) => ({ key, value }))
-            : [{ key: "", value: "" }]
+            : [{ key: "", value: "" }],
         );
         setFormHeaders([{ key: "", value: "" }]);
         setFormTimeout(config.timeout != null ? String(config.timeout) : "");
@@ -299,7 +308,7 @@ export function McpPage() {
         setFormHeaders(
           config.headers
             ? Object.entries(config.headers).map(([key, value]) => ({ key, value }))
-            : [{ key: "", value: "" }]
+            : [{ key: "", value: "" }],
         );
         setFormEnvironment([{ key: "", value: "" }]);
         setFormCommand("");
@@ -327,12 +336,23 @@ export function McpPage() {
 
   const handleSave = async () => {
     const err = validateMcpForm(formName, formType, formCommand, formUrl);
-    if (err) { console.error("保存MCP服务器失败", err); toast.error(err); return; }
+    if (err) {
+      console.error("保存MCP服务器失败", err);
+      toast.error(err);
+      return;
+    }
     setFormSaving(true);
     try {
       const payload = buildMcpPayload(
-        formType, formCommand, formUrl, formEnvironment, formHeaders,
-        formOauthClientId, formOauthClientSecret, formOauthScope, formOauthRedirectUri,
+        formType,
+        formCommand,
+        formUrl,
+        formEnvironment,
+        formHeaders,
+        formOauthClientId,
+        formOauthClientSecret,
+        formOauthScope,
+        formOauthRedirectUri,
         formTimeout,
       );
       if (editingServer) {
@@ -394,13 +414,35 @@ export function McpPage() {
   const confirmBatchAction = async () => {
     try {
       if (batchAction === "delete") {
-        await Promise.all(selected.map((s) => client.web.config.mcp.post({ action: "delete", name: s.name }).then((r) => { if (r.error) throw new Error(r.error.message ?? "删除失败"); })));
+        await Promise.all(
+          selected.map((s) =>
+            client.web.config.mcp.post({ action: "delete", name: s.name }).then((r) => {
+              if (r.error) throw new Error(r.error.message ?? "删除失败");
+            }),
+          ),
+        );
         toast.success(`已删除 ${selected.length} 个服务器`);
       } else if (batchAction === "enable") {
-        await Promise.all(selected.filter((s) => !s.enabled).map((s) => client.web.config.mcp.post({ action: "enable", name: s.name }).then((r) => { if (r.error) throw new Error(r.error.message ?? "启用失败"); })));
+        await Promise.all(
+          selected
+            .filter((s) => !s.enabled)
+            .map((s) =>
+              client.web.config.mcp.post({ action: "enable", name: s.name }).then((r) => {
+                if (r.error) throw new Error(r.error.message ?? "启用失败");
+              }),
+            ),
+        );
         toast.success(`已启用 ${selected.length} 个服务器`);
       } else {
-        await Promise.all(selected.filter((s) => s.enabled).map((s) => client.web.config.mcp.post({ action: "disable", name: s.name }).then((r) => { if (r.error) throw new Error(r.error.message ?? "禁用失败"); })));
+        await Promise.all(
+          selected
+            .filter((s) => s.enabled)
+            .map((s) =>
+              client.web.config.mcp.post({ action: "disable", name: s.name }).then((r) => {
+                if (r.error) throw new Error(r.error.message ?? "禁用失败");
+              }),
+            ),
+        );
         toast.success(`已禁用 ${selected.length} 个服务器`);
       }
       setBatchConfirmOpen(false);
@@ -415,24 +457,32 @@ export function McpPage() {
   const handleInspect = async (server: McpServerInfo) => {
     setInspectingServer(server.name);
     try {
-      const { data: inspectData, error: inspectErr } = await client.web.config.mcp.post({ action: "inspect", name: server.name });
+      const { data: inspectData, error: inspectErr } = await client.web.config.mcp.post({
+        action: "inspect",
+        name: server.name,
+      });
       if (inspectErr) throw new Error(inspectErr.message ?? "检测失败");
       const result = unwrapConfigData(inspectData);
       if (!result) {
         const errResp = inspectData as { error?: { code?: string; message?: string } } | null;
         throw new Error(errResp?.error?.message ?? "检测失败");
       }
-      toast.success(`${server.name} 连接成功：${result.serverInfo.name ?? ""} v${result.serverInfo.version ?? ""}，发现 ${result.tools.length} 个工具`);
+      toast.success(
+        `${server.name} 连接成功：${result.serverInfo.name ?? ""} v${result.serverInfo.version ?? ""}，发现 ${result.tools.length} 个工具`,
+      );
       // 刷新列表获取 toolsCount
       loadServers();
       // 缓存 tools
-      setToolsCache((prev) => ({ ...prev, [server.name]: result.tools.map((t) => ({
-        id: `${server.name}:${t.name}`,
-        toolName: t.name,
-        description: t.description ?? null,
-        inputSchema: t.inputSchema ? JSON.stringify(t.inputSchema) : null,
-        inspectedAt: Date.now(),
-      })) }));
+      setToolsCache((prev) => ({
+        ...prev,
+        [server.name]: result.tools.map((t) => ({
+          id: `${server.name}:${t.name}`,
+          toolName: t.name,
+          description: t.description ?? null,
+          inputSchema: t.inputSchema ? JSON.stringify(t.inputSchema) : null,
+          inspectedAt: Date.now(),
+        })),
+      }));
     } catch (e) {
       console.error("检测MCP服务器失败", e);
       toast.error(`检测失败: ${e instanceof Error ? e.message : "未知错误"}`);
@@ -445,11 +495,17 @@ export function McpPage() {
     if (!formUrl.trim()) return;
     setTestingUrl(true);
     try {
-      const headersObj = formHeaders.filter((h) => h.key.trim()).length > 0
-        ? Object.fromEntries(formHeaders.filter((h) => h.key.trim()).map((h) => [h.key, h.value]))
-        : undefined;
+      const headersObj =
+        formHeaders.filter((h) => h.key.trim()).length > 0
+          ? Object.fromEntries(formHeaders.filter((h) => h.key.trim()).map((h) => [h.key, h.value]))
+          : undefined;
       const timeoutNum = formTimeout ? parseInt(formTimeout, 10) : undefined;
-      const { data: testUrlData, error: testUrlErr } = await client.web.config.mcp.post({ action: "test_url", url: formUrl, headers: headersObj, timeout: timeoutNum });
+      const { data: testUrlData, error: testUrlErr } = await client.web.config.mcp.post({
+        action: "test_url",
+        url: formUrl,
+        headers: headersObj,
+        timeout: timeoutNum,
+      });
       if (testUrlErr) throw new Error(testUrlErr.message ?? "测试失败");
       const result = unwrapConfigData(testUrlData) ?? testUrlData;
       if (result.reachable && result.protocol) {
@@ -502,20 +558,21 @@ export function McpPage() {
         selectable
         onSelectionChange={setSelected}
         rowKey={(row) => row.name}
-        emptyMessage={'暂无 MCP 服务器，点击「新建服务器」添加'}
+        emptyMessage={"暂无 MCP 服务器，点击「新建服务器」添加"}
         expandableRow={(row) => {
           const tools = toolsCache[row.name];
           if (!tools || tools.length === 0) {
             return (
-              <div className="py-4 text-center text-sm text-text-muted">
-                暂无已发现的工具，点击"检测"按钮发现工具
-              </div>
+              <div className="py-4 text-center text-sm text-text-muted">暂无已发现的工具，点击"检测"按钮发现工具</div>
             );
           }
           return (
             <div className="grid gap-2 max-h-72 overflow-y-auto">
               {tools.map((tool) => (
-                <div key={tool.id} className="group rounded-lg border border-border-light bg-surface-1 px-3 py-2.5 transition-colors hover:border-border">
+                <div
+                  key={tool.id}
+                  className="group rounded-lg border border-border-light bg-surface-1 px-3 py-2.5 transition-colors hover:border-border"
+                >
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -532,8 +589,11 @@ export function McpPage() {
                         </summary>
                         <pre className="mt-2 text-xs p-2.5 bg-surface-2 rounded-lg overflow-x-auto max-h-40 min-w-[200px] font-mono">
                           {(() => {
-                            try { return JSON.stringify(JSON.parse(tool.inputSchema), null, 2); }
-                            catch { return tool.inputSchema; }
+                            try {
+                              return JSON.stringify(JSON.parse(tool.inputSchema), null, 2);
+                            } catch {
+                              return tool.inputSchema;
+                            }
                           })()}
                         </pre>
                       </details>
@@ -548,15 +608,30 @@ export function McpPage() {
         }}
         actions={(row) => (
           <div className="flex gap-1.5">
-            <Button size="xs" variant="outline" disabled={inspectingServer === row.name} onClick={() => handleInspect(row)}>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={inspectingServer === row.name}
+              onClick={() => handleInspect(row)}
+            >
               {inspectingServer === row.name ? "检测中..." : "检测"}
             </Button>
             <Button size="xs" variant="outline" onClick={() => handleToggle(row)}>
               {row.enabled ? "禁用" : "启用"}
             </Button>
-            <Button size="xs" variant="outline" onClick={() => handleOpenEdit(row)}>编辑</Button>
-            <Button size="xs" variant="destructive"
-              onClick={() => { setDeleteTarget(row.name); setConfirmOpen(true); }}>删除</Button>
+            <Button size="xs" variant="outline" onClick={() => handleOpenEdit(row)}>
+              编辑
+            </Button>
+            <Button
+              size="xs"
+              variant="destructive"
+              onClick={() => {
+                setDeleteTarget(row.name);
+                setConfirmOpen(true);
+              }}
+            >
+              删除
+            </Button>
           </div>
         )}
       />
@@ -571,28 +646,39 @@ export function McpPage() {
           ]}
         />
       )}
-      <FormDialog open={dialogOpen} onOpenChange={setDialogOpen}
+      <FormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         title={editingServer ? "编辑 MCP 服务器" : "新建 MCP 服务器"}
-        onSubmit={handleSave} loading={formSaving} width="sm:max-w-2xl">
+        onSubmit={handleSave}
+        loading={formSaving}
+        width="sm:max-w-2xl"
+      >
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium text-text-primary">名称</label>
-            <Input value={formName} onChange={(e) => setFormName(e.target.value)}
-              disabled={!!editingServer} placeholder="my-mcp-server" className="mt-1 font-mono text-sm" />
-            {editingServer && (
-              <p className="text-xs text-text-muted mt-1">名称创建后不可修改</p>
-            )}
+            <Input
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              disabled={!!editingServer}
+              placeholder="my-mcp-server"
+              className="mt-1 font-mono text-sm"
+            />
+            {editingServer && <p className="text-xs text-text-muted mt-1">名称创建后不可修改</p>}
           </div>
           <div>
             <label className="text-sm font-medium text-text-primary">类型</label>
             <p className="text-xs text-text-muted mb-1.5">
-              {formType === "local"
-                ? "通过命令行在本地启动 MCP 服务器进程"
-                : "通过 URL 连接到远程 MCP 服务器"}
+              {formType === "local" ? "通过命令行在本地启动 MCP 服务器进程" : "通过 URL 连接到远程 MCP 服务器"}
             </p>
-            <Select value={formType} onValueChange={(v) => setFormType(v as "local" | "remote")}
-              disabled={!!editingServer}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={formType}
+              onValueChange={(v) => setFormType(v as "local" | "remote")}
+              disabled={!!editingServer}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="local">Local（命令行启动）</SelectItem>
                 <SelectItem value="remote">Remote（URL 连接）</SelectItem>
@@ -604,34 +690,55 @@ export function McpPage() {
               <div>
                 <label className="text-sm font-medium text-text-primary">命令</label>
                 <p className="text-xs text-text-muted mb-1.5">空格分隔，含空格的参数用双引号包裹</p>
-                <Input value={formCommand} onChange={(e) => setFormCommand(e.target.value)}
-                  placeholder="npx @anthropic/mcp-server-xxx --arg1 val1" className="font-mono text-sm" />
+                <Input
+                  value={formCommand}
+                  onChange={(e) => setFormCommand(e.target.value)}
+                  placeholder="npx @anthropic/mcp-server-xxx --arg1 val1"
+                  className="font-mono text-sm"
+                />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium text-text-primary">环境变量</label>
-                  <Button type="button" size="xs" variant="outline"
-                    onClick={() => setFormEnvironment([...formEnvironment, { key: "", value: "" }])}>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => setFormEnvironment([...formEnvironment, { key: "", value: "" }])}
+                  >
                     + 添加
                   </Button>
                 </div>
                 <div className="space-y-2">
                   {formEnvironment.map((entry, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
-                      <Input placeholder="KEY" value={entry.key}
+                      <Input
+                        placeholder="KEY"
+                        value={entry.key}
                         onChange={(e) => {
                           const next = [...formEnvironment];
                           next[idx] = { ...next[idx], key: e.target.value };
                           setFormEnvironment(next);
-                        }} className="flex-1 font-mono text-sm" />
-                      <Input placeholder="VALUE" value={entry.value}
+                        }}
+                        className="flex-1 font-mono text-sm"
+                      />
+                      <Input
+                        placeholder="VALUE"
+                        value={entry.value}
                         onChange={(e) => {
                           const next = [...formEnvironment];
                           next[idx] = { ...next[idx], value: e.target.value };
                           setFormEnvironment(next);
-                        }} className="flex-1 text-sm" />
-                      <Button type="button" size="xs" variant="ghost" className="text-text-muted hover:text-destructive shrink-0"
-                        onClick={() => setFormEnvironment(formEnvironment.filter((_, i) => i !== idx))}>
+                        }}
+                        className="flex-1 text-sm"
+                      />
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        className="text-text-muted hover:text-destructive shrink-0"
+                        onClick={() => setFormEnvironment(formEnvironment.filter((_, i) => i !== idx))}
+                      >
                         删除
                       </Button>
                     </div>
@@ -645,10 +752,19 @@ export function McpPage() {
               <div>
                 <label className="text-sm font-medium text-text-primary">URL</label>
                 <div className="flex gap-2 mt-1">
-                  <Input value={formUrl} onChange={(e) => setFormUrl(e.target.value)}
-                    placeholder="https://example.com/mcp" className="flex-1 font-mono text-sm" />
-                  <Button type="button" size="sm" variant="outline" disabled={testingUrl || !formUrl.trim()}
-                    onClick={handleTestFormUrl}>
+                  <Input
+                    value={formUrl}
+                    onChange={(e) => setFormUrl(e.target.value)}
+                    placeholder="https://example.com/mcp"
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={testingUrl || !formUrl.trim()}
+                    onClick={handleTestFormUrl}
+                  >
                     {testingUrl ? "测试中..." : "测试"}
                   </Button>
                 </div>
@@ -656,28 +772,45 @@ export function McpPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium text-text-primary">请求头</label>
-                  <Button type="button" size="xs" variant="outline"
-                    onClick={() => setFormHeaders([...formHeaders, { key: "", value: "" }])}>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => setFormHeaders([...formHeaders, { key: "", value: "" }])}
+                  >
                     + 添加
                   </Button>
                 </div>
                 <div className="space-y-2">
                   {formHeaders.map((entry, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
-                      <Input placeholder="Header Name" value={entry.key}
+                      <Input
+                        placeholder="Header Name"
+                        value={entry.key}
                         onChange={(e) => {
                           const next = [...formHeaders];
                           next[idx] = { ...next[idx], key: e.target.value };
                           setFormHeaders(next);
-                        }} className="flex-1 text-sm" />
-                      <Input placeholder="Header Value" value={entry.value}
+                        }}
+                        className="flex-1 text-sm"
+                      />
+                      <Input
+                        placeholder="Header Value"
+                        value={entry.value}
                         onChange={(e) => {
                           const next = [...formHeaders];
                           next[idx] = { ...next[idx], value: e.target.value };
                           setFormHeaders(next);
-                        }} className="flex-1 text-sm" />
-                      <Button type="button" size="xs" variant="ghost" className="text-text-muted hover:text-destructive shrink-0"
-                        onClick={() => setFormHeaders(formHeaders.filter((_, i) => i !== idx))}>
+                        }}
+                        className="flex-1 text-sm"
+                      />
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        className="text-text-muted hover:text-destructive shrink-0"
+                        onClick={() => setFormHeaders(formHeaders.filter((_, i) => i !== idx))}
+                      >
                         删除
                       </Button>
                     </div>
@@ -695,25 +828,42 @@ export function McpPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-sm font-medium text-text-primary">Client ID</label>
-                          <Input value={formOauthClientId}
-                            onChange={(e) => setFormOauthClientId(e.target.value)} placeholder="可选" className="mt-1" />
+                          <Input
+                            value={formOauthClientId}
+                            onChange={(e) => setFormOauthClientId(e.target.value)}
+                            placeholder="可选"
+                            className="mt-1"
+                          />
                         </div>
                         <div>
                           <label className="text-sm font-medium text-text-primary">Client Secret</label>
-                          <Input type="password" value={formOauthClientSecret}
-                            onChange={(e) => setFormOauthClientSecret(e.target.value)} placeholder="可选" className="mt-1" />
+                          <Input
+                            type="password"
+                            value={formOauthClientSecret}
+                            onChange={(e) => setFormOauthClientSecret(e.target.value)}
+                            placeholder="可选"
+                            className="mt-1"
+                          />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-sm font-medium text-text-primary">Scope</label>
-                          <Input value={formOauthScope}
-                            onChange={(e) => setFormOauthScope(e.target.value)} placeholder="可选" className="mt-1" />
+                          <Input
+                            value={formOauthScope}
+                            onChange={(e) => setFormOauthScope(e.target.value)}
+                            placeholder="可选"
+                            className="mt-1"
+                          />
                         </div>
                         <div>
                           <label className="text-sm font-medium text-text-primary">Redirect URI</label>
-                          <Input value={formOauthRedirectUri}
-                            onChange={(e) => setFormOauthRedirectUri(e.target.value)} placeholder="可选" className="mt-1" />
+                          <Input
+                            value={formOauthRedirectUri}
+                            onChange={(e) => setFormOauthRedirectUri(e.target.value)}
+                            placeholder="可选"
+                            className="mt-1"
+                          />
                         </div>
                       </div>
                     </div>
@@ -725,20 +875,33 @@ export function McpPage() {
           <div>
             <label className="text-sm font-medium text-text-primary">超时时间</label>
             <p className="text-xs text-text-muted mb-1.5">毫秒，留空使用默认值</p>
-            <Input type="number" value={formTimeout}
+            <Input
+              type="number"
+              value={formTimeout}
               onChange={(e) => setFormTimeout(e.target.value)}
-              placeholder="5000" min={1} className="font-mono text-sm" />
+              placeholder="5000"
+              min={1}
+              className="font-mono text-sm"
+            />
           </div>
         </div>
       </FormDialog>
-      <ConfirmDialog open={confirmOpen} onOpenChange={setConfirmOpen}
-        title="确认删除" description={`此操作不可逆。确定要删除 MCP 服务器 "${deleteTarget}" 吗？`}
-        variant="destructive" onConfirm={confirmDelete} />
-      <ConfirmDialog open={batchConfirmOpen} onOpenChange={setBatchConfirmOpen}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="确认删除"
+        description={`此操作不可逆。确定要删除 MCP 服务器 "${deleteTarget}" 吗？`}
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={batchConfirmOpen}
+        onOpenChange={setBatchConfirmOpen}
         title={`批量${batchAction === "delete" ? "删除" : batchAction === "enable" ? "启用" : "禁用"}确认`}
         description={`确定要${batchAction === "delete" ? "删除" : batchAction === "enable" ? "启用" : "禁用"}选中的 ${selected.length} 个服务器吗？${batchAction === "delete" ? "此操作不可逆。" : ""}`}
         variant={batchAction === "delete" ? "destructive" : "default"}
-        onConfirm={confirmBatchAction} />
+        onConfirm={confirmBatchAction}
+      />
     </div>
   );
 }

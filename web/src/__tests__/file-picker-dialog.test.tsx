@@ -12,12 +12,7 @@ describe("FilePickerDialog", () => {
     const { FilePickerDialog } = await import("../components/FilePickerDialog");
     expect(() => {
       ReactDOMServer.renderToString(
-        <FilePickerDialog
-          open={true}
-          sessionId="s1"
-          onClose={() => {}}
-          onSelect={() => {}}
-        />
+        <FilePickerDialog open={true} sessionId="s1" onClose={() => {}} onSelect={() => {}} />,
       );
     }).not.toThrow();
   });
@@ -26,12 +21,7 @@ describe("FilePickerDialog", () => {
     const { FilePickerDialog } = await import("../components/FilePickerDialog");
     expect(() => {
       ReactDOMServer.renderToString(
-        <FilePickerDialog
-          open={false}
-          sessionId="s1"
-          onClose={() => {}}
-          onSelect={() => {}}
-        />
+        <FilePickerDialog open={false} sessionId="s1" onClose={() => {}} onSelect={() => {}} />,
       );
     }).not.toThrow();
   });

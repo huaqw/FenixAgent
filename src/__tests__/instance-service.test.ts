@@ -9,22 +9,24 @@ import { setBuildLaunchSpec } from "../services/launch-spec-builder";
 // Mock 依赖
 // ────────────────────────────────────────────
 
-const mockLaunchInstance = mock(async (req: { instanceId: string; engineType: string; nodeId: string; launchSpec: unknown }) => ({
-  instanceId: req.instanceId,
-  engineType: "opencode",
-  nodeId: "local-default",
-  status: "running" as const,
-  launchSpec: req.launchSpec,
-  relayConnected: false,
-  errorMessage: undefined,
-  pluginMetadata: {
-    port: 8888,
-    token: "test_token_acquired_from_runtime",
-    pid: 12345,
-  },
-  createdAt: new Date(),
-  updatedAt: new Date(),
-}));
+const mockLaunchInstance = mock(
+  async (req: { instanceId: string; engineType: string; nodeId: string; launchSpec: unknown }) => ({
+    instanceId: req.instanceId,
+    engineType: "opencode",
+    nodeId: "local-default",
+    status: "running" as const,
+    launchSpec: req.launchSpec,
+    relayConnected: false,
+    errorMessage: undefined,
+    pluginMetadata: {
+      port: 8888,
+      token: "test_token_acquired_from_runtime",
+      pid: 12345,
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }),
+);
 
 const mockStopInstance = mock(async (_id: string) => {});
 const mockListInstances = mock((): RuntimeInstanceSnapshot[] => []);
@@ -68,13 +70,21 @@ beforeEach(() => {
   }));
 
   // 注入 fake launch-spec-builder
-  setBuildLaunchSpec(mock(async () => ({
-    workspace: "/tmp/test-workspace",
-    agent: { name: "test-agent" },
-    model: { provider: "openai", protocol: "openai", baseUrl: "https://api.openai.com/v1", apiKey: "sk-test", model: "gpt-4" },
-    skills: [],
-    mcpServers: [],
-  })) as any);
+  setBuildLaunchSpec(
+    mock(async () => ({
+      workspace: "/tmp/test-workspace",
+      agent: { name: "test-agent" },
+      model: {
+        provider: "openai",
+        protocol: "openai",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4",
+      },
+      skills: [],
+      mcpServers: [],
+    })) as any,
+  );
 
   // 注入 fake repos
   _deps.environmentRepo = {
@@ -119,7 +129,13 @@ function mockSnapshot(overrides: Partial<RuntimeInstanceSnapshot> & { instanceId
     engineType: "opencode",
     nodeId: "local-default",
     status: "running",
-    launchSpec: { workspace: "/tmp", agent: { name: "test" }, model: { provider: "openai", protocol: "openai", baseUrl: "", apiKey: "", model: "gpt-4" }, skills: [], mcpServers: [] } as any,
+    launchSpec: {
+      workspace: "/tmp",
+      agent: { name: "test" },
+      model: { provider: "openai", protocol: "openai", baseUrl: "", apiKey: "", model: "gpt-4" },
+      skills: [],
+      mcpServers: [],
+    } as any,
     relayConnected: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -150,7 +166,9 @@ describe("CoreInstanceAdapter — spawn", () => {
 
   afterEach(async () => {
     for (const id of createdInstanceIds) {
-      try { await stopInstance(id, "test-user"); } catch {}
+      try {
+        await stopInstance(id, "test-user");
+      } catch {}
     }
     createdInstanceIds.length = 0;
   });
@@ -232,9 +250,7 @@ describe("CoreInstanceAdapter — query", () => {
   test("findRunningInstanceByEnvironment 未匹配时返回 undefined", async () => {
     await spawnForUser("test-user", "env_find_miss");
 
-    mockListInstances.mockReturnValueOnce([
-      mockSnapshot({ instanceId: "inst_no_match" }),
-    ]);
+    mockListInstances.mockReturnValueOnce([mockSnapshot({ instanceId: "inst_no_match" })]);
 
     const found = findRunningInstanceByEnvironment("env_nonexistent");
     expect(found).toBeUndefined();
@@ -263,9 +279,7 @@ describe("CoreInstanceAdapter — query", () => {
   test("listInstancesByEnvironment 过滤 stopped 实例", async () => {
     const inst = await spawnForUser("test-user", "env_list_by_env");
 
-    mockListInstances.mockReturnValueOnce([
-      mockSnapshot({ instanceId: inst.id, status: "stopped" }),
-    ]);
+    mockListInstances.mockReturnValueOnce([mockSnapshot({ instanceId: inst.id, status: "stopped" })]);
 
     const active = listInstancesByEnvironment("env_list_by_env");
     expect(active).toHaveLength(0);
@@ -290,9 +304,7 @@ describe("CoreInstanceAdapter — stop", () => {
   test("stopInstance 委托给 core.stopInstance", async () => {
     const inst = await spawnForUser("test-user", "env_stop");
 
-    mockGetInstance.mockReturnValueOnce(
-      mockSnapshot({ instanceId: inst.id }),
-    );
+    mockGetInstance.mockReturnValueOnce(mockSnapshot({ instanceId: inst.id }));
 
     const result = await stopInstance(inst.id, "team-test");
     expect(result.ok).toBe(true);
@@ -319,9 +331,7 @@ describe("CoreInstanceAdapter — stop", () => {
   test("stopInstance 已停止实例", async () => {
     const inst = await spawnForUser("test-user", "env_already_stopped");
 
-    mockGetInstance.mockReturnValueOnce(
-      mockSnapshot({ instanceId: inst.id, status: "stopped" }),
-    );
+    mockGetInstance.mockReturnValueOnce(mockSnapshot({ instanceId: inst.id, status: "stopped" }));
 
     const result = await stopInstance(inst.id, "team-test");
     expect(result.ok).toBe(false);

@@ -20,23 +20,51 @@ let TEST_TEAM_ID: string | undefined;
 
 async function ensureTeam() {
   const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
   const now = new Date();
   const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(user).values({ id: TEST_USER_ID, name: "Sched Skip", email: "sched-skip@rcs.local", emailVerified: false, createdAt: now, updatedAt: now });
+    await db
+      .insert(user)
+      .values({
+        id: TEST_USER_ID,
+        name: "Sched Skip",
+        email: "sched-skip@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      });
   }
-  const [created] = await db.insert(team).values({ name: "Sched Skip Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  const [created] = await db
+    .insert(team)
+    .values({ name: "Sched Skip Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
 async function insertTask() {
-  const [row] = await db.insert(scheduledTask).values({
-    userId: TEST_USER_ID, teamId: TEST_TEAM_ID!,
-    name: `skip_${Date.now()}`, description: null, cron: "* * * * *", timezone: null,
-    enabled: true, url: "http://localhost:9999/test", method: "POST", headers: null, body: null,
-    lastRunAt: null, nextRunAt: null, lastStatus: null,
-  }).returning();
+  const [row] = await db
+    .insert(scheduledTask)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID!,
+      name: `skip_${Date.now()}`,
+      description: null,
+      cron: "* * * * *",
+      timezone: null,
+      enabled: true,
+      url: "http://localhost:9999/test",
+      method: "POST",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+    })
+    .returning();
   return row;
 }
 
@@ -45,11 +73,19 @@ await ensureTeam();
 describe("scheduler skipped-path parallel DB writes", () => {
   afterAll(async () => {
     if (TEST_TEAM_ID) {
-      try { await db.delete(taskExecutionLog); } catch {}
-      try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(taskExecutionLog);
+      } catch {}
+      try {
+        await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID));
+      } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   // 正常执行路径会写入执行日志和更新任务状态
@@ -59,7 +95,9 @@ describe("scheduler skipped-path parallel DB writes", () => {
 
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true, status: 200, text: async () => "OK",
+      ok: true,
+      status: 200,
+      text: async () => "OK",
     })) as unknown as typeof fetch;
 
     await executeTaskById(task.id, "cron", task as any);
@@ -79,7 +117,9 @@ describe("scheduler skipped-path parallel DB writes", () => {
 
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true, status: 200, text: async () => "OK",
+      ok: true,
+      status: 200,
+      text: async () => "OK",
     })) as unknown as typeof fetch;
 
     await executeTaskById(task.id, "cron", task as any);

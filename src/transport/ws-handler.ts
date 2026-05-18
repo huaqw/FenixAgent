@@ -175,7 +175,9 @@ export function ingestBridgeMessage(sessionId: string, msg: Record<string, unkno
 
   const eventType = deriveEventType(msg);
 
-  log(`[RC-DEBUG] [WS] <- bridge (inbound): sessionId=${sessionId} type=${eventType}${msg.uuid ? ` uuid=${msg.uuid}` : ""} msg=${JSON.stringify(msg).slice(0, 300)}`);
+  log(
+    `[RC-DEBUG] [WS] <- bridge (inbound): sessionId=${sessionId} type=${eventType}${msg.uuid ? ` uuid=${msg.uuid}` : ""} msg=${JSON.stringify(msg).slice(0, 300)}`,
+  );
 
   let payload: unknown;
 
@@ -188,7 +190,13 @@ export function ingestBridgeMessage(sessionId: string, msg: Record<string, unkno
       text = content;
     } else if (Array.isArray(content)) {
       text = content
-        .filter((b: unknown) => b && typeof b === "object" && "type" in (b as Record<string, unknown>) && (b as Record<string, unknown>).type === "text")
+        .filter(
+          (b: unknown) =>
+            b &&
+            typeof b === "object" &&
+            "type" in (b as Record<string, unknown>) &&
+            (b as Record<string, unknown>).type === "text",
+        )
         .map((b: Record<string, unknown>) => (b as Record<string, unknown>).text || "")
         .join("");
     }

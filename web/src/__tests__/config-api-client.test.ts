@@ -7,14 +7,22 @@ beforeEach(() => {
   fetchMock.status = 200;
   fetchMock.body = {};
   globalThis.fetch = mock(() =>
-    Promise.resolve(new Response(JSON.stringify(fetchMock.body), { status: fetchMock.status, headers: { "Content-Type": "application/json" } }))
+    Promise.resolve(
+      new Response(JSON.stringify(fetchMock.body), {
+        status: fetchMock.status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
   ) as typeof fetch;
 });
 
 describe("config Eden Treaty client", () => {
   // 测试 providers 列表返回正确数据
   test("list providers returns providers array", async () => {
-    fetchMock.body = { success: true, data: { providers: [{ name: "openai", configured: true, keyHint: "sk-...abc", baseURL: "" }] } };
+    fetchMock.body = {
+      success: true,
+      data: { providers: [{ name: "openai", configured: true, keyHint: "sk-...abc", baseURL: "" }] },
+    };
     const { client } = await import("../api/client");
     const { data, error } = await client.web.config.providers.post({ action: "list" } as any);
     expect(error).toBeNull();
@@ -117,7 +125,10 @@ describe("config Eden Treaty client", () => {
       throw new Error("expected fetchUpload to reject");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      const uploadError = error as Error & { code?: string; data?: { conflicts: unknown[]; allowedStrategies: string[] } };
+      const uploadError = error as Error & {
+        code?: string;
+        data?: { conflicts: unknown[]; allowedStrategies: string[] };
+      };
       expect(uploadError.code).toBe("SKILL_CONFLICT");
       expect(uploadError.data?.conflicts).toHaveLength(1);
       expect(uploadError.data?.allowedStrategies).toEqual(["ignore", "overwrite"]);

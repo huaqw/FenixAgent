@@ -31,14 +31,16 @@ const fakeProvider = {
     return [];
   },
   async search() {
-    return [{
-      title: "Workflow Proxy Guide",
-      snippet: "Use /workflow-ui to access the proxy.",
-      source: "kb://docs/workflow-proxy.md",
-      score: 0.91,
-      knowledgeBaseId: "remote-kb-1",
-      resourceId: "remote-res-1",
-    }];
+    return [
+      {
+        title: "Workflow Proxy Guide",
+        snippet: "Use /workflow-ui to access the proxy.",
+        source: "kb://docs/workflow-proxy.md",
+        score: 0.91,
+        knowledgeBaseId: "remote-kb-1",
+        resourceId: "remote-res-1",
+      },
+    ];
   },
   async readResource() {
     return {
@@ -51,16 +53,18 @@ const fakeProvider = {
 };
 
 function mcpRequest(secret: string | null, body: Record<string, unknown>) {
-  return app.handle(new Request("http://localhost/mcp/knowledge", {
-    method: "POST",
-    headers: {
-      Accept: "application/json, text/event-stream",
-      "Content-Type": "application/json",
-      "mcp-protocol-version": "2025-03-26",
-      ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
-    },
-    body: JSON.stringify(body),
-  }));
+  return app.handle(
+    new Request("http://localhost/mcp/knowledge", {
+      method: "POST",
+      headers: {
+        Accept: "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "mcp-protocol-version": "2025-03-26",
+        ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
+      },
+      body: JSON.stringify(body),
+    }),
+  );
 }
 
 describe("knowledge MCP route", () => {
@@ -78,7 +82,10 @@ describe("knowledge MCP route", () => {
     await db.delete(agentConfig);
     await db.delete(user).where(inArray(user.id, ["kb-mcp-user", "kb-mcp-user-2"]));
     // 清理测试团队（如果存在）
-    await db.delete(team).where(eq(team.id, TEST_TEAM_ID)).catch(() => {});
+    await db
+      .delete(team)
+      .where(eq(team.id, TEST_TEAM_ID))
+      .catch(() => {});
 
     const now = new Date();
     await db.insert(user).values({
@@ -106,13 +113,16 @@ describe("knowledge MCP route", () => {
       createdAt: now,
       updatedAt: now,
     });
-    const [acRow] = await db.insert(agentConfig).values({
-      userId: "kb-mcp-user",
-      teamId: TEST_TEAM_ID,
-      name: "general",
-      createdAt: now,
-      updatedAt: now,
-    }).returning();
+    const [acRow] = await db
+      .insert(agentConfig)
+      .values({
+        userId: "kb-mcp-user",
+        teamId: TEST_TEAM_ID,
+        name: "general",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
     await db.insert(environment).values({
       id: "env_kb_mcp",
       name: "env-kb-mcp",
@@ -134,61 +144,67 @@ describe("knowledge MCP route", () => {
       createdAt: now,
       updatedAt: now,
     });
-    const kbRows = await db.insert(knowledgeBase).values([
-      {
-        userId: "kb-mcp-user",
-        teamId: TEST_TEAM_ID,
-        name: "Docs",
-        slug: "docs",
-        description: null,
-        provider: "openviking",
-        remoteId: "remote-kb-1",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        userId: "kb-mcp-user",
-        teamId: TEST_TEAM_ID,
-        name: "Private",
-        slug: "private",
-        description: null,
-        provider: "openviking",
-        remoteId: "remote-kb-2",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]).returning();
+    const kbRows = await db
+      .insert(knowledgeBase)
+      .values([
+        {
+          userId: "kb-mcp-user",
+          teamId: TEST_TEAM_ID,
+          name: "Docs",
+          slug: "docs",
+          description: null,
+          provider: "openviking",
+          remoteId: "remote-kb-1",
+          status: "ready",
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          userId: "kb-mcp-user",
+          teamId: TEST_TEAM_ID,
+          name: "Private",
+          slug: "private",
+          description: null,
+          provider: "openviking",
+          remoteId: "remote-kb-2",
+          status: "ready",
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .returning();
     kbLocal1Id = kbRows[0].id;
     kbLocal2Id = kbRows[1].id;
 
-    const resRows = await db.insert(knowledgeResource).values([
-      {
-        knowledgeBaseId: kbLocal1Id,
-        sourceType: "upload",
-        sourceName: "workflow-proxy.md",
-        sourcePath: null,
-        remoteId: "remote-res-1",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        knowledgeBaseId: kbLocal2Id,
-        sourceType: "upload",
-        sourceName: "private.md",
-        sourcePath: null,
-        remoteId: "remote-res-2",
-        status: "ready",
-        lastError: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]).returning();
+    const resRows = await db
+      .insert(knowledgeResource)
+      .values([
+        {
+          knowledgeBaseId: kbLocal1Id,
+          sourceType: "upload",
+          sourceName: "workflow-proxy.md",
+          sourcePath: null,
+          remoteId: "remote-res-1",
+          status: "ready",
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          knowledgeBaseId: kbLocal2Id,
+          sourceType: "upload",
+          sourceName: "private.md",
+          sourcePath: null,
+          remoteId: "remote-res-2",
+          status: "ready",
+          lastError: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .returning();
     resLocal1Id = resRows[0].id;
     resLocal2Id = resRows[1].id;
 

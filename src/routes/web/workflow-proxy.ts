@@ -3,10 +3,7 @@ import { config } from "../../config";
 import { authGuardPlugin } from "../../plugins/auth";
 
 /** 将请求转发到 acpx-g 并流式返回响应 */
-async function proxyToAcpxG(
-  targetPath: string,
-  request: Request,
-): Promise<Response> {
+async function proxyToAcpxG(targetPath: string, request: Request): Promise<Response> {
   const targetUrl = `${config.acpxGUrl}${targetPath}`;
   const headers = new Headers(request.headers);
   headers.set("Host", new URL(config.acpxGUrl).host);

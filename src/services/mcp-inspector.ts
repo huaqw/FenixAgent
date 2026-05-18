@@ -58,7 +58,11 @@ export async function inspectRemoteMcpServer(
   }
 }
 
-async function connectWithTimeout(client: Client, transport: StreamableHTTPClientTransport | SSEClientTransport, ms: number) {
+async function connectWithTimeout(
+  client: Client,
+  transport: StreamableHTTPClientTransport | SSEClientTransport,
+  ms: number,
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
 

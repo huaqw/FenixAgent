@@ -59,9 +59,7 @@ export function extractEventText(payload: Record<string, unknown> | null | undef
   return "";
 }
 
-export function isConversationClearedStatus(
-  payload: Record<string, unknown> | null | undefined,
-): boolean {
+export function isConversationClearedStatus(payload: Record<string, unknown> | null | undefined): boolean {
   if (!payload || typeof payload !== "object") return false;
   if (payload.status === "conversation_cleared") return true;
   const raw = payload.raw as Record<string, unknown> | undefined;

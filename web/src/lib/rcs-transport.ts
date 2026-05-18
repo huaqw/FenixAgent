@@ -109,20 +109,17 @@ export class RCSTransport implements ChatTransport<UIMessage> {
 
     // POST user message to the RCS backend
     const uuid = getUuid();
-    const response = await fetch(
-      `/web/sessions/${this.sessionId}/events?uuid=${encodeURIComponent(uuid)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "user",
-          uuid: uuidv4(),
-          content: text,
-          message: { content: text },
-        }),
-        signal: abortSignal,
-      },
-    );
+    const response = await fetch(`/web/sessions/${this.sessionId}/events?uuid=${encodeURIComponent(uuid)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "user",
+        uuid: uuidv4(),
+        content: text,
+        message: { content: text },
+      }),
+      signal: abortSignal,
+    });
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({ error: { message: response.statusText } }));
@@ -154,10 +151,7 @@ export class RCSTransport implements ChatTransport<UIMessage> {
           switch (type) {
             // ---- Assistant text ----
             case "assistant": {
-              const content =
-                typeof payload.content === "string"
-                  ? payload.content
-                  : "";
+              const content = typeof payload.content === "string" ? payload.content : "";
               if (content && content.trim()) {
                 ensureStarted();
                 controller.enqueue({ type: "text-start", id: textId });
@@ -168,12 +162,11 @@ export class RCSTransport implements ChatTransport<UIMessage> {
               // Check for embedded tool_use blocks
               const msg = payload.message as Record<string, unknown> | undefined;
               if (msg && typeof msg === "object" && Array.isArray(msg.content)) {
-                const toolBlocks = (msg.content as Array<Record<string, unknown>>).filter(
-                  (b) => b.type === "tool_use",
-                );
+                const toolBlocks = (msg.content as Array<Record<string, unknown>>).filter((b) => b.type === "tool_use");
                 for (const block of toolBlocks) {
                   ensureStarted();
-                  const toolCallId = (block.id as string) || `call-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+                  const toolCallId =
+                    (block.id as string) || `call-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
                   controller.enqueue({
                     type: "tool-input-available",
                     toolCallId,
@@ -195,12 +188,12 @@ export class RCSTransport implements ChatTransport<UIMessage> {
             case "tool_use": {
               ensureStarted();
               const toolCallId =
-                (payload as Record<string, unknown>).tool_call_id as string ||
+                ((payload as Record<string, unknown>).tool_call_id as string) ||
                 `call-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
               controller.enqueue({
                 type: "tool-input-available",
                 toolCallId,
-                toolName: (payload as Record<string, unknown>).tool_name as string || "tool",
+                toolName: ((payload as Record<string, unknown>).tool_name as string) || "tool",
                 input: (payload as Record<string, unknown>).tool_input || {},
               });
               break;
@@ -210,7 +203,7 @@ export class RCSTransport implements ChatTransport<UIMessage> {
             case "tool_result": {
               ensureStarted();
               const resultCallId =
-                (payload as Record<string, unknown>).tool_call_id as string ||
+                ((payload as Record<string, unknown>).tool_call_id as string) ||
                 `call-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
               const output =
                 typeof (payload as Record<string, unknown>).output === "string"
@@ -238,10 +231,7 @@ export class RCSTransport implements ChatTransport<UIMessage> {
 
             // ---- Status events ----
             case "status": {
-              const msg =
-                (typeof payload.message === "string" ? payload.message : "") ||
-                payload.content ||
-                "";
+              const msg = (typeof payload.message === "string" ? payload.message : "") || payload.content || "";
               if (/connecting|waiting|initializing|Remote Control/i.test(msg)) return;
               break;
             }
@@ -250,10 +240,7 @@ export class RCSTransport implements ChatTransport<UIMessage> {
             case "session_status": {
               if (typeof payload.status === "string") {
                 this.onSessionStatus?.(payload.status);
-                if (
-                  payload.status === "archived" ||
-                  payload.status === "inactive"
-                ) {
+                if (payload.status === "archived" || payload.status === "inactive") {
                   ensureStarted();
                   controller.enqueue({ type: "finish", finishReason: "stop" });
                   controller.close();

@@ -68,15 +68,16 @@ export class HermesClient {
   // Default platforms to subscribe on connect (covers common Hermes platforms).
   // Hermes replies with "disconnected" for platforms it doesn't have, so it's
   // safe to always subscribe to all of them.
-  private static readonly KNOWN_PLATFORMS = [
-    "feishu", "telegram", "discord", "slack", "wecom", "weixin", "dingtalk",
-  ];
+  private static readonly KNOWN_PLATFORMS = ["feishu", "telegram", "discord", "slack", "wecom", "weixin", "dingtalk"];
 
   constructor(url: string) {
     this.status.url = url;
     const envPlatforms = process.env.HERMES_PLATFORMS;
     if (envPlatforms) {
-      this.platforms = envPlatforms.split(",").map((p) => p.trim()).filter(Boolean);
+      this.platforms = envPlatforms
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
     } else {
       this.platforms = HermesClient.KNOWN_PLATFORMS;
     }
@@ -102,7 +103,9 @@ export class HermesClient {
     }
     // Clean up all outbound routing subscriptions
     for (const [bindingId, unsub] of this.bindingUnsubs) {
-      try { unsub(); } catch {}
+      try {
+        unsub();
+      } catch {}
     }
     this.bindingUnsubs.clear();
     this.status.connected = false;
@@ -352,7 +355,9 @@ export class HermesClient {
   private notifyStatusChange(): void {
     const snapshot = this.getStatus();
     for (const cb of this.statusListeners) {
-      try { cb(snapshot); } catch {}
+      try {
+        cb(snapshot);
+      } catch {}
     }
   }
 }

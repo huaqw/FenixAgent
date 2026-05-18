@@ -8,12 +8,13 @@ const mockEnvGetById = mock(() => Promise.resolve(undefined as any));
 
 beforeEach(() => {
   resetCoreRuntime();
-  _deps.getCoreRuntime = () => ({
-    listInstances: mock(() => []),
-    getInstance: mock(() => undefined),
-    launchInstance: mock(async () => ({})),
-    stopInstance: mock(async () => {}),
-  }) as any;
+  _deps.getCoreRuntime = () =>
+    ({
+      listInstances: mock(() => []),
+      getInstance: mock(() => undefined),
+      launchInstance: mock(async () => ({})),
+      stopInstance: mock(async () => {}),
+    }) as any;
   _deps.getAgentConfigById = mock(async () => null);
   _deps.getAgentFullConfig = mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] }));
   _deps.environmentRepo = { getById: mockEnvGetById } as any;
@@ -39,12 +40,14 @@ function makeEnv(overrides: Record<string, unknown>) {
 describe("instance workspacePath ?? vs || 语义", () => {
   it("workspacePath 为 null 时 fallback 到 directory", async () => {
     mockEnvGetById.mockImplementation(() =>
-      Promise.resolve(makeEnv({
-        id: "env-test",
-        workspacePath: null,
-        directory: "/home/user/project",
-        secret: "secret",
-      })),
+      Promise.resolve(
+        makeEnv({
+          id: "env-test",
+          workspacePath: null,
+          directory: "/home/user/project",
+          secret: "secret",
+        }),
+      ),
     );
     try {
       await spawnInstanceFromEnvironment("user-1", "env-test");
@@ -56,12 +59,14 @@ describe("instance workspacePath ?? vs || 语义", () => {
 
   it("workspacePath 和 directory 都为 null 时抛 VALIDATION_ERROR", async () => {
     mockEnvGetById.mockImplementation(() =>
-      Promise.resolve(makeEnv({
-        id: "env-test2",
-        workspacePath: null,
-        directory: null,
-        secret: "secret",
-      })),
+      Promise.resolve(
+        makeEnv({
+          id: "env-test2",
+          workspacePath: null,
+          directory: null,
+          secret: "secret",
+        }),
+      ),
     );
     try {
       await spawnInstanceFromEnvironment("user-1", "env-test2");
@@ -74,12 +79,14 @@ describe("instance workspacePath ?? vs || 语义", () => {
 
   it("workspacePath 为空字符串时 ?? 保留空串、触发 !cwd 校验", async () => {
     mockEnvGetById.mockImplementation(() =>
-      Promise.resolve(makeEnv({
-        id: "env-test3",
-        workspacePath: "",
-        directory: "/home/user/project",
-        secret: "secret",
-      })),
+      Promise.resolve(
+        makeEnv({
+          id: "env-test3",
+          workspacePath: "",
+          directory: "/home/user/project",
+          secret: "secret",
+        }),
+      ),
     );
     try {
       await spawnInstanceFromEnvironment("user-1", "env-test3");

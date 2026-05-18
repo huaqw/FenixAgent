@@ -1,16 +1,8 @@
 import Elysia from "elysia";
 import { validateApiKeyAndGetUser } from "../../auth/api-key-service";
 import { auth } from "../../auth/better-auth";
-import {
-  handleAcpWsOpen,
-  handleAcpWsMessage,
-  handleAcpWsClose,
-} from "../../transport/acp-ws-handler";
-import {
-  handleRelayOpen,
-  handleRelayMessage,
-  handleRelayClose,
-} from "../../transport/acp-relay-handler";
+import { handleAcpWsOpen, handleAcpWsMessage, handleAcpWsClose } from "../../transport/acp-ws-handler";
+import { handleRelayOpen, handleRelayMessage, handleRelayClose } from "../../transport/acp-relay-handler";
 import { environmentRepo } from "../../repositories";
 import { getEnvironmentBySecret } from "../../services/environment";
 import { log, error as logError } from "../../logger";
@@ -26,7 +18,9 @@ function adaptWs(ws: any): WsConnection {
   return {
     send: (data: string) => ws.send(data),
     close: (code?: number, reason?: string) => ws.close(code, reason),
-    get readyState() { return ws.readyState; },
+    get readyState() {
+      return ws.readyState;
+    },
   };
 }
 
@@ -70,14 +64,18 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
   .use(authGuardPlugin)
 
   /** GET /acp/agents — List current user's team ACP agents */
-  .get("/agents", async ({ store, request }) => {
-    const { loadTeamContext } = await import("../../services/team-context");
-    const authCtx = await loadTeamContext(store.user!, request);
-    const teamId = authCtx?.teamId ?? store.user!.id;
-    const teamEnvs = await environmentRepo.listByTeamId(teamId);
-    const acpEnvs = teamEnvs.filter((e) => e.workerType === "acp");
-    return acpEnvs.map((a) => toAcpAgentResponse(a));
-  }, { sessionAuth: true })
+  .get(
+    "/agents",
+    async ({ store, request }) => {
+      const { loadTeamContext } = await import("../../services/team-context");
+      const authCtx = await loadTeamContext(store.user!, request);
+      const teamId = authCtx?.teamId ?? store.user!.id;
+      const teamEnvs = await environmentRepo.listByTeamId(teamId);
+      const acpEnvs = teamEnvs.filter((e) => e.workerType === "acp");
+      return acpEnvs.map((a) => toAcpAgentResponse(a));
+    },
+    { sessionAuth: true },
+  )
 
   /** WS /acp/ws — WebSocket endpoint for acp-link connections */
   .ws("/ws", {
@@ -176,9 +174,8 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
       }
       const relayWsId = (ws.data as any).__relayWsId as string | undefined;
       if (relayWsId) {
-        const payload = typeof data === "object" && data !== null
-          ? data as Record<string, unknown>
-          : data as string;
+        const payload =
+          typeof data === "object" && data !== null ? (data as Record<string, unknown>) : (data as string);
         handleRelayMessage(adaptWs(ws), relayWsId, payload);
       } else {
         logError(`[ACP-Relay-WS] No relayWsId on ws.data`);

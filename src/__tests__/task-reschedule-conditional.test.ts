@@ -9,11 +9,15 @@ import { setScheduleJobImpl, stopScheduler, scheduleTask as registerTask } from 
 // 跟踪 scheduleJobImpl 和 cancel 调用
 let scheduleCallCount = 0;
 let cancelCallCount = 0;
-const mockCancel = () => { cancelCallCount++; };
-setScheduleJobImpl(mock((_config: any, handler: () => void) => {
-  scheduleCallCount++;
-  return { nextInvocation: () => new Date(), cancel: mockCancel };
-}) as any);
+const mockCancel = () => {
+  cancelCallCount++;
+};
+setScheduleJobImpl(
+  mock((_config: any, handler: () => void) => {
+    scheduleCallCount++;
+    return { nextInvocation: () => new Date(), cancel: mockCancel };
+  }) as any,
+);
 
 const TEST_USER_ID = "user_task_resched";
 const TEST_TEAM_SLUG = "task-resched-team";
@@ -23,21 +27,50 @@ async function ensureTeam() {
   const now = new Date();
   const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(user).values({ id: TEST_USER_ID, name: "Task Resched", email: "task-resched@rcs.local", emailVerified: false, createdAt: now, updatedAt: now }).catch(() => {});
+    await db
+      .insert(user)
+      .values({
+        id: TEST_USER_ID,
+        name: "Task Resched",
+        email: "task-resched@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .catch(() => {});
   }
   const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
-  const [created] = await db.insert(team).values({ name: "Task Resched Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
+  const [created] = await db
+    .insert(team)
+    .values({ name: "Task Resched Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
 async function insertTask(cron: string = "0 * * * *") {
-  const [row] = await db.insert(scheduledTask).values({
-    userId: TEST_USER_ID, teamId: TEST_TEAM_ID!,
-    name: `rs_${Date.now()}`, description: null, cron, timezone: null,
-    enabled: true, url: "http://localhost:9999/test", method: "POST", headers: null, body: null,
-    lastRunAt: null, nextRunAt: null, lastStatus: null,
-  }).returning();
+  const [row] = await db
+    .insert(scheduledTask)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID!,
+      name: `rs_${Date.now()}`,
+      description: null,
+      cron,
+      timezone: null,
+      enabled: true,
+      url: "http://localhost:9999/test",
+      method: "POST",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+    })
+    .returning();
   return row;
 }
 
@@ -53,11 +86,19 @@ describe("updateTask conditional reschedule + toggleTask", () => {
   afterAll(async () => {
     stopScheduler();
     if (TEST_TEAM_ID) {
-      try { await db.delete(taskExecutionLog); } catch {}
-      try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(taskExecutionLog);
+      } catch {}
+      try {
+        await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID));
+      } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   // cron 变更触发 reschedule

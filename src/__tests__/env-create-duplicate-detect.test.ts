@@ -4,13 +4,39 @@ import { setTestTeamContext } from "../services/team-context";
 
 // mock logger
 // mock errors
-class ConflictError extends Error { code = "ALREADY_EXISTS"; statusCode = 409; constructor(m: string) { super(m); this.name = "ConflictError"; } }
-class ValidationError extends Error { code = "VALIDATION_ERROR"; statusCode = 400; constructor(m: string) { super(m); this.name = "ValidationError"; } }
+class ConflictError extends Error {
+  code = "ALREADY_EXISTS";
+  statusCode = 409;
+  constructor(m: string) {
+    super(m);
+    this.name = "ConflictError";
+  }
+}
+class ValidationError extends Error {
+  code = "VALIDATION_ERROR";
+  statusCode = 400;
+  constructor(m: string) {
+    super(m);
+    this.name = "ValidationError";
+  }
+}
 mock.module("../errors", () => ({
   ValidationError,
   ConflictError,
-  ConfigWriteError: class extends Error { code = "CONFIG_WRITE_ERROR"; statusCode = 500; constructor(m: string) { super(m); } },
-  NotFoundError: class extends Error { code = "NOT_FOUND"; statusCode = 404; constructor(m: string) { super(m); } },
+  ConfigWriteError: class extends Error {
+    code = "CONFIG_WRITE_ERROR";
+    statusCode = 500;
+    constructor(m: string) {
+      super(m);
+    }
+  },
+  NotFoundError: class extends Error {
+    code = "NOT_FOUND";
+    statusCode = 404;
+    constructor(m: string) {
+      super(m);
+    }
+  },
 }));
 
 // mock config-pg
@@ -56,36 +82,48 @@ const { createWebEnvironment } = await import("../services/environment-web");
 describe("createWebEnvironment duplicate detection", () => {
   it("PG unique violation → ConflictError", async () => {
     const pgError = new Error('duplicate key value violates unique constraint "environment_name_unique"');
-    mockCreate.mockImplementationOnce(() => { throw pgError; });
+    mockCreate.mockImplementationOnce(() => {
+      throw pgError;
+    });
     mockValidateWorkspacePath.mockImplementation(() => null);
     mockEnsureWorkspaceDir.mockImplementation(() => "/tmp/ws");
 
-    await expect(createWebEnvironment({
-      name: "test-env",
-      workspacePath: "/tmp/ws",
-      userId: "user-1",
-    })).rejects.toThrow(ConflictError);
+    await expect(
+      createWebEnvironment({
+        name: "test-env",
+        workspacePath: "/tmp/ws",
+        userId: "user-1",
+      }),
+    ).rejects.toThrow(ConflictError);
   });
 
   it("PG UNIQUE constraint error → ConflictError", async () => {
-    const pgError = new Error('UNIQUE constraint failed: environment.name');
-    mockCreate.mockImplementationOnce(() => { throw pgError; });
+    const pgError = new Error("UNIQUE constraint failed: environment.name");
+    mockCreate.mockImplementationOnce(() => {
+      throw pgError;
+    });
 
-    await expect(createWebEnvironment({
-      name: "test-env2",
-      workspacePath: "/tmp/ws",
-      userId: "user-1",
-    })).rejects.toThrow(ConflictError);
+    await expect(
+      createWebEnvironment({
+        name: "test-env2",
+        workspacePath: "/tmp/ws",
+        userId: "user-1",
+      }),
+    ).rejects.toThrow(ConflictError);
   });
 
   it("非 unique 错误原样抛出", async () => {
     const otherError = new Error("connection refused");
-    mockCreate.mockImplementationOnce(() => { throw otherError; });
+    mockCreate.mockImplementationOnce(() => {
+      throw otherError;
+    });
 
-    await expect(createWebEnvironment({
-      name: "test-env3",
-      workspacePath: "/tmp/ws",
-      userId: "user-1",
-    })).rejects.toThrow("connection refused");
+    await expect(
+      createWebEnvironment({
+        name: "test-env3",
+        workspacePath: "/tmp/ws",
+        userId: "user-1",
+      }),
+    ).rejects.toThrow("connection refused");
   });
 });

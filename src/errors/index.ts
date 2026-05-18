@@ -43,7 +43,10 @@ export class ForbiddenError extends AppError {
 }
 
 /** 将 AppError 转换为 Elysia 错误响应 */
-export function toErrorResponse(error: unknown): { status: number; body: { error: { type: string; message: string } } } {
+export function toErrorResponse(error: unknown): {
+  status: number;
+  body: { error: { type: string; message: string } };
+} {
   if (error instanceof AppError) {
     return {
       status: error.statusCode,

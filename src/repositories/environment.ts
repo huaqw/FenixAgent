@@ -48,11 +48,23 @@ export interface EnvironmentCreateParams {
   autoStart?: boolean;
 }
 
-export type EnvironmentUpdateParams = Partial<Pick<
-  EnvironmentRecord,
-  "status" | "lastPollAt" | "capabilities" | "machineName" | "maxSessions" |
-  "name" | "description" | "workspacePath" | "agentConfigId" | "branch" | "gitRepoUrl" | "autoStart"
->>;
+export type EnvironmentUpdateParams = Partial<
+  Pick<
+    EnvironmentRecord,
+    | "status"
+    | "lastPollAt"
+    | "capabilities"
+    | "machineName"
+    | "maxSessions"
+    | "name"
+    | "description"
+    | "workspacePath"
+    | "agentConfigId"
+    | "branch"
+    | "gitRepoUrl"
+    | "autoStart"
+  >
+>;
 
 /** Environment 仓储接口 — PostgreSQL 持久化 */
 export interface IEnvironmentRepo {
@@ -125,18 +137,27 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
       lastPollAt: now,
     } as any);
     return {
-      id, name, description: params.description ?? null, workspacePath,
+      id,
+      name,
+      description: params.description ?? null,
+      workspacePath,
       agentConfigId: params.agentConfigId ?? null,
       secret,
       machineName: params.machineName ?? null,
       directory: params.directory ?? null,
-      branch: params.branch ?? null, gitRepoUrl: params.gitRepoUrl ?? null,
-      maxSessions: params.maxSessions ?? 1, workerType: params.workerType ?? "acp",
-      capabilities: params.capabilities ?? null, status,
-      username: params.username ?? null, userId: params.userId,
+      branch: params.branch ?? null,
+      gitRepoUrl: params.gitRepoUrl ?? null,
+      maxSessions: params.maxSessions ?? 1,
+      workerType: params.workerType ?? "acp",
+      capabilities: params.capabilities ?? null,
+      status,
+      username: params.username ?? null,
+      userId: params.userId,
       teamId: (params as any).teamId ?? null,
       autoStart: params.autoStart ?? false,
-      lastPollAt: now, createdAt: now, updatedAt: now,
+      lastPollAt: now,
+      createdAt: now,
+      updatedAt: now,
     };
   }
 
@@ -191,9 +212,10 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
   async listActiveByUsername(username: string): Promise<EnvironmentRecord[]> {
     const userRow = await db.select().from(user).where(eq(user.name, username)).limit(1);
     if (userRow.length === 0) return [];
-    const rows = await db.select().from(environment).where(
-      and(eq(environment.status, "active"), eq(environment.userId, userRow[0].id))
-    );
+    const rows = await db
+      .select()
+      .from(environment)
+      .where(and(eq(environment.status, "active"), eq(environment.userId, userRow[0].id)));
     return rows.map(rowToRecord);
   }
 
@@ -203,9 +225,10 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
   }
 
   async listAcpAgentsByUserId(userId: string): Promise<EnvironmentRecord[]> {
-    const rows = await db.select().from(environment).where(
-      and(eq(environment.workerType, "acp"), eq(environment.userId, userId))
-    );
+    const rows = await db
+      .select()
+      .from(environment)
+      .where(and(eq(environment.workerType, "acp"), eq(environment.userId, userId)));
     return rows.map(rowToRecord);
   }
 
@@ -215,9 +238,10 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
   }
 
   async listOnlineAcpAgents(): Promise<EnvironmentRecord[]> {
-    const rows = await db.select().from(environment).where(
-      and(eq(environment.workerType, "acp"), eq(environment.status, "active"))
-    );
+    const rows = await db
+      .select()
+      .from(environment)
+      .where(and(eq(environment.workerType, "acp"), eq(environment.status, "active")));
     return rows.map(rowToRecord);
   }
 }

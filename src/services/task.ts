@@ -110,7 +110,7 @@ function validateTaskInput(data: Partial<CreateTaskInput>, isUpdate = false): st
   }
   if (data.method !== undefined) {
     if (typeof data.method !== "string" || data.method.trim().length === 0) return "HTTP 方法不能为空";
-    if (!VALID_HTTP_METHODS.includes(data.method.toUpperCase() as typeof VALID_HTTP_METHODS[number])) {
+    if (!VALID_HTTP_METHODS.includes(data.method.toUpperCase() as (typeof VALID_HTTP_METHODS)[number])) {
       return "不支持的 HTTP 方法";
     }
   }
@@ -156,7 +156,11 @@ function sanitizeExecutionLog(row: TaskExecutionLogRow): TaskExecutionLogRespons
   };
 }
 
-export async function createTask(teamId: string, data: CreateTaskInput, userId?: string): Promise<ServiceResult<TaskResponse>> {
+export async function createTask(
+  teamId: string,
+  data: CreateTaskInput,
+  userId?: string,
+): Promise<ServiceResult<TaskResponse>> {
   const validationError = validateTaskInput(data);
   if (validationError) return { success: false, error: { code: "VALIDATION_ERROR", message: validationError } };
 
@@ -186,7 +190,12 @@ export async function createTask(teamId: string, data: CreateTaskInput, userId?:
 
   const result = sanitizeTask(row);
   if (result.enabled) {
-    const scheduled = scheduleTask({ id: result.id, cron: result.cron, timezone: result.timezone, enabled: result.enabled });
+    const scheduled = scheduleTask({
+      id: result.id,
+      cron: result.cron,
+      timezone: result.timezone,
+      enabled: result.enabled,
+    });
     if (!scheduled) {
       log(`[Task] Task ${result.id} created but cron job not scheduled (invalid cron expression)`);
     }
@@ -209,7 +218,11 @@ export async function getTask(teamId: string, taskId: string): Promise<ServiceRe
   return { success: true, data: sanitizeTask(row) };
 }
 
-export async function updateTask(teamId: string, taskId: string, data: UpdateTaskInput): Promise<ServiceResult<TaskResponse>> {
+export async function updateTask(
+  teamId: string,
+  taskId: string,
+  data: UpdateTaskInput,
+): Promise<ServiceResult<TaskResponse>> {
   const existing = await scheduledTaskRepo.getByTeamAndId(teamId, taskId);
   if (!existing) return { success: false, error: { code: "NOT_FOUND", message: "任务不存在" } };
 
@@ -247,7 +260,10 @@ export async function deleteTask(teamId: string, taskId: string): Promise<Servic
   return { success: true, data: undefined };
 }
 
-export async function toggleTask(teamId: string, taskId: string): Promise<ServiceResult<{ id: string; enabled: boolean }>> {
+export async function toggleTask(
+  teamId: string,
+  taskId: string,
+): Promise<ServiceResult<{ id: string; enabled: boolean }>> {
   const existing = await scheduledTaskRepo.getByTeamAndId(teamId, taskId);
   if (!existing) return { success: false, error: { code: "NOT_FOUND", message: "任务不存在" } };
 
@@ -293,8 +309,9 @@ async function writeLogAndReturn(
   }
 
   // 尽力而为更新任务状态（不阻塞返回，失败仅记日志）
-  scheduledTaskRepo.update(taskId, { lastRunAt: now, lastStatus: status, updatedAt: now })
-    .catch((err) => { logError("[Task] Failed to update task status for", taskId, err); });
+  scheduledTaskRepo.update(taskId, { lastRunAt: now, lastStatus: status, updatedAt: now }).catch((err) => {
+    logError("[Task] Failed to update task status for", taskId, err);
+  });
 
   return {
     success: true,
@@ -317,7 +334,7 @@ export async function executeTaskById(
   triggeredBy: "cron" | "manual",
   prefetchedTask?: ScheduledTaskRow,
 ): Promise<ServiceResult<TaskExecutionLogResponse>> {
-  const task = prefetchedTask ?? await getTaskById(taskId);
+  const task = prefetchedTask ?? (await getTaskById(taskId));
   if (!task) {
     return { success: false, error: { code: "NOT_FOUND", message: "任务不存在" } };
   }
@@ -353,11 +370,7 @@ export async function executeTaskById(
         ? `HTTP ${response.status}: ${responseText.slice(0, 500)}`
         : `HTTP ${response.status}`;
 
-    return writeLogAndReturn(
-      logId, task.id, status,
-      errorMsg,
-      duration, triggeredBy, resultSummary, now,
-    );
+    return writeLogAndReturn(logId, task.id, status, errorMsg, duration, triggeredBy, resultSummary, now);
   } catch (err: unknown) {
     logError("[Task] Execution failed for task", taskId, err);
     // 区分超时和其他错误：AbortSignal.timeout 触发 AbortError 或 TimeoutError
@@ -367,8 +380,14 @@ export async function executeTaskById(
     const duration = Date.now() - startTime;
 
     return writeLogAndReturn(
-      logId, task.id, isTimeout ? "timeout" : "failed",
-      message, duration, triggeredBy, truncateSummary(message), now,
+      logId,
+      task.id,
+      isTimeout ? "timeout" : "failed",
+      message,
+      duration,
+      triggeredBy,
+      truncateSummary(message),
+      now,
     );
   }
 }

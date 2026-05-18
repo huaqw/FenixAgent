@@ -3,11 +3,7 @@ import type { SessionEvent } from "../types";
 
 let currentEventSource: EventSource | null = null;
 
-export function connectSSE(
-  sessionId: string,
-  onEvent: (event: SessionEvent) => void,
-  fromSeqNum = 0,
-): void {
+export function connectSSE(sessionId: string, onEvent: (event: SessionEvent) => void, fromSeqNum = 0): void {
   disconnectSSE();
 
   const uuid = getUuid();

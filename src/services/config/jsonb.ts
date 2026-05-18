@@ -16,7 +16,11 @@ export function parseJsonb<T = unknown>(value: unknown): T | null {
       const parsed = JSON.parse(value);
       // 处理双重编码：外层解析后仍可能是字符串
       if (typeof parsed === "string") {
-        try { return JSON.parse(parsed) as T; } catch { return null; }
+        try {
+          return JSON.parse(parsed) as T;
+        } catch {
+          return null;
+        }
       }
       return parsed as T;
     } catch {

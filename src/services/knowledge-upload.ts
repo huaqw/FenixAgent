@@ -1,10 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
-import {
-  knowledgeBaseRepo,
-  knowledgeResourceRepo,
-} from "../repositories/knowledge-base";
+import { knowledgeBaseRepo, knowledgeResourceRepo } from "../repositories/knowledge-base";
 import type { KnowledgeResourceRow } from "../repositories/knowledge-base";
 import { getKnowledgeProvider } from "./knowledge-provider/registry";
 import type { KnowledgeProvider, KnowledgeResourceStatus } from "./knowledge-provider/types";
@@ -138,12 +135,16 @@ async function failResource(resourceId: string, knowledgeBaseId: string, message
   });
 }
 
-async function completeResource(resourceId: string, knowledgeBaseId: string, patch: {
-  remoteId?: string | null;
-  knowledgeBaseRemoteId?: string | null;
-  status: KnowledgeResourceStatus;
-  lastError?: string | null;
-}) {
+async function completeResource(
+  resourceId: string,
+  knowledgeBaseId: string,
+  patch: {
+    remoteId?: string | null;
+    knowledgeBaseRemoteId?: string | null;
+    status: KnowledgeResourceStatus;
+    lastError?: string | null;
+  },
+) {
   await knowledgeResourceRepo.update(resourceId, {
     remoteId: patch.remoteId ?? null,
     status: patch.status,
@@ -295,11 +296,7 @@ export async function refreshKnowledgeResourceStatus(userId: string, knowledgeBa
     remoteUserId: tenantIdentity.remoteUserId,
   });
   const localResources = await listKnowledgeBaseResources(knowledgeBaseId);
-  const byRemoteId = new Map(
-    localResources
-      .filter((row) => row.remoteId)
-      .map((row) => [row.remoteId as string, row]),
-  );
+  const byRemoteId = new Map(localResources.filter((row) => row.remoteId).map((row) => [row.remoteId as string, row]));
 
   for (const remote of remoteResources) {
     const local = byRemoteId.get(remote.remoteId);

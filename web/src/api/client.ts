@@ -1,10 +1,9 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/index";
 
-export const client = treaty<App>(
-  typeof globalThis.window !== "undefined" ? globalThis.window.location.origin : "",
-  { fetch: { credentials: "include" } },
-);
+export const client = treaty<App>(typeof globalThis.window !== "undefined" ? globalThis.window.location.origin : "", {
+  fetch: { credentials: "include" },
+});
 
 // --- SSE 辅助函数（Eden 不原生支持 SSE） ---
 

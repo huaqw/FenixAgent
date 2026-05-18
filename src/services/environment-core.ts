@@ -6,17 +6,13 @@ import type { EnvironmentResponse } from "../types/api";
 import type { EnvironmentRecord } from "../repositories";
 import { NotFoundError } from "../errors";
 
-const BLOCKED_PATHS = [
-  "/", "/etc", "/usr", "/bin", "/sbin", "/var", "/sys", "/proc",
-  "/dev", "/boot", "/lib", "/root",
-];
+const BLOCKED_PATHS = ["/", "/etc", "/usr", "/bin", "/sbin", "/var", "/sys", "/proc", "/dev", "/boot", "/lib", "/root"];
 
 /** 校验 workspace 路径是否安全（不在系统目录下） */
 export function validateWorkspacePath(p: string): string | null {
   if (!isAbsolute(p)) return "workspace 路径必须是绝对路径";
   const normalized = resolve(p);
-  if (BLOCKED_PATHS.includes(normalized))
-    return `不允许使用系统目录: ${normalized}`;
+  if (BLOCKED_PATHS.includes(normalized)) return `不允许使用系统目录: ${normalized}`;
   for (const blocked of BLOCKED_PATHS) {
     if (blocked !== "/" && normalized.startsWith(blocked + "/")) {
       return `不允许使用系统目录下的路径: ${normalized}`;
@@ -66,9 +62,7 @@ export function sanitizeResponse(row: EnvironmentRecord) {
     machine_name: row.machineName ?? null,
     branch: row.branch ?? null,
     auto_start: row.autoStart ?? false,
-    last_poll_at: row.lastPollAt
-      ? Math.floor(row.lastPollAt.getTime() / 1000)
-      : null,
+    last_poll_at: row.lastPollAt ? Math.floor(row.lastPollAt.getTime() / 1000) : null,
     created_at: Math.floor(row.createdAt.getTime() / 1000),
     updated_at: Math.floor(row.updatedAt.getTime() / 1000),
   };

@@ -53,22 +53,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     <div className="flex min-h-screen items-center justify-center bg-surface-0">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-border bg-surface-1 p-8">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-text-primary">
-            {isSignUp ? "创建账户" : "登录"}
-          </h1>
+          <h1 className="text-xl font-semibold text-text-primary">{isSignUp ? "创建账户" : "登录"}</h1>
           <p className="mt-1 text-sm text-text-muted">
-            {isSignUp
-              ? "创建账户以管理你的 Agent"
-              : "登录以管理你的 Agent"}
+            {isSignUp ? "创建账户以管理你的 Agent" : "登录以管理你的 Agent"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
-                名称
-              </label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">名称</label>
               <input
                 type="text"
                 value={name}
@@ -80,9 +74,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
-              邮箱
-            </label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">邮箱</label>
             <input
               type="email"
               value={email}
@@ -94,9 +86,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
-              密码
-            </label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">密码</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -118,9 +108,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-status-error bg-status-error/10 px-3 py-2 rounded-md">{error}</p>
-          )}
+          {error && <p className="text-sm text-status-error bg-status-error/10 px-3 py-2 rounded-md">{error}</p>}
 
           <button
             type="submit"
@@ -136,7 +124,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <>
               已有账户？{" "}
               <button
-                onClick={() => { setIsSignUp(false); setError(""); }}
+                onClick={() => {
+                  setIsSignUp(false);
+                  setError("");
+                }}
                 className="text-brand hover:underline"
               >
                 登录
@@ -146,7 +137,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <>
               没有账户？{" "}
               <button
-                onClick={() => { setIsSignUp(true); setError(""); }}
+                onClick={() => {
+                  setIsSignUp(true);
+                  setError("");
+                }}
                 className="text-brand hover:underline"
               >
                 创建账户

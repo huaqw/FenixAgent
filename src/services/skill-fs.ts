@@ -73,15 +73,26 @@ export function parseFrontmatter(raw: string): { metadata: Record<string, string
   const metadata: Record<string, string> = {};
   for (const line of match[1].split("\n")) {
     const idx = line.indexOf(":");
-    if (idx > 0) metadata[line.slice(0, idx).trim()] = line.slice(idx + 1).trim().replace(/^"(.*)"$/, "$1");
+    if (idx > 0)
+      metadata[line.slice(0, idx).trim()] = line
+        .slice(idx + 1)
+        .trim()
+        .replace(/^"(.*)"$/, "$1");
   }
   return { metadata, content: match[2] };
 }
 
 /** 构建 SKILL.md 文件内容（含 frontmatter） */
-export function buildSkillMd(name: string, description: string, content: string, metadata?: Record<string, string>): string {
+export function buildSkillMd(
+  name: string,
+  description: string,
+  content: string,
+  metadata?: Record<string, string>,
+): string {
   const meta: Record<string, string> = { name, description, ...(metadata ?? {}) };
-  const frontmatter = Object.entries(meta).map(([k, v]) => `${k}: "${v}"`).join("\n");
+  const frontmatter = Object.entries(meta)
+    .map(([k, v]) => `${k}: "${v}"`)
+    .join("\n");
   return `---\n${frontmatter}\n---\n${content}`;
 }
 
@@ -149,7 +160,9 @@ export async function listSkillsFromDir(baseDir: string, enabled = true): Promis
 // ────────────────────────────────────────────
 
 /** 读取并解析 SKILL.md，文件不存在返回 null */
-export async function readSkillDetailFromMd(mdPath: string): Promise<{ metadata: Record<string, string>; content: string } | null> {
+export async function readSkillDetailFromMd(
+  mdPath: string,
+): Promise<{ metadata: Record<string, string>; content: string } | null> {
   if (!existsSync(mdPath)) return null;
   const raw = await readFile(mdPath, "utf-8");
   return parseFrontmatter(raw);
@@ -185,17 +198,12 @@ export function resolveImportPlan(
 ): ConflictCheckResult {
   const conflictNames = new Set(conflicts.map((item) => item.name));
   const skipped = strategy === "ignore" ? [...conflictNames] : [];
-  const pendingEntries = [...grouped.entries()].filter(
-    ([name]) => strategy !== "ignore" || !conflictNames.has(name),
-  );
+  const pendingEntries = [...grouped.entries()].filter(([name]) => strategy !== "ignore" || !conflictNames.has(name));
   return { pendingEntries, skipped };
 }
 
 /** 将 entries 中的文件写入 targetDir 下对应 skill 子目录，返回已写入名称列表 */
-export async function writeImportFiles(
-  targetDir: string,
-  entries: [string, UploadSkillFile[]][],
-): Promise<string[]> {
+export async function writeImportFiles(targetDir: string, entries: [string, UploadSkillFile[]][]): Promise<string[]> {
   const writtenNames: string[] = [];
   for (const [name, skillFiles] of entries) {
     const skillDir = join(targetDir, name);
@@ -263,10 +271,7 @@ export async function cleanupWrittenSkills(targetDir: string, names: string[]): 
 }
 
 /** 从备份恢复 skill 目录 */
-export async function restoreFromBackup(
-  snapshots: Map<string, string | null>,
-  targetDir: string,
-): Promise<void> {
+export async function restoreFromBackup(snapshots: Map<string, string | null>, targetDir: string): Promise<void> {
   for (const [name, backupPath] of snapshots) {
     if (backupPath && existsSync(backupPath)) {
       await cp(backupPath, join(targetDir, name), { recursive: true });

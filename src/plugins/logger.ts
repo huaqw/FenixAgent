@@ -17,5 +17,7 @@ export const loggerPlugin = new Elysia({ name: "logger" })
     const duration = start != null ? (performance.now() - start).toFixed(2) : "-";
     const method = request.method;
     const url = new URL(request.url);
-    console.log(`  <-- ${method} ${url.pathname} ${duration}ms (error: ${error instanceof Error ? error.message : String(error)})`);
+    console.log(
+      `  <-- ${method} ${url.pathname} ${duration}ms (error: ${error instanceof Error ? error.message : String(error)})`,
+    );
   });

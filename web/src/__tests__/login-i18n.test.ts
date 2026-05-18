@@ -35,15 +35,15 @@ describe("LoginPage.tsx i18n Chinese translations", () => {
     expect(src).not.toContain('"Please wait..."');
   });
 
-  test('source does not contain >Name< label', () => {
+  test("source does not contain >Name< label", () => {
     expect(src).not.toContain(">Name<");
   });
 
-  test('source does not contain >Email< label', () => {
+  test("source does not contain >Email< label", () => {
     expect(src).not.toContain(">Email<");
   });
 
-  test('source does not contain >Password< label', () => {
+  test("source does not contain >Password< label", () => {
     expect(src).not.toContain(">Password<");
   });
 
@@ -55,7 +55,7 @@ describe("LoginPage.tsx i18n Chinese translations", () => {
     expect(src).not.toContain("Already have an account");
   });
 
-  test("source does not contain \"Don't have an account\"", () => {
+  test('source does not contain "Don\'t have an account"', () => {
     expect(src).not.toContain("Don't have an account");
   });
 
@@ -113,20 +113,20 @@ describe("LoginPage.tsx i18n Chinese translations", () => {
   });
 
   // UX feature checks
-  test('source contains password visibility toggle (Eye/EyeOff)', () => {
+  test("source contains password visibility toggle (Eye/EyeOff)", () => {
     expect(src).toContain("EyeOff");
     expect(src).toContain("Eye");
   });
 
-  test('source contains showPassword state', () => {
+  test("source contains showPassword state", () => {
     expect(src).toContain("showPassword");
   });
 
-  test('password field has dynamic type based on showPassword', () => {
+  test("password field has dynamic type based on showPassword", () => {
     expect(src).toContain('showPassword ? "text" : "password"');
   });
 
-  test('password placeholder mentions character requirement', () => {
+  test("password placeholder mentions character requirement", () => {
     expect(src).toContain("至少 8 个字符");
   });
 });

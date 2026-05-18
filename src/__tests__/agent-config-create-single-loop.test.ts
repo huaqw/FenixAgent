@@ -13,11 +13,27 @@ async function ensureTeam() {
   const now = new Date();
   const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(user).values({ id: TEST_USER_ID, name: "AC Create Loop", email: "ac-create-loop@rcs.local", emailVerified: false, createdAt: now, updatedAt: now }).catch(() => {});
+    await db
+      .insert(user)
+      .values({
+        id: TEST_USER_ID,
+        name: "AC Create Loop",
+        email: "ac-create-loop@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .catch(() => {});
   }
   const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
-  const [created] = await db.insert(team).values({ name: "AC Create Loop Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
+  const [created] = await db
+    .insert(team)
+    .values({ name: "AC Create Loop Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
@@ -26,10 +42,16 @@ await ensureTeam();
 describe("createAgentConfig 单循环 values/set 构建", () => {
   afterAll(async () => {
     if (TEST_TEAM_ID) {
-      try { await db.delete(agentConfig).where(eq(agentConfig.teamId, TEST_TEAM_ID)); } catch {}
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(agentConfig).where(eq(agentConfig.teamId, TEST_TEAM_ID));
+      } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   // 有 settable fields 时 DB 写入正确

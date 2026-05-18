@@ -14,23 +14,51 @@ let TEST_TEAM_ID: string | undefined;
 
 async function ensureTeam() {
   const existing = await db.select().from(team).where(eq(team.slug, TEST_TEAM_SLUG)).limit(1);
-  if (existing.length > 0) { TEST_TEAM_ID = existing[0].id; return; }
+  if (existing.length > 0) {
+    TEST_TEAM_ID = existing[0].id;
+    return;
+  }
   const now = new Date();
   const existingUser = await db.select().from(user).where(eq(user.id, TEST_USER_ID)).limit(1);
   if (existingUser.length === 0) {
-    await db.insert(user).values({ id: TEST_USER_ID, name: "WriteLog FF", email: "write-log-ff@rcs.local", emailVerified: false, createdAt: now, updatedAt: now });
+    await db
+      .insert(user)
+      .values({
+        id: TEST_USER_ID,
+        name: "WriteLog FF",
+        email: "write-log-ff@rcs.local",
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      });
   }
-  const [created] = await db.insert(team).values({ name: "WriteLog FF Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID }).returning();
+  const [created] = await db
+    .insert(team)
+    .values({ name: "WriteLog FF Team", slug: TEST_TEAM_SLUG, createdBy: TEST_USER_ID })
+    .returning();
   TEST_TEAM_ID = created.id;
 }
 
 async function insertTask(suffix: string) {
-  const [row] = await db.insert(scheduledTask).values({
-    userId: TEST_USER_ID, teamId: TEST_TEAM_ID!,
-    name: `ff_${suffix}_${Date.now()}`, description: null, cron: "* * * * *", timezone: null,
-    enabled: true, url: "http://localhost:9999/test", method: "POST", headers: null, body: null,
-    lastRunAt: null, nextRunAt: null, lastStatus: null,
-  }).returning();
+  const [row] = await db
+    .insert(scheduledTask)
+    .values({
+      userId: TEST_USER_ID,
+      teamId: TEST_TEAM_ID!,
+      name: `ff_${suffix}_${Date.now()}`,
+      description: null,
+      cron: "* * * * *",
+      timezone: null,
+      enabled: true,
+      url: "http://localhost:9999/test",
+      method: "POST",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+    })
+    .returning();
   return row;
 }
 
@@ -40,11 +68,19 @@ describe("writeLogAndReturn fire-and-forget status update", () => {
   afterAll(async () => {
     stopScheduler();
     if (TEST_TEAM_ID) {
-      try { await db.delete(taskExecutionLog); } catch {}
-      try { await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID)); } catch {}
-      try { await db.delete(team).where(eq(team.id, TEST_TEAM_ID)); } catch {}
+      try {
+        await db.delete(taskExecutionLog);
+      } catch {}
+      try {
+        await db.delete(scheduledTask).where(eq(scheduledTask.teamId, TEST_TEAM_ID));
+      } catch {}
+      try {
+        await db.delete(team).where(eq(team.id, TEST_TEAM_ID));
+      } catch {}
     }
-    try { await db.delete(user).where(eq(user.id, TEST_USER_ID)); } catch {}
+    try {
+      await db.delete(user).where(eq(user.id, TEST_USER_ID));
+    } catch {}
   });
 
   // 执行成功后返回值不阻塞（fire-and-forget 状态更新不影响返回）
@@ -52,7 +88,9 @@ describe("writeLogAndReturn fire-and-forget status update", () => {
     const task = await insertTask("fast");
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true, status: 200, text: async () => "OK",
+      ok: true,
+      status: 200,
+      text: async () => "OK",
     })) as unknown as typeof fetch;
 
     const result = await executeTaskById(task.id, "manual", task as any);
@@ -68,7 +106,9 @@ describe("writeLogAndReturn fire-and-forget status update", () => {
     const task = await insertTask("reject");
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true, status: 200, text: async () => "done",
+      ok: true,
+      status: 200,
+      text: async () => "done",
     })) as unknown as typeof fetch;
 
     const result = await executeTaskById(task.id, "cron", task as any);
@@ -83,16 +123,29 @@ describe("writeLogAndReturn fire-and-forget status update", () => {
   test("log creation failure still returns WRITE_ERROR", async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = mock(async () => ({
-      ok: true, status: 200, text: async () => "OK",
+      ok: true,
+      status: 200,
+      text: async () => "OK",
     })) as unknown as typeof fetch;
 
     // 传入不存在的 task ID，log create 会因 FK 约束失败
     const fakeTask = {
-      id: "00000000-0000-0000-0000-000000000001", userId: "u1", teamId: "t1",
-      name: "fake", cron: "* * * * *", timezone: null,
-      enabled: true, url: "http://localhost:9999/test", method: "POST",
-      headers: null, body: null, lastRunAt: null, nextRunAt: null,
-      lastStatus: null, createdAt: new Date(), updatedAt: new Date(),
+      id: "00000000-0000-0000-0000-000000000001",
+      userId: "u1",
+      teamId: "t1",
+      name: "fake",
+      cron: "* * * * *",
+      timezone: null,
+      enabled: true,
+      url: "http://localhost:9999/test",
+      method: "POST",
+      headers: null,
+      body: null,
+      lastRunAt: null,
+      nextRunAt: null,
+      lastStatus: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const result = await executeTaskById("00000000-0000-0000-0000-000000000001", "manual", fakeTask as any);

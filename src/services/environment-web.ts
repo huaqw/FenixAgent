@@ -11,10 +11,7 @@ import {
   getOwnedEnvironment,
   deleteEnvironment,
 } from "./environment-core";
-import type {
-  CreateWebEnvironmentParams,
-  UpdateWebEnvironmentParams,
-} from "./environment-core";
+import type { CreateWebEnvironmentParams, UpdateWebEnvironmentParams } from "./environment-core";
 import type { EnvironmentUpdateParams } from "../repositories";
 
 export type { CreateWebEnvironmentParams, UpdateWebEnvironmentParams };
@@ -68,7 +65,10 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
       agentConfigId: params.agentConfigId ?? null,
     });
   } catch (err: unknown) {
-    if (err instanceof Error && (err.message?.includes("unique") || err.message?.includes("duplicate") || err.message?.includes("UNIQUE"))) {
+    if (
+      err instanceof Error &&
+      (err.message?.includes("unique") || err.message?.includes("duplicate") || err.message?.includes("UNIQUE"))
+    ) {
       throw new ConflictError(`环境名称 '${name}' 已存在`);
     }
     throw err;

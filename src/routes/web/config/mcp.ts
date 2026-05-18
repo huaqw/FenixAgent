@@ -3,8 +3,22 @@ import { authGuardPlugin, type AuthContext } from "../../../plugins/auth";
 import * as configPg from "../../../services/config-pg";
 import { inspectRemoteMcpServer } from "../../../services/mcp-inspector";
 import { ConfigBodySchema } from "../../../schemas/config.schema";
-import { configSuccess, configError, configValidationError, configNotFound, isValidResourceName } from "../../../services/config-utils";
-import { countToolsByServer, deleteToolsByServer, replaceToolsForServer, listToolsByServer, isValidMcpName, validateMcpConfig, toServerInfo } from "../../../services/config/mcp-server";
+import {
+  configSuccess,
+  configError,
+  configValidationError,
+  configNotFound,
+  isValidResourceName,
+} from "../../../services/config-utils";
+import {
+  countToolsByServer,
+  deleteToolsByServer,
+  replaceToolsForServer,
+  listToolsByServer,
+  isValidMcpName,
+  validateMcpConfig,
+  toServerInfo,
+} from "../../../services/config/mcp-server";
 import { loadTeamContext } from "../../../services/team-context";
 
 // 内部类型定义（与前端 web/src/types/config.ts 对齐）
@@ -56,15 +70,25 @@ async function handleGet(ctx: AuthContext, name: string) {
 
 async function handleCreate(ctx: AuthContext, name: string, config: McpServerConfig) {
   if (!isValidMcpName(name)) {
-    return { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid server name: must be 1-64 lowercase alphanumeric chars with single hyphens" } };
+    return {
+      success: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Invalid server name: must be 1-64 lowercase alphanumeric chars with single hyphens",
+      },
+    };
   }
   const validation = validateMcpConfig(config);
   if (validation) return { success: false, error: { code: "VALIDATION_ERROR", message: validation } };
 
   const existing = await configPg.getMcpServer(ctx, name);
-  if (existing) return { success: false, error: { code: "ALREADY_EXISTS", message: `MCP server '${name}' already exists` } };
+  if (existing)
+    return { success: false, error: { code: "ALREADY_EXISTS", message: `MCP server '${name}' already exists` } };
 
-  const cfgType = typeof config === "object" && config !== null && "type" in config ? (config as Record<string, unknown>).type as string : "local";
+  const cfgType =
+    typeof config === "object" && config !== null && "type" in config
+      ? ((config as Record<string, unknown>).type as string)
+      : "local";
   await configPg.createMcpServer(ctx, name, cfgType, config as Record<string, unknown>);
   return { success: true, data: { name } };
 }
@@ -99,7 +123,10 @@ async function handleEnable(ctx: AuthContext, name: string) {
 
   const config = existing.config as Record<string, unknown>;
   if (!("type" in config)) {
-    return { success: false, error: { code: "VALIDATION_ERROR", message: `Cannot enable '${name}': original config lost, please recreate` } };
+    return {
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: `Cannot enable '${name}': original config lost, please recreate` },
+    };
   }
 
   await configPg.setMcpServerEnabled(ctx, name, true);
@@ -144,7 +171,10 @@ async function handleTest(ctx: AuthContext, name: string) {
       };
     }
     if (result.reachable) {
-      return { success: true, data: { name, reachable: true, protocol: false, message: result.message ?? "非 MCP 协议" } };
+      return {
+        success: true,
+        data: { name, reachable: true, protocol: false, message: result.message ?? "非 MCP 协议" },
+      };
     }
     return { success: true, data: { name, reachable: false, protocol: false, message: result.message ?? "连接失败" } };
   }
@@ -164,11 +194,15 @@ async function handleTest(ctx: AuthContext, name: string) {
     }
   }
 
-  return { success: false, error: { code: "VALIDATION_ERROR", message: `Cannot test '${name}': unsupported config type` } };
+  return {
+    success: false,
+    error: { code: "VALIDATION_ERROR", message: `Cannot test '${name}': unsupported config type` },
+  };
 }
 
 async function handleTestUrl(url: string, headers?: Record<string, string>, timeout?: number) {
-  if (!url || typeof url !== "string") return { success: false, error: { code: "VALIDATION_ERROR", message: "URL is required" } };
+  if (!url || typeof url !== "string")
+    return { success: false, error: { code: "VALIDATION_ERROR", message: "URL is required" } };
   const ms = timeout ?? 10000;
   const result = await inspectRemoteMcpServer(url, headers, ms);
   if (result.reachable && result.protocol) {
@@ -244,45 +278,63 @@ async function handleListTools(name: string) {
 }
 
 // --- 路由注册 ---
-const app = new Elysia({ name: "web-config-mcp", prefix: "/web" })
-  .use(authGuardPlugin)
-  .model({
-    "config-body": ConfigBodySchema,
-  });
+const app = new Elysia({ name: "web-config-mcp", prefix: "/web" }).use(authGuardPlugin).model({
+  "config-body": ConfigBodySchema,
+});
 
-app.post("/config/mcp", async ({ store, body, error, request }: any) => {
-  const authContext = await loadTeamContext(store.user!, request);
-  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
-  const authCtx = authContext;
-  const b = (body as any) ?? {};
-  const { action, name, config, url, headers, timeout } = {
-    action: b.action ?? "",
-    name: b.name as string | undefined,
-    config: b.config as McpServerConfig | undefined,
-    url: b.url as string | undefined,
-    headers: b.headers as Record<string, string> | undefined,
-    timeout: b.timeout as number | undefined,
-  };
+app.post(
+  "/config/mcp",
+  async ({ store, body, error, request }: any) => {
+    const authContext = await loadTeamContext(store.user!, request);
+    if (!authContext)
+      return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+    const authCtx = authContext;
+    const b = (body as any) ?? {};
+    const { action, name, config, url, headers, timeout } = {
+      action: b.action ?? "",
+      name: b.name as string | undefined,
+      config: b.config as McpServerConfig | undefined,
+      url: b.url as string | undefined,
+      headers: b.headers as Record<string, string> | undefined,
+      timeout: b.timeout as number | undefined,
+    };
 
-  try {
-    switch (action) {
-      case "list":       return await handleList(authCtx);
-      case "get":        return await handleGet(authCtx, name!);
-      case "create":     return await handleCreate(authCtx, name!, config as McpServerConfig);
-      case "update":     return await handleUpdate(authCtx, name!, config as McpServerConfig);
-      case "delete":     return await handleDelete(authCtx, name!);
-      case "enable":     return await handleEnable(authCtx, name!);
-      case "disable":    return await handleDisable(authCtx, name!);
-      case "test":       return await handleTest(authCtx, name!);
-      case "test_url":   return await handleTestUrl(url!, headers, timeout);
-      case "inspect":    return await handleInspect(authCtx, name!);
-      case "list_tools": return await handleListTools(name!);
-      default: return error(400, { success: false, error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` } });
+    try {
+      switch (action) {
+        case "list":
+          return await handleList(authCtx);
+        case "get":
+          return await handleGet(authCtx, name!);
+        case "create":
+          return await handleCreate(authCtx, name!, config as McpServerConfig);
+        case "update":
+          return await handleUpdate(authCtx, name!, config as McpServerConfig);
+        case "delete":
+          return await handleDelete(authCtx, name!);
+        case "enable":
+          return await handleEnable(authCtx, name!);
+        case "disable":
+          return await handleDisable(authCtx, name!);
+        case "test":
+          return await handleTest(authCtx, name!);
+        case "test_url":
+          return await handleTestUrl(url!, headers, timeout);
+        case "inspect":
+          return await handleInspect(authCtx, name!);
+        case "list_tools":
+          return await handleListTools(name!);
+        default:
+          return error(400, {
+            success: false,
+            error: { code: "VALIDATION_ERROR", message: `Unknown action '${action}'` },
+          });
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      return error(500, { success: false, error: { code: "CONFIG_READ_ERROR", message } });
     }
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return error(500, { success: false, error: { code: "CONFIG_READ_ERROR", message } });
-  }
-}, { sessionAuth: true, body: "config-body" });
+  },
+  { sessionAuth: true, body: "config-body" },
+);
 
 export default app;

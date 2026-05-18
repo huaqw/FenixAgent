@@ -11,9 +11,7 @@ export interface UseModesResult {
 }
 
 export function useModes(client: ACPClient): UseModesResult {
-  const [modeState, setModeState] = useState<SessionModeState | null>(
-    client.state.modeState,
-  );
+  const [modeState, setModeState] = useState<SessionModeState | null>(client.state.modeState);
 
   useEffect(() => {
     const handler = (state: SessionModeState | null) => {
@@ -21,13 +19,12 @@ export function useModes(client: ACPClient): UseModesResult {
     };
 
     client.state.on("modeStateChange", handler);
-    return () => { client.state.off("modeStateChange", handler); };
+    return () => {
+      client.state.off("modeStateChange", handler);
+    };
   }, [client]);
 
-  const availableModes = useMemo(
-    () => modeState?.availableModes ?? [],
-    [modeState],
-  );
+  const availableModes = useMemo(() => modeState?.availableModes ?? [], [modeState]);
 
   const currentModeId = modeState?.currentModeId ?? null;
 

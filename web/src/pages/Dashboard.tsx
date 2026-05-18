@@ -5,8 +5,19 @@ import type { AgentInfo } from "../types/config";
 import { useConfigChangeListener } from "../lib/config-events";
 import { unwrapConfigData } from "../api/config-response";
 import {
-  Cpu, Bot, Wrench, Plug, Clock, Activity, MessageSquare,
-  Zap, ShieldCheck, Layers, Server, Radio, type LucideIcon,
+  Cpu,
+  Bot,
+  Wrench,
+  Plug,
+  Clock,
+  Activity,
+  MessageSquare,
+  Zap,
+  ShieldCheck,
+  Layers,
+  Server,
+  Radio,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -27,34 +38,39 @@ interface StatsState {
 
 function useStats() {
   const [state, setState] = useState<StatsState>({
-    environments: [], sessions: [], agents: [],
-    models: null, skills: [], mcpServers: [], tasks: [],
+    environments: [],
+    sessions: [],
+    agents: [],
+    models: null,
+    skills: [],
+    mcpServers: [],
+    tasks: [],
     loading: true,
   });
   const load = useCallback(async () => {
     const results = await Promise.allSettled([
-      client.web.environments.get().then(r => (Array.isArray(r.data) ? r.data as unknown as Environment[] : [])),
-      client.web.sessions.get().then(r => (Array.isArray(r.data) ? r.data as unknown as Session[] : [])),
-      client.web.config.agents.post({ action: "list" }).then(r => {
+      client.web.environments.get().then((r) => (Array.isArray(r.data) ? (r.data as unknown as Environment[]) : [])),
+      client.web.sessions.get().then((r) => (Array.isArray(r.data) ? (r.data as unknown as Session[]) : [])),
+      client.web.config.agents.post({ action: "list" }).then((r) => {
         const d = unwrapConfigData<{ agents?: AgentInfo[]; data?: { agents?: AgentInfo[] } }>(r.data);
         const agents = d?.agents ?? d?.data?.agents;
         return Array.isArray(agents) ? agents : [];
       }),
-      client.web.config.models.post({ action: "get" }).then(r => {
+      client.web.config.models.post({ action: "get" }).then((r) => {
         const d = unwrapConfigData(r.data);
         return d ?? r.data ?? null;
       }),
-      client.web.config.skills.post({ action: "list" }).then(r => {
+      client.web.config.skills.post({ action: "list" }).then((r) => {
         const d = unwrapConfigData(r.data);
         const skills = d ?? r.data;
         return Array.isArray(skills) ? skills : [];
       }),
-      client.web.config.mcp.post({ action: "list" }).then(r => {
+      client.web.config.mcp.post({ action: "list" }).then((r) => {
         const d = unwrapConfigData(r.data);
         const servers = d ?? r.data;
         return Array.isArray(servers) ? servers : [];
       }),
-      client.web.tasks.get().then(r => (Array.isArray(r.data) ? r.data as unknown as unknown[] : [])),
+      client.web.tasks.get().then((r) => (Array.isArray(r.data) ? (r.data as unknown as unknown[]) : [])),
     ]);
     setState({
       environments: results[0].status === "fulfilled" ? results[0].value : [],
@@ -67,10 +83,14 @@ function useStats() {
       loading: false,
     });
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // 监听配置变更事件（来自其他页面的保存/删除操作）
-  useConfigChangeListener(() => { load(); }, [load]);
+  useConfigChangeListener(() => {
+    load();
+  }, [load]);
 
   // 页面重新获得焦点时刷新（用户从其他 tab 切回来）
   useEffect(() => {
@@ -94,7 +114,10 @@ function useCountUp(target: number, duration = 800, enabled = true) {
   const start = useRef<number>(0);
 
   useEffect(() => {
-    if (!enabled || target === 0) { setDisplay(target); return; }
+    if (!enabled || target === 0) {
+      setDisplay(target);
+      return;
+    }
     const animate = (ts: number) => {
       if (!start.current) start.current = ts;
       const elapsed = ts - start.current;
@@ -116,7 +139,7 @@ function useCountUp(target: number, duration = 800, enabled = true) {
  * ========================================================================== */
 
 interface RingChartProps {
-  pct: number;         // 0-100
+  pct: number; // 0-100
   size?: number;
   stroke?: number;
   color: string;
@@ -138,10 +161,15 @@ function RingChart({ pct, size = 72, stroke = 6, color, trackColor, label, sub, 
         <svg width={size} height={size} className="-rotate-90">
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
           <circle
-            cx={size / 2} cy={size / 2} r={r}
-            fill="none" stroke={color} strokeWidth={stroke}
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth={stroke}
             strokeLinecap="round"
-            strokeDasharray={circ} strokeDashoffset={offset}
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
             style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)" }}
           />
         </svg>
@@ -149,7 +177,9 @@ function RingChart({ pct, size = 72, stroke = 6, color, trackColor, label, sub, 
           {Icon ? (
             <Icon className="h-4 w-4" style={{ color }} />
           ) : (
-            <span className="text-xs font-mono font-bold" style={{ color }}>{display}%</span>
+            <span className="text-xs font-mono font-bold" style={{ color }}>
+              {display}%
+            </span>
           )}
         </div>
       </div>
@@ -166,14 +196,9 @@ function RingChart({ pct, size = 72, stroke = 6, color, trackColor, label, sub, 
 function StatusDot({ color, pulse = false }: { color: string; pulse?: boolean }) {
   return (
     <span className="relative inline-flex h-2 w-2">
-      <span
-        className={cn("absolute inset-0 rounded-full", color)}
-      />
+      <span className={cn("absolute inset-0 rounded-full", color)} />
       {pulse && (
-        <span
-          className={cn("absolute inset-0 rounded-full animate-ping", color)}
-          style={{ animationDuration: "2s" }}
-        />
+        <span className={cn("absolute inset-0 rounded-full animate-ping", color)} style={{ animationDuration: "2s" }} />
       )}
     </span>
   );
@@ -195,27 +220,42 @@ interface AnimatedKpiCardProps {
 }
 
 function AnimatedKpiCard({
-  icon: Icon, label, value, suffix, trend, accentColor, accentBg, sparkPath,
+  icon: Icon,
+  label,
+  value,
+  suffix,
+  trend,
+  accentColor,
+  accentBg,
+  sparkPath,
 }: AnimatedKpiCardProps) {
   const display = useCountUp(value, 900);
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-border bg-surface-1 p-4 px-5 transition-transform duration-200 ease-out hover:-translate-y-[3px] hover:shadow-[0_8px_25px_rgba(0,0,0,0.08)] hover:border-brand cursor-default group">
       {/* glow blob — top-right blurred circle */}
-      <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full opacity-[0.06] blur-[30px]" style={{ background: accentColor }} />
+      <div
+        className="absolute -top-8 -right-8 w-20 h-20 rounded-full opacity-[0.06] blur-[30px]"
+        style={{ background: accentColor }}
+      />
       <div className="relative z-10 flex flex-col h-full">
         <div className="flex items-center justify-between mb-2">
-          <div className={cn("w-[34px] h-[34px] rounded-[10px] flex items-center justify-center", accentBg)} style={{ color: accentColor }}>
+          <div
+            className={cn("w-[34px] h-[34px] rounded-[10px] flex items-center justify-center", accentBg)}
+            style={{ color: accentColor }}
+          >
             <Icon className="h-[18px] w-[18px]" />
           </div>
           <span className="text-[11px] font-medium text-[#30b08f]">{trend}</span>
         </div>
-        <div className="font-mono text-[30px] font-bold tracking-tight leading-none mb-1" style={{ color: accentColor }}>
-          {display}{suffix ?? ""}
+        <div
+          className="font-mono text-[30px] font-bold tracking-tight leading-none mb-1"
+          style={{ color: accentColor }}
+        >
+          {display}
+          {suffix ?? ""}
         </div>
-        <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted mt-auto">
-          {label}
-        </div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-muted mt-auto">{label}</div>
       </div>
       {/* sparkline SVG decoration */}
       <svg
@@ -244,25 +284,35 @@ interface TopoNode {
 
 function statusColor(s: TopoNode["status"]) {
   switch (s) {
-    case "active": return "#30b08f";
-    case "idle": return "#6366F1";
-    case "error": return "#c03639";
-    case "offline": return "#909399";
+    case "active":
+      return "#30b08f";
+    case "idle":
+      return "#6366F1";
+    case "error":
+      return "#c03639";
+    case "offline":
+      return "#909399";
   }
 }
 
 function statusLabel(s: TopoNode["status"]) {
   switch (s) {
-    case "active": return "运行中";
-    case "idle": return "空闲";
-    case "error": return "异常";
-    case "offline": return "离线";
+    case "active":
+      return "运行中";
+    case "idle":
+      return "空闲";
+    case "error":
+      return "异常";
+    case "offline":
+      return "离线";
   }
 }
 
 function AgentTopology({ agents }: { agents: TopoNode[] }) {
-  const canvasW = 520; const canvasH = 180;
-  const hubX = canvasW / 2; const hubY = 38;
+  const canvasW = 520;
+  const canvasH = 180;
+  const hubX = canvasW / 2;
+  const hubY = 38;
 
   // position agents in a row below
   const maxShow = 6;
@@ -270,11 +320,7 @@ function AgentTopology({ agents }: { agents: TopoNode[] }) {
   const gap = canvasW / (shown.length + 1);
 
   return (
-    <svg
-      viewBox={`0 0 ${canvasW} ${canvasH}`}
-      className="w-full h-auto"
-      style={{ maxHeight: 180 }}
-    >
+    <svg viewBox={`0 0 ${canvasW} ${canvasH}`} className="w-full h-auto" style={{ maxHeight: 180 }}>
       <defs>
         {shown.map((a) => (
           <linearGradient key={a.id} id={`topoLine-${a.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -289,11 +335,25 @@ function AgentTopology({ agents }: { agents: TopoNode[] }) {
 
       {/* Hub */}
       <rect
-        x={hubX - 48} y={hubY - 14} width={96} height={30} rx={8}
-        fill="var(--color-surface-1)" stroke="#6366F1" strokeWidth="2"
+        x={hubX - 48}
+        y={hubY - 14}
+        width={96}
+        height={30}
+        rx={8}
+        fill="var(--color-surface-1)"
+        stroke="#6366F1"
+        strokeWidth="2"
         filter="url(#topoShadow)"
       />
-      <text x={hubX} y={hubY + 6} textAnchor="middle" fill="var(--color-text-primary)" fontFamily="Inter, sans-serif" fontSize="13" fontWeight="700">
+      <text
+        x={hubX}
+        y={hubY + 6}
+        textAnchor="middle"
+        fill="var(--color-text-primary)"
+        fontFamily="Inter, sans-serif"
+        fontSize="13"
+        fontWeight="700"
+      >
         RCS Hub
       </text>
       {/* Hub pulse ring */}
@@ -311,18 +371,32 @@ function AgentTopology({ agents }: { agents: TopoNode[] }) {
         return (
           <g key={a.id}>
             <line
-              x1={hubX} y1={hubY + 20} x2={nx} y2={ny}
-              stroke={statusColor(a.status)} strokeOpacity="0.25" strokeWidth="1.5"
+              x1={hubX}
+              y1={hubY + 20}
+              x2={nx}
+              y2={ny}
+              stroke={statusColor(a.status)}
+              strokeOpacity="0.25"
+              strokeWidth="1.5"
               strokeDasharray={a.status === "offline" ? "4,4" : undefined}
             />
             {/* data particles */}
             {a.status !== "offline" && (
               <>
                 <circle r="2.5" fill={statusColor(a.status)} opacity="0.6">
-                  <animateMotion dur={`${2 + i * 0.5}s`} repeatCount="indefinite" path={`M${hubX},${hubY + 20} L${nx},${ny}`} />
+                  <animateMotion
+                    dur={`${2 + i * 0.5}s`}
+                    repeatCount="indefinite"
+                    path={`M${hubX},${hubY + 20} L${nx},${ny}`}
+                  />
                 </circle>
                 <circle r="1.5" fill="#22D3EE" opacity="0.4">
-                  <animateMotion dur={`${2.5 + i * 0.3}s`} repeatCount="indefinite" path={`M${hubX},${hubY + 20} L${nx},${ny}`} begin="0.8s" />
+                  <animateMotion
+                    dur={`${2.5 + i * 0.3}s`}
+                    repeatCount="indefinite"
+                    path={`M${hubX},${hubY + 20} L${nx},${ny}`}
+                    begin="0.8s"
+                  />
                 </circle>
               </>
             )}
@@ -340,14 +414,26 @@ function AgentTopology({ agents }: { agents: TopoNode[] }) {
           <g key={a.id}>
             {/* Node rect */}
             <rect
-              x={nx - 52} y={ny - 2} width={104} height={44} rx={10}
-              fill="var(--color-surface-1)" stroke={sc} strokeWidth="1.5"
+              x={nx - 52}
+              y={ny - 2}
+              width={104}
+              height={44}
+              rx={10}
+              fill="var(--color-surface-1)"
+              stroke={sc}
+              strokeWidth="1.5"
               filter="url(#topoShadow)"
             />
             {a.status === "active" && (
               <rect
-                x={nx - 52} y={ny - 2} width={104} height={44} rx={10}
-                fill="none" stroke={sc} strokeWidth="1.5"
+                x={nx - 52}
+                y={ny - 2}
+                width={104}
+                height={44}
+                rx={10}
+                fill="none"
+                stroke={sc}
+                strokeWidth="1.5"
                 style={{ animation: "glowBreathe 3s ease-in-out infinite" }}
               />
             )}
@@ -360,7 +446,15 @@ function AgentTopology({ agents }: { agents: TopoNode[] }) {
               </circle>
             )}
             {/* Name + Status */}
-            <text x={nx} y={ny + 14} textAnchor="middle" fill="var(--color-text-primary)" fontFamily="Inter, sans-serif" fontSize="11.5" fontWeight="600">
+            <text
+              x={nx}
+              y={ny + 14}
+              textAnchor="middle"
+              fill="var(--color-text-primary)"
+              fontFamily="Inter, sans-serif"
+              fontSize="11.5"
+              fontWeight="600"
+            >
               {a.name.length > 12 ? a.name.slice(0, 12) + "…" : a.name}
             </text>
             <text x={nx} y={ny + 30} textAnchor="middle" fill={sc} fontSize="10">
@@ -384,11 +478,7 @@ function AgentTopology({ agents }: { agents: TopoNode[] }) {
  *  TimelineItem
  * ========================================================================== */
 
-function TimelineItem({
-  dotColor, title, time,
-}: {
-  dotColor: string; title: string; time: string;
-}) {
+function TimelineItem({ dotColor, title, time }: { dotColor: string; title: string; time: string }) {
   return (
     <div className="px-3 py-2 rounded-lg transition-colors duration-150 hover:bg-surface-2">
       <div className="flex items-center gap-3">
@@ -424,18 +514,15 @@ export function Dashboard() {
   const activeEnvs = stats.environments.filter(
     (e) => e.instance_status === "running" || e.instance_status === "starting",
   );
-  const activeSessions = stats.sessions.filter(
-    (s) => s.status === "active" || s.status === "running",
-  );
-  const offlineEnvs = stats.environments.filter(
-    (e) => !["running", "starting"].includes(e.instance_status ?? ""),
-  );
+  const activeSessions = stats.sessions.filter((s) => s.status === "active" || s.status === "running");
+  const offlineEnvs = stats.environments.filter((e) => !["running", "starting"].includes(e.instance_status ?? ""));
   const enabledSkills = stats.skills.filter((s) => s.enabled);
   const enabledMcp = stats.mcpServers.filter((m) => m.enabled);
   const enabledTasks = stats.tasks.filter((t) => t.enabled);
   const modelCount = stats.models?.available?.length ?? 0;
   const totalConfigItems = stats.agents.length + stats.skills.length + stats.mcpServers.length;
-  const enabledConfigItems = enabledSkills.length + enabledMcp.length + stats.agents.filter(a => a.enabled !== false).length;
+  const enabledConfigItems =
+    enabledSkills.length + enabledMcp.length + stats.agents.filter((a) => a.enabled !== false).length;
   const healthPct = totalConfigItems > 0 ? Math.round((enabledConfigItems / totalConfigItems) * 95 + 5) : 100;
 
   // --- 拓扑数据 ---
@@ -445,7 +532,8 @@ export function Dashboard() {
     return {
       id: e.id,
       name: e.name || e.agent_name || e.id.slice(0, 8),
-      x: 0, y: 0,
+      x: 0,
+      y: 0,
       status: isActive ? "active" : isError ? "error" : "offline",
     } satisfies TopoNode;
   });
@@ -461,20 +549,21 @@ export function Dashboard() {
   const sparkHealth = generateSparkData(healthPct / 100, healthPct / 100, 0.7, 1);
 
   return (
-    <div className="h-full overflow-y-auto"
-      style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99, 102, 241, 0.04), transparent), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(34, 211, 238, 0.03), transparent)' }}
+    <div
+      className="h-full overflow-y-auto"
+      style={{
+        background:
+          "radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99, 102, 241, 0.04), transparent), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(34, 211, 238, 0.03), transparent)",
+      }}
     >
       <div className="mx-auto max-w-6xl px-6 py-6 space-y-5">
-
         {/* ================================================================ *
          *  SECTION 1 — 页面标题行
          * ================================================================ */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-text-primary">系统概览</h1>
-            <p className="text-[12px] text-text-muted mt-0.5">
-              实时监控 AI Agent 控制面板运行状态
-            </p>
+            <p className="text-[12px] text-text-muted mt-0.5">实时监控 AI Agent 控制面板运行状态</p>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-text-muted">
             <StatusDot color="bg-status-active" pulse />
@@ -487,34 +576,49 @@ export function Dashboard() {
          * ================================================================ */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 [&>*]:animate-[fadeUp_0.5s_ease_forwards] [&>*]:opacity-0 [&>*:nth-child(1)]:delay-[50ms] [&>*:nth-child(2)]:delay-[100ms] [&>*:nth-child(3)]:delay-[150ms] [&>*:nth-child(4)]:delay-[200ms] [&>*:nth-child(5)]:delay-[250ms] [&>*:nth-child(6)]:delay-[300ms] [&>*:nth-child(7)]:delay-[350ms] [&>*:nth-child(8)]:delay-[400ms]">
           <AnimatedKpiCard
-            icon={Bot} label="智能体" value={stats.environments.length}
+            icon={Bot}
+            label="智能体"
+            value={stats.environments.length}
             trend={`${activeEnvs.length} 活跃`}
-            accentColor="#6366F1" accentBg="bg-brand-subtle text-brand-light"
+            accentColor="#6366F1"
+            accentBg="bg-brand-subtle text-brand-light"
             sparkPath="M0,22 C20,22 30,18 50,18 C70,18 80,14 100,14 C120,14 130,8 150,8 C170,8 180,12 200,10"
           />
           <AnimatedKpiCard
-            icon={MessageSquare} label="会话" value={stats.sessions.length}
+            icon={MessageSquare}
+            label="会话"
+            value={stats.sessions.length}
             trend={`${activeSessions.length} 进行中`}
-            accentColor="#22D3EE" accentBg="bg-[rgba(34,211,238,0.12)] text-[#22D3EE]"
+            accentColor="#22D3EE"
+            accentBg="bg-[rgba(34,211,238,0.12)] text-[#22D3EE]"
             sparkPath="M0,16 C30,16 45,12 60,12 C75,12 90,18 105,18 C120,18 135,10 150,10 C165,10 185,14 200,8"
           />
           <AnimatedKpiCard
-            icon={Cpu} label="模型" value={modelCount}
+            icon={Cpu}
+            label="模型"
+            value={modelCount}
             trend="已配置"
-            accentColor="#818CF8" accentBg="bg-[rgba(129,140,248,0.12)] text-[#818CF8]"
+            accentColor="#818CF8"
+            accentBg="bg-[rgba(129,140,248,0.12)] text-[#818CF8]"
             sparkPath="M0,10 C20,10 35,14 50,14 C65,14 80,8 95,8 C110,8 130,12 150,12 C170,12 185,6 200,8"
           />
           <AnimatedKpiCard
-            icon={ShieldCheck} label="可用率" value={healthPct}
+            icon={ShieldCheck}
+            label="可用率"
+            value={healthPct}
             suffix="%"
             trend="健康"
-            accentColor="#10B981" accentBg="bg-[rgba(52,211,153,0.12)] text-[#10B981]"
+            accentColor="#10B981"
+            accentBg="bg-[rgba(52,211,153,0.12)] text-[#10B981]"
             sparkPath="M0,6 C25,6 40,4 60,4 C80,4 95,8 115,8 C135,8 155,4 175,4 C190,4 200,6 200,6"
           />
           <AnimatedKpiCard
-            icon={Clock} label="定时任务" value={stats.tasks.length}
+            icon={Clock}
+            label="定时任务"
+            value={stats.tasks.length}
             trend={`${enabledTasks.length} 启用`}
-            accentColor="#F59E0B" accentBg="bg-[rgba(251,191,36,0.12)] text-[#F59E0B]"
+            accentColor="#F59E0B"
+            accentBg="bg-[rgba(251,191,36,0.12)] text-[#F59E0B]"
             sparkPath="M0,20 C30,20 50,16 70,16 C90,16 110,14 130,14 C150,14 165,10 185,10 C195,10 200,12 200,12"
           />
         </div>
@@ -523,32 +627,43 @@ export function Dashboard() {
          *  SECTION 3 — 三栏布局：健康环 | 拓扑 | 活动
          * ================================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
           {/* --- 系统健康环 --- */}
           <div className="rounded-xl border border-border bg-surface-1 p-5 flex flex-col">
             <div className="flex items-center gap-2 mb-4">
               <ShieldCheck className="h-4 w-4 text-brand" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">
-                系统健康度
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">系统健康度</span>
             </div>
             <div className="flex flex-wrap justify-center gap-4 flex-1 items-center">
               <RingChart
-                pct={activeEnvs.length > 0 ? Math.round((activeEnvs.length / Math.max(stats.environments.length, 1)) * 100) : 0}
-                color="#6366F1" trackColor="var(--color-surface-2)"
-                label="智能体在线" sub={`${activeEnvs.length}/${stats.environments.length}`}
+                pct={
+                  activeEnvs.length > 0
+                    ? Math.round((activeEnvs.length / Math.max(stats.environments.length, 1)) * 100)
+                    : 0
+                }
+                color="#6366F1"
+                trackColor="var(--color-surface-2)"
+                label="智能体在线"
+                sub={`${activeEnvs.length}/${stats.environments.length}`}
                 icon={Server}
               />
               <RingChart
-                pct={stats.sessions.length > 0 ? Math.round((activeSessions.length / Math.max(stats.sessions.length, 1)) * 100) : 0}
-                color="#30b08f" trackColor="var(--color-surface-2)"
-                label="会话活跃" sub={`${activeSessions.length}/${stats.sessions.length}`}
+                pct={
+                  stats.sessions.length > 0
+                    ? Math.round((activeSessions.length / Math.max(stats.sessions.length, 1)) * 100)
+                    : 0
+                }
+                color="#30b08f"
+                trackColor="var(--color-surface-2)"
+                label="会话活跃"
+                sub={`${activeSessions.length}/${stats.sessions.length}`}
                 icon={MessageSquare}
               />
               <RingChart
                 pct={healthPct}
-                color="#e65d6e" trackColor="var(--color-surface-2)"
-                label="配置启用率" sub={`${enabledConfigItems}/${totalConfigItems}`}
+                color="#e65d6e"
+                trackColor="var(--color-surface-2)"
+                label="配置启用率"
+                sub={`${enabledConfigItems}/${totalConfigItems}`}
                 icon={Zap}
               />
             </div>
@@ -559,16 +674,14 @@ export function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Radio className="h-4 w-4 text-status-active" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">
-                  Agent 拓扑
-                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">Agent 拓扑</span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
                 <StatusDot color="bg-status-active" pulse />
-                <span>{topoNodes.filter(n => n.status === "active").length} 在线</span>
+                <span>{topoNodes.filter((n) => n.status === "active").length} 在线</span>
                 <span className="mx-1 text-border">|</span>
                 <StatusDot color="bg-gray-400" />
-                <span>{topoNodes.filter(n => n.status === "offline").length} 离线</span>
+                <span>{topoNodes.filter((n) => n.status === "offline").length} 离线</span>
               </div>
             </div>
             <div className="flex-1 flex items-center justify-center min-h-[180px]">
@@ -581,31 +694,22 @@ export function Dashboard() {
               )}
             </div>
           </div>
-
         </div>
 
         {/* ================================================================ *
          *  SECTION 4 — 双栏：活动时间线 | 快速统计
          * ================================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
           {/* --- 活动时间线 --- */}
           <div className="rounded-xl border border-border bg-surface-1 p-5 lg:col-span-2">
             <div className="flex items-center gap-2 mb-3">
               <Activity className="h-4 w-4 text-status-warning" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">
-                最近活动
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">最近活动</span>
             </div>
             <div className="space-y-2">
               {timeline.length > 0 ? (
                 timeline.map((item, i) => (
-                  <TimelineItem
-                    key={i}
-                    dotColor={item.dotColor}
-                    title={item.title}
-                    time={item.time}
-                  />
+                  <TimelineItem key={i} dotColor={item.dotColor} title={item.title} time={item.time} />
                 ))
               ) : (
                 <div className="text-sm text-text-muted py-2">暂无近期活动</div>
@@ -617,33 +721,20 @@ export function Dashboard() {
           <div className="rounded-xl border border-border bg-surface-1 p-5">
             <div className="flex items-center gap-2 mb-3">
               <Wrench className="h-4 w-4 text-text-dim" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">
-                快速统计
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">快速统计</span>
             </div>
             <div className="space-y-3">
               <QuickStatRow label="Agent 配置" count={stats.agents.length} />
+              <QuickStatRow label="Skills" count={enabledSkills.length} total={stats.skills.length} />
+              <QuickStatRow label="MCP 服务器" count={enabledMcp.length} total={stats.mcpServers.length} />
               <QuickStatRow
-                label="Skills"
-                count={enabledSkills.length}
-                total={stats.skills.length}
+                label="会话归档"
+                count={stats.sessions.filter((s) => s.status === "archived" || s.status === "complete").length}
               />
-              <QuickStatRow
-                label="MCP 服务器"
-                count={enabledMcp.length}
-                total={stats.mcpServers.length}
-              />
-              <QuickStatRow label="会话归档" count={stats.sessions.filter(s => s.status === "archived" || s.status === "complete").length} />
-              <QuickStatRow
-                label="定时任务"
-                count={enabledTasks.length}
-                total={stats.tasks.length}
-              />
+              <QuickStatRow label="定时任务" count={enabledTasks.length} total={stats.tasks.length} />
             </div>
           </div>
-
         </div>
-
       </div>
     </div>
   );
@@ -681,7 +772,7 @@ function generateSparkData(active: number, total: number, min = 0.1, max = 1): n
   const points: number[] = [];
   for (let i = 0; i < 8; i++) {
     const t = i / 7;
-    const noise = (Math.sin(t * Math.PI * 2) * 0.12 + Math.cos(t * Math.PI * 3) * 0.08);
+    const noise = Math.sin(t * Math.PI * 2) * 0.12 + Math.cos(t * Math.PI * 3) * 0.08;
     const base = min + ratio * (max - min);
     const val = base + noise * (1 - ratio);
     points.push(Math.max(0.05, Math.min(1, val)));
@@ -693,11 +784,9 @@ function buildTimeline(stats: StatsState) {
   const items: { dotColor: string; title: string; time: string }[] = [];
 
   const activeEnvs = stats.environments.filter(
-    e => e.instance_status === "running" || e.instance_status === "starting",
+    (e) => e.instance_status === "running" || e.instance_status === "starting",
   );
-  const activeSessions = stats.sessions.filter(
-    s => s.status === "active" || s.status === "running",
-  );
+  const activeSessions = stats.sessions.filter((s) => s.status === "active" || s.status === "running");
 
   if (activeEnvs.length > 0) {
     items.push({

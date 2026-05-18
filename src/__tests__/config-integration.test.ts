@@ -38,7 +38,12 @@ mock.module("../services/skill", () => ({
   SKILLS_DIR: "/tmp/test-skills",
   listSkills: async () => [],
   getSkill: async () => null,
-  setSkill: async (_ctx: any, _name: string, data: any) => ({ name: _name, enabled: true, description: data.description, path: "/tmp/test-skills/" + _name + "/SKILL.md" }),
+  setSkill: async (_ctx: any, _name: string, data: any) => ({
+    name: _name,
+    enabled: true,
+    description: data.description,
+    path: "/tmp/test-skills/" + _name + "/SKILL.md",
+  }),
   deleteSkill: async () => true,
   enableSkill: async () => true,
   disableSkill: async () => true,
@@ -46,7 +51,12 @@ mock.module("../services/skill", () => ({
   importSkillDirectories: async () => ({ imported: [], skipped: [], conflicts: [] }),
   importWorkspaceSkillDirectories: async () => ({ imported: [], skipped: [], conflicts: [] }),
   getWorkspaceSkill: async () => null,
-  setWorkspaceSkill: async (_ws: string, _name: string, data: any) => ({ name: _name, enabled: true, description: data.description, path: "/tmp/test/" + _name + "/SKILL.md" }),
+  setWorkspaceSkill: async (_ws: string, _name: string, data: any) => ({
+    name: _name,
+    enabled: true,
+    description: data.description,
+    path: "/tmp/test/" + _name + "/SKILL.md",
+  }),
   deleteWorkspaceSkill: async () => true,
   listWorkspaceSkills: async () => [],
 }));

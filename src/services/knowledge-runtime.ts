@@ -1,12 +1,9 @@
+import { agentKnowledgeBindingRepo, knowledgeResourceRepo } from "../repositories/knowledge-base";
 import {
-  agentKnowledgeBindingRepo,
-  knowledgeResourceRepo,
-} from "../repositories/knowledge-base";
-import { getKnowledgeProvider as getKnowledgeRuntimeProvider, setKnowledgeProviderForTesting as setKnowledgeRuntimeProviderForTesting } from "./knowledge-provider/registry";
-import type {
-  KnowledgeResourceContent,
-  KnowledgeSearchResult,
-} from "./knowledge-provider/types";
+  getKnowledgeProvider as getKnowledgeRuntimeProvider,
+  setKnowledgeProviderForTesting as setKnowledgeRuntimeProviderForTesting,
+} from "./knowledge-provider/registry";
+import type { KnowledgeResourceContent, KnowledgeSearchResult } from "./knowledge-provider/types";
 
 export interface BoundKnowledgeBase {
   id: string;
@@ -119,10 +116,8 @@ export async function searchKnowledgeByConfigId(input: {
     source: item.source,
     score: item.score,
     knowledgeBaseId: item.knowledgeBaseId
-      ? knowledgeBaseIdByRemoteId.get(item.knowledgeBaseId) ?? item.knowledgeBaseId
+      ? (knowledgeBaseIdByRemoteId.get(item.knowledgeBaseId) ?? item.knowledgeBaseId)
       : null,
-    resourceId: item.resourceId
-      ? resourceIdByRemoteId.get(item.resourceId) ?? item.resourceId
-      : null,
+    resourceId: item.resourceId ? (resourceIdByRemoteId.get(item.resourceId) ?? item.resourceId) : null,
   }));
 }

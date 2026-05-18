@@ -1,8 +1,5 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import {
-  resetAllRepos,
-  environmentRepo,
-} from "../repositories";
+import { resetAllRepos, environmentRepo } from "../repositories";
 import { db } from "../db";
 import { user } from "../db/schema";
 import { eq } from "drizzle-orm";

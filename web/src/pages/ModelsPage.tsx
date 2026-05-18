@@ -39,7 +39,12 @@ export function validateProviderForm(name: string, isEdit: boolean): string | nu
   return null;
 }
 
-export function buildProviderPayload(apiKey: string, baseURL: string, npm: string, name: string): Record<string, unknown> {
+export function buildProviderPayload(
+  apiKey: string,
+  baseURL: string,
+  npm: string,
+  name: string,
+): Record<string, unknown> {
   const data: Record<string, unknown> = {};
   if (apiKey) data.apiKey = apiKey;
   if (baseURL) data.baseURL = baseURL;
@@ -52,13 +57,23 @@ function ModalityBadge({ type, items }: { type: "input" | "output"; items: strin
   if (!items || items.length === 0) return null;
   const isInput = type === "input";
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full font-medium ${isInput ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"}`}>
+    <span
+      className={`inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full font-medium ${isInput ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"}`}
+    >
       {isInput ? "入" : "出"} {items.join(", ")}
     </span>
   );
 }
 
-function ModelSubrow({ providerId, models, onModelChange }: { providerId: string; models: ProviderModel[]; onModelChange: (action: "delete" | "save", providerId: string, modelId?: string) => void }) {
+function ModelSubrow({
+  providerId,
+  models,
+  onModelChange,
+}: {
+  providerId: string;
+  models: ProviderModel[];
+  onModelChange: (action: "delete" | "save", providerId: string, modelId?: string) => void;
+}) {
   const [editingModel, setEditingModel] = useState<ProviderModel | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [isNewModel, setIsNewModel] = useState(false);
@@ -79,10 +94,17 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const resetModelForm = () => {
-    setMfId(""); setMfName(""); setMfContext(""); setMfOutput("");
-    setMfInputModalities(["text"]); setMfOutputModalities(["text"]);
-    setMfThinkingEnabled(false); setMfThinkingBudget("");
-    setMfCostInput(""); setMfCostOutput(""); setShowAdvanced(false);
+    setMfId("");
+    setMfName("");
+    setMfContext("");
+    setMfOutput("");
+    setMfInputModalities(["text"]);
+    setMfOutputModalities(["text"]);
+    setMfThinkingEnabled(false);
+    setMfThinkingBudget("");
+    setMfCostInput("");
+    setMfCostOutput("");
+    setShowAdvanced(false);
   };
 
   const openNewModel = () => {
@@ -113,7 +135,10 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
   };
 
   const handleModelSave = async () => {
-    if (!mfId.trim()) { toast.error("模型 ID 不能为空"); return; }
+    if (!mfId.trim()) {
+      toast.error("模型 ID 不能为空");
+      return;
+    }
 
     const data: Record<string, unknown> = { modelId: mfId.trim(), name: mfName || mfId };
     const limit: Record<string, unknown> = {};
@@ -142,11 +167,20 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
     setModelSaving(true);
     try {
       if (isNewModel) {
-        const { error: addErr } = await client.web.config.providers.post({ action: "add_model", name: providerId, ...data });
+        const { error: addErr } = await client.web.config.providers.post({
+          action: "add_model",
+          name: providerId,
+          ...data,
+        });
         if (addErr) throw new Error(addErr.message ?? "添加失败");
         toast.success("模型已添加");
       } else {
-        const { error: updErr } = await client.web.config.providers.post({ action: "update_model", name: providerId, modelId: mfId, ...data });
+        const { error: updErr } = await client.web.config.providers.post({
+          action: "update_model",
+          name: providerId,
+          modelId: mfId,
+          ...data,
+        });
         if (updErr) throw new Error(updErr.message ?? "更新失败");
         toast.success("模型已更新");
       }
@@ -164,7 +198,11 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
   const handleModelDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      const { error: rmErr } = await client.web.config.providers.post({ action: "remove_model", name: deleteConfirm.providerId, modelId: deleteConfirm.modelId });
+      const { error: rmErr } = await client.web.config.providers.post({
+        action: "remove_model",
+        name: deleteConfirm.providerId,
+        modelId: deleteConfirm.modelId,
+      });
       if (rmErr) throw new Error(rmErr.message ?? "删除失败");
       toast.success("模型已删除");
       const pid = deleteConfirm.providerId;
@@ -185,19 +223,26 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
   return (
     <div className="space-y-2">
       {models.length === 0 ? (
-        <div className="py-6 text-center text-text-muted text-sm">
-          暂无模型，点击下方按钮添加
-        </div>
+        <div className="py-6 text-center text-text-muted text-sm">暂无模型，点击下方按钮添加</div>
       ) : (
         <div className="grid gap-2">
           {models.map((m) => {
             const limit = (m.limit as Record<string, unknown>) ?? {};
             const modalities = (m.modalities as { input?: string[]; output?: string[] }) ?? {};
             const cost = (m.cost as Record<string, unknown>) ?? {};
-            const hasInputMods = modalities.input && modalities.input.length > 0 && !(modalities.input.length === 1 && modalities.input[0] === "text");
-            const hasOutputMods = modalities.output && modalities.output.length > 0 && !(modalities.output.length === 1 && modalities.output[0] === "text");
+            const hasInputMods =
+              modalities.input &&
+              modalities.input.length > 0 &&
+              !(modalities.input.length === 1 && modalities.input[0] === "text");
+            const hasOutputMods =
+              modalities.output &&
+              modalities.output.length > 0 &&
+              !(modalities.output.length === 1 && modalities.output[0] === "text");
             return (
-              <div key={m.id} className="group flex items-center gap-3 rounded-lg border border-border-light bg-surface-1 px-3 py-2.5 transition-colors hover:border-border-active hover:shadow-sm">
+              <div
+                key={m.id}
+                className="group flex items-center gap-3 rounded-lg border border-border-light bg-surface-1 px-3 py-2.5 transition-colors hover:border-border-active hover:shadow-sm"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm font-medium text-text-bright truncate">{m.id}</span>
@@ -212,59 +257,92 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-text-muted">
-                    {limit.context ? (
-                      <span>上下文 {Number(limit.context).toLocaleString()}</span>
-                    ) : null}
-                    {limit.output ? (
-                      <span>输出 {Number(limit.output).toLocaleString()}</span>
-                    ) : null}
+                    {limit.context ? <span>上下文 {Number(limit.context).toLocaleString()}</span> : null}
+                    {limit.output ? <span>输出 {Number(limit.output).toLocaleString()}</span> : null}
                     {cost.input || cost.output ? (
-                      <span className="text-amber-600 dark:text-amber-400">${cost.input || 0}/${cost.output || 0}</span>
+                      <span className="text-amber-600 dark:text-amber-400">
+                        ${cost.input || 0}/${cost.output || 0}
+                      </span>
                     ) : null}
-                    {!limit.context && !limit.output && (
-                      <span>无限制信息</span>
-                    )}
+                    {!limit.context && !limit.output && <span>无限制信息</span>}
                   </div>
                 </div>
                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button size="xs" variant="outline" onClick={() => openEditModel(m)}>编辑</Button>
-                  <Button size="xs" variant="destructive" onClick={() => setDeleteConfirm({ providerId, modelId: m.id })}>删除</Button>
+                  <Button size="xs" variant="outline" onClick={() => openEditModel(m)}>
+                    编辑
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    onClick={() => setDeleteConfirm({ providerId, modelId: m.id })}
+                  >
+                    删除
+                  </Button>
                 </div>
               </div>
             );
           })}
         </div>
       )}
-      <Button size="sm" variant="outline" onClick={openNewModel} className="w-full border-dashed text-text-secondary hover:text-text-primary hover:border-brand">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={openNewModel}
+        className="w-full border-dashed text-text-secondary hover:text-text-primary hover:border-brand"
+      >
         + 添加模型
       </Button>
 
-      <FormDialog open={modelDialogOpen} onOpenChange={setModelDialogOpen}
-        title={isNewModel ? "新增模型" : `编辑模型 — ${mfId}`} onSubmit={handleModelSave} loading={modelSaving}>
+      <FormDialog
+        open={modelDialogOpen}
+        onOpenChange={setModelDialogOpen}
+        title={isNewModel ? "新增模型" : `编辑模型 — ${mfId}`}
+        onSubmit={handleModelSave}
+        loading={modelSaving}
+      >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium text-text-primary">模型 ID</label>
-              <Input value={mfId} onChange={(e) => setMfId(e.target.value)}
-                disabled={!isNewModel} placeholder="例如 qwen3.6-plus" className="mt-1" />
+              <Input
+                value={mfId}
+                onChange={(e) => setMfId(e.target.value)}
+                disabled={!isNewModel}
+                placeholder="例如 qwen3.6-plus"
+                className="mt-1"
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-text-primary">显示名称</label>
-              <Input value={mfName} onChange={(e) => setMfName(e.target.value)}
-                placeholder="例如 Qwen3.6 Plus" className="mt-1" />
+              <Input
+                value={mfName}
+                onChange={(e) => setMfName(e.target.value)}
+                placeholder="例如 Qwen3.6 Plus"
+                className="mt-1"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium text-text-primary">上下文限制</label>
-              <Input type="number" value={mfContext} onChange={(e) => setMfContext(e.target.value)}
-                placeholder="128000" className="mt-1 font-mono text-sm" />
+              <Input
+                type="number"
+                value={mfContext}
+                onChange={(e) => setMfContext(e.target.value)}
+                placeholder="128000"
+                className="mt-1 font-mono text-sm"
+              />
               <p className="text-xs text-text-muted mt-1">tokens，对话上下文窗口大小</p>
             </div>
             <div>
               <label className="text-sm font-medium text-text-primary">输出限制</label>
-              <Input type="number" value={mfOutput} onChange={(e) => setMfOutput(e.target.value)}
-                placeholder="16384" className="mt-1 font-mono text-sm" />
+              <Input
+                type="number"
+                value={mfOutput}
+                onChange={(e) => setMfOutput(e.target.value)}
+                placeholder="16384"
+                className="mt-1 font-mono text-sm"
+              />
               <p className="text-xs text-text-muted mt-1">tokens，单次回复最大长度</p>
             </div>
           </div>
@@ -320,29 +398,51 @@ function ModelSubrow({ providerId, models, onModelChange }: { providerId: string
               {mfThinkingEnabled && (
                 <div>
                   <label className="text-sm font-medium text-text-primary">思考预算 (tokens)</label>
-                  <Input type="number" value={mfThinkingBudget} onChange={(e) => setMfThinkingBudget(e.target.value)}
-                    placeholder="例如 10000" className="mt-1" />
+                  <Input
+                    type="number"
+                    value={mfThinkingBudget}
+                    onChange={(e) => setMfThinkingBudget(e.target.value)}
+                    placeholder="例如 10000"
+                    className="mt-1"
+                  />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-text-primary">输入费用 ($/百万 tokens)</label>
-                  <Input type="number" step="0.01" value={mfCostInput} onChange={(e) => setMfCostInput(e.target.value)}
-                    placeholder="例如 2.5" className="mt-1" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={mfCostInput}
+                    onChange={(e) => setMfCostInput(e.target.value)}
+                    placeholder="例如 2.5"
+                    className="mt-1"
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-text-primary">输出费用 ($/百万 tokens)</label>
-                  <Input type="number" step="0.01" value={mfCostOutput} onChange={(e) => setMfCostOutput(e.target.value)}
-                    placeholder="例如 10" className="mt-1" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={mfCostOutput}
+                    onChange={(e) => setMfCostOutput(e.target.value)}
+                    placeholder="例如 10"
+                    className="mt-1"
+                  />
                 </div>
               </div>
             </div>
           )}
         </div>
       </FormDialog>
-      <ConfirmDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}
-        title="确认删除模型" description={`此操作不可逆。确定要删除模型 "${deleteConfirm?.modelId}" 吗？`}
-        variant="destructive" onConfirm={handleModelDelete} />
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={() => setDeleteConfirm(null)}
+        title="确认删除模型"
+        description={`此操作不可逆。确定要删除模型 "${deleteConfirm?.modelId}" 吗？`}
+        variant="destructive"
+        onConfirm={handleModelDelete}
+      />
     </div>
   );
 }
@@ -357,7 +457,9 @@ export function ModelsPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [selected, setSelected] = useState<ProviderInfo[]>([]);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
-  const [testResult, setTestResult] = useState<{ name: string; models: string[]; warning?: string } | { name: string; error: string } | null>(null);
+  const [testResult, setTestResult] = useState<
+    { name: string; models: string[]; warning?: string } | { name: string; error: string } | null
+  >(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [addedModelIds, setAddedModelIds] = useState<Set<string>>(new Set());
   const [formName, setFormName] = useState("");
@@ -376,16 +478,25 @@ export function ModelsPage() {
           const { data: listData, error: listErr } = await client.web.config.providers.post({ action: "list" });
           if (listErr) throw new Error(listErr.message ?? "加载服务商列表失败");
           const unwrapped = unwrapConfigData(listData) ?? listData;
-          const data = Array.isArray(unwrapped) ? unwrapped : ((unwrapped as { providers?: ProviderInfo[] }).providers ?? []);
+          const data = Array.isArray(unwrapped)
+            ? unwrapped
+            : ((unwrapped as { providers?: ProviderInfo[] }).providers ?? []);
           const modelsMap: Record<string, ProviderModel[]> = {};
-          await Promise.all(data.map(async (p: ProviderInfo) => {
-            try {
-              const { data: detailData, error: detailErr } = await client.web.config.providers.post({ action: "get", name: p.id });
-              if (detailErr) throw new Error(detailErr.message ?? "加载服务商详情失败");
-              const detail = unwrapConfigData(detailData) ?? detailData;
-              modelsMap[p.id] = detail.models;
-            } catch { modelsMap[p.id] = []; }
-          }));
+          await Promise.all(
+            data.map(async (p: ProviderInfo) => {
+              try {
+                const { data: detailData, error: detailErr } = await client.web.config.providers.post({
+                  action: "get",
+                  name: p.id,
+                });
+                if (detailErr) throw new Error(detailErr.message ?? "加载服务商详情失败");
+                const detail = unwrapConfigData(detailData) ?? detailData;
+                modelsMap[p.id] = detail.models;
+              } catch {
+                modelsMap[p.id] = [];
+              }
+            }),
+          );
           return { providers: data, providerModels: modelsMap };
         })(),
         (async () => {
@@ -405,60 +516,82 @@ export function ModelsPage() {
     }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   const columns: Column<ProviderInfo>[] = [
-    { key: "id", header: "ID", sortable: true, filterable: true, render: (row) => (
-      <div className="flex flex-col">
-        <span className="font-mono text-sm text-text-bright">{row.id}</span>
-        {row.name && row.name !== row.id && (
-          <span className="text-xs text-text-muted">{row.name}</span>
-        )}
-      </div>
-    )},
-    { key: "npm", header: "协议", render: (row) => {
-      const opt = NPM_OPTIONS.find((o) => o.npm === row.npm);
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-2 text-text-secondary">
-          {opt ? opt.label : (row.npm || "—")}
-        </span>
-      );
-    }},
-    { key: "keyHint", header: "API Key", render: (row) => (
-      row.keyHint ? (
-        <span className="font-mono text-xs text-text-muted bg-surface-2 px-2 py-0.5 rounded">
-          ***{row.keyHint}
-        </span>
-      ) : (
-        <span className="text-text-muted">—</span>
-      )
-    )},
+    {
+      key: "id",
+      header: "ID",
+      sortable: true,
+      filterable: true,
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-mono text-sm text-text-bright">{row.id}</span>
+          {row.name && row.name !== row.id && <span className="text-xs text-text-muted">{row.name}</span>}
+        </div>
+      ),
+    },
+    {
+      key: "npm",
+      header: "协议",
+      render: (row) => {
+        const opt = NPM_OPTIONS.find((o) => o.npm === row.npm);
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-2 text-text-secondary">
+            {opt ? opt.label : row.npm || "—"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "keyHint",
+      header: "API Key",
+      render: (row) =>
+        row.keyHint ? (
+          <span className="font-mono text-xs text-text-muted bg-surface-2 px-2 py-0.5 rounded">***{row.keyHint}</span>
+        ) : (
+          <span className="text-text-muted">—</span>
+        ),
+    },
     {
       key: "configured",
       header: "状态",
       filterable: true,
       render: (row) => <StatusBadge status={row.configured ? "configured" : "unconfigured"} />,
     },
-    { key: "modelCount", header: "模型", sortable: true, render: (row) => (
-      <span className={`inline-flex items-center justify-center min-w-[24px] h-5 px-1.5 rounded-full text-xs font-medium ${
-        row.modelCount > 0
-          ? "bg-brand-subtle text-brand dark:text-brand-light"
-          : "bg-surface-2 text-text-muted"
-      }`}>
-        {row.modelCount}
-      </span>
-    )},
+    {
+      key: "modelCount",
+      header: "模型",
+      sortable: true,
+      render: (row) => (
+        <span
+          className={`inline-flex items-center justify-center min-w-[24px] h-5 px-1.5 rounded-full text-xs font-medium ${
+            row.modelCount > 0 ? "bg-brand-subtle text-brand dark:text-brand-light" : "bg-surface-2 text-text-muted"
+          }`}
+        >
+          {row.modelCount}
+        </span>
+      ),
+    },
   ];
 
   const handleOpenCreate = () => {
     setEditingProvider(null);
-    setFormName(""); setFormApiKey(""); setFormBaseURL(""); setFormNpm("openai-compatible"); setFormDisplayName("");
+    setFormName("");
+    setFormApiKey("");
+    setFormBaseURL("");
+    setFormNpm("openai-compatible");
+    setFormDisplayName("");
     setDialogOpen(true);
   };
 
   const handleOpenEdit = (provider: ProviderInfo) => {
     setEditingProvider(provider);
-    setFormName(provider.id); setFormApiKey(""); setFormBaseURL(provider.baseURL ?? "");
+    setFormName(provider.id);
+    setFormApiKey("");
+    setFormBaseURL(provider.baseURL ?? "");
     const matchOpt = NPM_OPTIONS.find((o) => o.npm === provider.npm);
     setFormNpm(matchOpt ? matchOpt.id : "openai-compatible");
     setFormDisplayName(provider.name !== provider.id ? provider.name : "");
@@ -467,7 +600,11 @@ export function ModelsPage() {
 
   const handleSave = async () => {
     const err = validateProviderForm(formName, !!editingProvider);
-    if (err) { console.error("保存Provider失败", err); toast.error(err); return; }
+    if (err) {
+      console.error("保存Provider失败", err);
+      toast.error(err);
+      return;
+    }
     setFormSaving(true);
     try {
       const npmPackage = NPM_OPTIONS.find((o) => o.id === formNpm)?.npm ?? "@ai-sdk/openai-compatible";
@@ -506,16 +643,22 @@ export function ModelsPage() {
   const handleAddFromTest = async (modelId: string) => {
     if (!testResult || "error" in testResult) return;
     try {
-      const { error: addFromTestErr } = await client.web.config.providers.post({ action: "add_model", name: testResult.name, modelId, data: { modelId, name: modelId } });
+      const { error: addFromTestErr } = await client.web.config.providers.post({
+        action: "add_model",
+        name: testResult.name,
+        modelId,
+        data: { modelId, name: modelId },
+      });
       if (addFromTestErr) throw new Error(addFromTestErr.message ?? "添加失败");
       setAddedModelIds((prev) => new Set(prev).add(modelId));
       setProviderModels((prev) => ({
         ...prev,
-        [testResult.name]: [...(prev[testResult.name] ?? []), { id: modelId, name: modelId, modalities: null, limit: null, cost: null }],
+        [testResult.name]: [
+          ...(prev[testResult.name] ?? []),
+          { id: modelId, name: modelId, modalities: null, limit: null, cost: null },
+        ],
       }));
-      setProviders((prev) => prev.map((p) =>
-        p.id === testResult.name ? { ...p, modelCount: p.modelCount + 1 } : p
-      ));
+      setProviders((prev) => prev.map((p) => (p.id === testResult.name ? { ...p, modelCount: p.modelCount + 1 } : p)));
       toast.success(`模型 ${modelId} 已添加`);
       dispatchConfigChange("models");
     } catch (e) {
@@ -524,7 +667,10 @@ export function ModelsPage() {
     }
   };
 
-  const handleDelete = (name: string) => { setDeleteTarget(name); setConfirmOpen(true); };
+  const handleDelete = (name: string) => {
+    setDeleteTarget(name);
+    setConfirmOpen(true);
+  };
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -540,10 +686,18 @@ export function ModelsPage() {
     }
   };
 
-  const handleBatchDelete = () => { setBatchConfirmOpen(true); };
+  const handleBatchDelete = () => {
+    setBatchConfirmOpen(true);
+  };
   const confirmBatchDelete = async () => {
     try {
-      await Promise.all(selected.map((p) => client.web.config.providers.post({ action: "delete", name: p.id }).then((r) => { if (r.error) throw new Error(r.error.message ?? "删除失败"); })));
+      await Promise.all(
+        selected.map((p) =>
+          client.web.config.providers.post({ action: "delete", name: p.id }).then((r) => {
+            if (r.error) throw new Error(r.error.message ?? "删除失败");
+          }),
+        ),
+      );
       toast.success(`已删除 ${selected.length} 个服务商`);
       setBatchConfirmOpen(false);
       setSelected([]);
@@ -597,7 +751,7 @@ export function ModelsPage() {
         onSelectionChange={setSelected}
         defaultExpandAll
         rowKey={(row) => row.id}
-        emptyMessage={'暂无服务商，点击「新建服务商」添加'}
+        emptyMessage={"暂无服务商，点击「新建服务商」添加"}
         expandableRow={(row) => (
           <ModelSubrow
             providerId={row.id}
@@ -605,8 +759,12 @@ export function ModelsPage() {
             onModelChange={(action, pid, mid) => {
               if (action === "delete" && mid) {
                 setProviderModels((prev) => ({ ...prev, [pid]: (prev[pid] ?? []).filter((m) => m.id !== mid) }));
-                setProviders((prev) => prev.map((p) => p.id === pid ? { ...p, modelCount: Math.max(0, p.modelCount - 1) } : p));
-              } else if (action === "save") { loadAll(); }
+                setProviders((prev) =>
+                  prev.map((p) => (p.id === pid ? { ...p, modelCount: Math.max(0, p.modelCount - 1) } : p)),
+                );
+              } else if (action === "save") {
+                loadAll();
+              }
             }}
           />
         )}
@@ -615,31 +773,50 @@ export function ModelsPage() {
             <Button size="xs" variant="outline" onClick={() => handleTest(row.id)} disabled={testing === row.id}>
               {testing === row.id ? "检测中..." : "测试"}
             </Button>
-            <Button size="xs" variant="outline" onClick={() => handleOpenEdit(row)}>编辑</Button>
-            <Button size="xs" variant="destructive" onClick={() => handleDelete(row.id)}>删除</Button>
+            <Button size="xs" variant="outline" onClick={() => handleOpenEdit(row)}>
+              编辑
+            </Button>
+            <Button size="xs" variant="destructive" onClick={() => handleDelete(row.id)}>
+              删除
+            </Button>
           </div>
         )}
       />
       {selected.length > 0 && (
-        <BatchActionBar selectedCount={selected.length} onClear={() => setSelected([])}
-          actions={[{ label: "批量删除", variant: "destructive", onClick: handleBatchDelete }]} />
+        <BatchActionBar
+          selectedCount={selected.length}
+          onClear={() => setSelected([])}
+          actions={[{ label: "批量删除", variant: "destructive", onClick: handleBatchDelete }]}
+        />
       )}
-      <FormDialog open={dialogOpen} onOpenChange={setDialogOpen}
-        title={editingProvider ? "编辑服务商" : "新建服务商"} onSubmit={handleSave} loading={formSaving}>
+      <FormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingProvider ? "编辑服务商" : "新建服务商"}
+        onSubmit={handleSave}
+        loading={formSaving}
+      >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium text-text-primary">ID（标识符）</label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)}
-                disabled={!!editingProvider} placeholder="bailian-token-plan" className="mt-1 font-mono text-sm" />
-              {editingProvider && (
-                <p className="text-xs text-text-muted mt-1">ID 创建后不可修改</p>
-              )}
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                disabled={!!editingProvider}
+                placeholder="bailian-token-plan"
+                className="mt-1 font-mono text-sm"
+              />
+              {editingProvider && <p className="text-xs text-text-muted mt-1">ID 创建后不可修改</p>}
             </div>
             <div>
               <label className="text-sm font-medium text-text-primary">显示名称</label>
-              <Input value={formDisplayName} onChange={(e) => setFormDisplayName(e.target.value)}
-                placeholder="例如 阿里百炼" className="mt-1" />
+              <Input
+                value={formDisplayName}
+                onChange={(e) => setFormDisplayName(e.target.value)}
+                placeholder="例如 阿里百炼"
+                className="mt-1"
+              />
             </div>
           </div>
           <div>
@@ -650,32 +827,56 @@ export function ModelsPage() {
               </SelectTrigger>
               <SelectContent>
                 {NPM_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-text-muted mt-1">
-              SDK 包: <code className="font-mono bg-surface-2 px-1 rounded">{NPM_OPTIONS.find((o) => o.id === formNpm)?.npm ?? ""}</code>
+              SDK 包:{" "}
+              <code className="font-mono bg-surface-2 px-1 rounded">
+                {NPM_OPTIONS.find((o) => o.id === formNpm)?.npm ?? ""}
+              </code>
             </p>
           </div>
           <div>
             <label className="text-sm font-medium text-text-primary">API Key</label>
-            <Input type="password" value={formApiKey} onChange={(e) => setFormApiKey(e.target.value)}
-              placeholder={editingProvider ? "留空表示不修改" : "输入 API Key"} className="mt-1" />
+            <Input
+              type="password"
+              value={formApiKey}
+              onChange={(e) => setFormApiKey(e.target.value)}
+              placeholder={editingProvider ? "留空表示不修改" : "输入 API Key"}
+              className="mt-1"
+            />
           </div>
           <div>
             <label className="text-sm font-medium text-text-primary">Base URL</label>
-            <Input value={formBaseURL} onChange={(e) => setFormBaseURL(e.target.value)}
-              placeholder="可选，默认使用服务商 URL" className="mt-1" />
+            <Input
+              value={formBaseURL}
+              onChange={(e) => setFormBaseURL(e.target.value)}
+              placeholder="可选，默认使用服务商 URL"
+              className="mt-1"
+            />
           </div>
         </div>
       </FormDialog>
-      <ConfirmDialog open={confirmOpen} onOpenChange={setConfirmOpen}
-        title="确认删除" description={`此操作不可逆。确定要删除服务商 "${deleteTarget}" 吗？`}
-        variant="destructive" onConfirm={confirmDelete} />
-      <ConfirmDialog open={batchConfirmOpen} onOpenChange={setBatchConfirmOpen}
-        title="批量删除确认" description={`此操作不可逆。确定要删除选中的 ${selected.length} 个服务商吗？`}
-        variant="destructive" onConfirm={confirmBatchDelete} />
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="确认删除"
+        description={`此操作不可逆。确定要删除服务商 "${deleteTarget}" 吗？`}
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={batchConfirmOpen}
+        onOpenChange={setBatchConfirmOpen}
+        title="批量删除确认"
+        description={`此操作不可逆。确定要删除选中的 ${selected.length} 个服务商吗？`}
+        variant="destructive"
+        onConfirm={confirmBatchDelete}
+      />
       <Dialog open={!!testResult} onOpenChange={() => setTestResult(null)}>
         <DialogContent>
           <DialogHeader>
@@ -690,23 +891,26 @@ export function ModelsPage() {
                 : `发现 ${(testResult as { name: string; models: string[] } | null)?.models?.length ?? 0} 个可用模型`}
             </DialogDescription>
           </DialogHeader>
-          {testResult && !("error" in testResult) && (
-            testResult.warning ? (
+          {testResult &&
+            !("error" in testResult) &&
+            (testResult.warning ? (
               <div className="text-sm py-2.5 px-3 rounded-lg bg-warning-bg text-warning-text border border-warning-border">
                 {testResult.warning}
               </div>
-            ) : null
-          )}
+            ) : null)}
           {testResult && !("error" in testResult) && testResult.models.length > 0 && (
             <div className="max-h-72 overflow-y-auto grid gap-1.5">
               {(testResult as { name: string; models: string[] }).models.map((m) => {
                 const added = addedModelIds.has(m);
                 return (
-                  <div key={m} className={`flex items-center justify-between text-sm py-2 px-3 rounded-lg border transition-colors ${
-                    added
-                      ? "bg-surface-2 border-border-light"
-                      : "bg-surface-1 border-border-light hover:border-brand/30"
-                  }`}>
+                  <div
+                    key={m}
+                    className={`flex items-center justify-between text-sm py-2 px-3 rounded-lg border transition-colors ${
+                      added
+                        ? "bg-surface-2 border-border-light"
+                        : "bg-surface-1 border-border-light hover:border-brand/30"
+                    }`}
+                  >
                     <span className="font-mono text-xs text-text-primary">{m}</span>
                     {added ? (
                       <span className="text-xs text-status-active font-medium">已添加</span>

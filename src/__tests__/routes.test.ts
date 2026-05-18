@@ -15,8 +15,12 @@ async function ensureSystemUser() {
   const now = new Date();
   try {
     await db.insert(userTable).values({
-      id: "system", name: "System", email: "system@rcs.local",
-      emailVerified: false, createdAt: now, updatedAt: now,
+      id: "system",
+      name: "System",
+      email: "system@rcs.local",
+      emailVerified: false,
+      createdAt: now,
+      updatedAt: now,
     });
   } catch {}
 }
@@ -793,9 +797,7 @@ describe("Web Session Routes", () => {
     expect(body.events).toHaveLength(1);
     expect(body.events[0]?.type).toBe("task_state");
     expect(body.events[0]?.payload.task_list_id).toBe("team-alpha");
-    expect(body.events[0]?.payload.tasks).toEqual([
-      { id: "1", subject: "Investigate", status: "pending" },
-    ]);
+    expect(body.events[0]?.payload.tasks).toEqual([{ id: "1", subject: "Investigate", status: "pending" }]);
   });
 
   test.skip("GET /web/sessions/:id and history — supports compat code session IDs", async () => {
@@ -1214,7 +1216,7 @@ describe("V1 Session Ingress Routes (HTTP)", () => {
 
         ws.onmessage = (event) => {
           const data = typeof event.data === "string" ? event.data : String(event.data);
-          if (data.includes("\"type\":\"user\"")) {
+          if (data.includes('"type":"user"')) {
             clearTimeout(timeout);
             ws.close();
             resolve(data);
@@ -1226,7 +1228,7 @@ describe("V1 Session Ingress Routes (HTTP)", () => {
         };
       });
 
-      expect(message).toContain("\"type\":\"user\"");
+      expect(message).toContain('"type":"user"');
       expect(message).toContain(`"session_id":"${id}"`);
       expect(message).toContain("compat ws replay");
     } finally {
@@ -1273,7 +1275,9 @@ describe("V2 Worker Events Routes", () => {
       headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    const { session: { id } } = await sessRes.json();
+    const {
+      session: { id },
+    } = await sessRes.json();
 
     const res = await request(app, `/v1/code/sessions/${id}/worker/events`, {
       method: "POST",
@@ -1298,7 +1302,9 @@ describe("V2 Worker Events Routes", () => {
       headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    const { session: { id } } = await sessRes.json();
+    const {
+      session: { id },
+    } = await sessRes.json();
 
     const putRes = await request(app, `/v1/code/sessions/${id}/worker`, {
       method: "PUT",
@@ -1346,7 +1352,9 @@ describe("V2 Worker Events Routes", () => {
       headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    const { session: { id } } = await sessRes.json();
+    const {
+      session: { id },
+    } = await sessRes.json();
 
     const heartbeatRes = await request(app, `/v1/code/sessions/${id}/worker/heartbeat`, {
       method: "POST",
@@ -1368,7 +1376,9 @@ describe("V2 Worker Events Routes", () => {
       headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    const { session: { id } } = await sessRes.json();
+    const {
+      session: { id },
+    } = await sessRes.json();
 
     const streamRes = await request(app, `/v1/code/sessions/${id}/worker/events/stream`, {
       headers: AUTH_HEADERS,
@@ -1388,7 +1398,7 @@ describe("V2 Worker Events Routes", () => {
     const secondChunk = await reader.read();
     const frame = new TextDecoder().decode(secondChunk.value!);
     expect(frame).toContain("event: client_event");
-    expect(frame).toContain("\"payload\":{\"type\":\"user\",\"content\":\"hello\",\"message\":{\"content\":\"hello\"}}");
+    expect(frame).toContain('"payload":{"type":"user","content":"hello","message":{"content":"hello"}}');
     reader.cancel();
   });
 
@@ -1425,10 +1435,10 @@ describe("V2 Worker Events Routes", () => {
     const chunk = await reader.read();
     const frame = new TextDecoder().decode(chunk.value!);
     expect(frame).toContain("event: client_event");
-    expect(frame).toContain("\"event_type\":\"permission_response\"");
-    expect(frame).toContain("\"payload\":{\"type\":\"control_response\"");
-    expect(frame).toContain("\"request_id\":\"req-1\"");
-    expect(frame).toContain("\"behavior\":\"allow\"");
+    expect(frame).toContain('"event_type":"permission_response"');
+    expect(frame).toContain('"payload":{"type":"control_response"');
+    expect(frame).toContain('"request_id":"req-1"');
+    expect(frame).toContain('"behavior":"allow"');
     reader.cancel();
   });
 
@@ -1466,12 +1476,12 @@ describe("V2 Worker Events Routes", () => {
     const chunk = await reader.read();
     const frame = new TextDecoder().decode(chunk.value!);
     expect(frame).toContain("event: client_event");
-    expect(frame).toContain("\"event_type\":\"permission_response\"");
-    expect(frame).toContain("\"payload\":{\"type\":\"control_response\"");
-    expect(frame).toContain("\"request_id\":\"req-2\"");
-    expect(frame).toContain("\"subtype\":\"error\"");
-    expect(frame).toContain("\"behavior\":\"deny\"");
-    expect(frame).toContain("\"message\":\"Need more detail\"");
+    expect(frame).toContain('"event_type":"permission_response"');
+    expect(frame).toContain('"payload":{"type":"control_response"');
+    expect(frame).toContain('"request_id":"req-2"');
+    expect(frame).toContain('"subtype":"error"');
+    expect(frame).toContain('"behavior":"deny"');
+    expect(frame).toContain('"message":"Need more detail"');
     reader.cancel();
   });
 
@@ -1503,9 +1513,9 @@ describe("V2 Worker Events Routes", () => {
     const chunk = await reader.read();
     const frame = new TextDecoder().decode(chunk.value!);
     expect(frame).toContain("event: client_event");
-    expect(frame).toContain("\"event_type\":\"interrupt\"");
-    expect(frame).toContain("\"payload\":{\"type\":\"control_request\"");
-    expect(frame).toContain("\"subtype\":\"interrupt\"");
+    expect(frame).toContain('"event_type":"interrupt"');
+    expect(frame).toContain('"payload":{"type":"control_request"');
+    expect(frame).toContain('"subtype":"interrupt"');
     reader.cancel();
   });
 
@@ -1563,7 +1573,9 @@ describe("V2 Worker Events Routes", () => {
       headers: { ...AUTH_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    const { session: { id } } = await sessRes.json();
+    const {
+      session: { id },
+    } = await sessRes.json();
 
     const res = await request(app, `/v1/code/sessions/${id}/worker/events/delivery`, {
       method: "POST",

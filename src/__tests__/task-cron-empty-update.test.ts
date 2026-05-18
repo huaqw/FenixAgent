@@ -62,8 +62,6 @@ describe("validateTaskInput: empty cron on update", () => {
 
   // 空字符串 cron 在创建模式下也被拒绝
   test("rejects empty string cron on create", () => {
-    expect(
-      validateTaskInput({ name: "t", url: "http://x", cron: "" }),
-    ).not.toBeNull();
+    expect(validateTaskInput({ name: "t", url: "http://x", cron: "" })).not.toBeNull();
   });
 });

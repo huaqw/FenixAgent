@@ -1,8 +1,5 @@
 import type { WsConnection } from "./ws-types";
-import {
-  findAcpConnectionByAgentId,
-  sendToAgentWs,
-} from "./acp-ws-handler";
+import { findAcpConnectionByAgentId, sendToAgentWs } from "./acp-ws-handler";
 import { getAcpEventBus } from "./event-bus";
 import type { SessionEvent } from "./event-bus";
 
@@ -65,8 +62,16 @@ function publishToEventBus(agentId: string, message: Record<string, unknown>): v
 }
 
 /** Called from onOpen — finds target agent and bridges connection */
-export function handleRelayOpen(ws: WsConnection, relayWsId: string, agentId: string, userId: string, sessionId?: string): void {
-  log(`[ACP-Relay] Relay connection opened: relayWsId=${relayWsId} agentId=${agentId} userId=${userId} sessionId=${sessionId ?? "(none)"}`);
+export function handleRelayOpen(
+  ws: WsConnection,
+  relayWsId: string,
+  agentId: string,
+  userId: string,
+  sessionId?: string,
+): void {
+  log(
+    `[ACP-Relay] Relay connection opened: relayWsId=${relayWsId} agentId=${agentId} userId=${userId} sessionId=${sessionId ?? "(none)"}`,
+  );
 
   // Check for spawned instance — prefer instance matching the sessionId
   let instance = sessionId ? findInstanceBySessionId(sessionId) : undefined;
@@ -92,7 +97,13 @@ export function handleRelayOpen(ws: WsConnection, relayWsId: string, agentId: st
 }
 
 /** Instance mode: use core's connectInstanceRelay for managed WS */
-function openInstanceRelay(ws: WsConnection, relayWsId: string, agentId: string, userId: string, instanceId: string): void {
+function openInstanceRelay(
+  ws: WsConnection,
+  relayWsId: string,
+  agentId: string,
+  userId: string,
+  instanceId: string,
+): void {
   // Relay keepalive to frontend — only runs while relay is alive
   const relayKeepalive = setInterval(() => {
     const entry = relayConnections.get(relayWsId);
@@ -119,63 +130,72 @@ function openInstanceRelay(ws: WsConnection, relayWsId: string, agentId: string,
 
   // Asynchronously connect via core's relay
   const facade = getCoreRuntime();
-  facade.connectInstanceRelay({
-    instanceId,
-    sessionId: relayWsId,
-  }).then((handle) => {
-    // Check if relay WS is still open
-    if (ws.readyState !== 1) {
-      handle.close();
-      return;
-    }
+  facade
+    .connectInstanceRelay({
+      instanceId,
+      sessionId: relayWsId,
+    })
+    .then((handle) => {
+      // Check if relay WS is still open
+      if (ws.readyState !== 1) {
+        handle.close();
+        return;
+      }
 
-    entry.relayHandle = handle;
+      entry.relayHandle = handle;
 
-    // Flush buffered outbound messages (e.g. frontend's "connect" sent before relay was ready)
-    if (entry.outboundBuffer.length > 0) {
-      const buffered = entry.outboundBuffer.splice(0);
-      log(`[ACP-Relay] Flushing ${buffered.length} buffered outbound messages for instance ${instanceId}`);
-      for (const msg of buffered) {
-        if (msg.type === "connect") {
-          // Relay handle already sent connect; skip
-          log("[ACP-Relay] Skipping buffered connect (relay handle auto-connects)");
-          continue;
-        }
-        try {
-          handle.send(msg as any);
-        } catch {
-          // relay closed during flush — stop
-          break;
+      // Flush buffered outbound messages (e.g. frontend's "connect" sent before relay was ready)
+      if (entry.outboundBuffer.length > 0) {
+        const buffered = entry.outboundBuffer.splice(0);
+        log(`[ACP-Relay] Flushing ${buffered.length} buffered outbound messages for instance ${instanceId}`);
+        for (const msg of buffered) {
+          if (msg.type === "connect") {
+            // Relay handle already sent connect; skip
+            log("[ACP-Relay] Skipping buffered connect (relay handle auto-connects)");
+            continue;
+          }
+          try {
+            handle.send(msg as any);
+          } catch {
+            // relay closed during flush — stop
+            break;
+          }
         }
       }
-    }
 
-    // Subscribe to inbound messages from engine
-    if ("onMessage" in handle && typeof (handle as any).onMessage === "function") {
-      const opencodeHandle = handle as { onMessage: (listener: (msg: any) => void) => () => void };
-      entry.relayUnsub = opencodeHandle.onMessage((message) => {
-        log(`[ACP-Relay] Forwarding to frontend: type=${(message as any).type} readyState=${ws.readyState}`);
-        publishToEventBus(agentId, message);
-        if (ws.readyState === 1) {
-          sendToRelayWs(ws, message);
-        } else {
-          log(`[ACP-Relay] Frontend WS not open (state=${ws.readyState}), dropping message type=${(message as any).type}`);
-        }
-      });
-      log(`[ACP-Relay] onMessage listener registered for instance ${instanceId}`);
-    } else {
-      logError(`[ACP-Relay] Relay handle missing onMessage for instance ${instanceId}, handle keys: ${Object.keys(handle).join(",")}`);
-    }
+      // Subscribe to inbound messages from engine
+      if ("onMessage" in handle && typeof (handle as any).onMessage === "function") {
+        const opencodeHandle = handle as { onMessage: (listener: (msg: any) => void) => () => void };
+        entry.relayUnsub = opencodeHandle.onMessage((message) => {
+          log(`[ACP-Relay] Forwarding to frontend: type=${(message as any).type} readyState=${ws.readyState}`);
+          publishToEventBus(agentId, message);
+          if (ws.readyState === 1) {
+            sendToRelayWs(ws, message);
+          } else {
+            log(
+              `[ACP-Relay] Frontend WS not open (state=${ws.readyState}), dropping message type=${(message as any).type}`,
+            );
+          }
+        });
+        log(`[ACP-Relay] onMessage listener registered for instance ${instanceId}`);
+      } else {
+        logError(
+          `[ACP-Relay] Relay handle missing onMessage for instance ${instanceId}, handle keys: ${Object.keys(handle).join(",")}`,
+        );
+      }
 
-    // 不再主动发 status，由 acp-link 的 connect 响应自然推送给前端
-    log(`[ACP-Relay] Core relay connected for instance ${instanceId}`);
-  }).catch((err) => {
-    logError(`[ACP-Relay] Core relay connect failed for instance ${instanceId}: ${err instanceof Error ? err.message : String(err)}`);
-    if (ws.readyState === 1) {
-      sendToRelayWs(ws, { type: "error", message: "Agent connection error" });
-      ws.close(1011, "agent connection error");
-    }
-  });
+      // 不再主动发 status，由 acp-link 的 connect 响应自然推送给前端
+      log(`[ACP-Relay] Core relay connected for instance ${instanceId}`);
+    })
+    .catch((err) => {
+      logError(
+        `[ACP-Relay] Core relay connect failed for instance ${instanceId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      if (ws.readyState === 1) {
+        sendToRelayWs(ws, { type: "error", message: "Agent connection error" });
+        ws.close(1011, "agent connection error");
+      }
+    });
 }
 
 /** EventBus mode: for direct acp-link WS connections */
@@ -219,7 +239,11 @@ function openEventBusRelay(ws: WsConnection, relayWsId: string, agentId: string,
 /** Called from onMessage — forwards frontend messages.
  *  Accepts either a pre-parsed object (from Elysia WS) or a raw JSON string.
  */
-export async function handleRelayMessage(ws: WsConnection, relayWsId: string, data: string | Record<string, unknown>): Promise<void> {
+export async function handleRelayMessage(
+  ws: WsConnection,
+  relayWsId: string,
+  data: string | Record<string, unknown>,
+): Promise<void> {
   const entry = relayConnections.get(relayWsId);
   if (!entry) return;
 
@@ -236,7 +260,9 @@ export async function handleRelayMessage(ws: WsConnection, relayWsId: string, da
     parsed = data;
   }
 
-  log(`[ACP-Relay] handleRelayMessage: relayWsId=${relayWsId} type=${parsed.type} hasRelayHandle=${!!entry.relayHandle} instanceId=${entry.instanceId ?? "(none)"}`);
+  log(
+    `[ACP-Relay] handleRelayMessage: relayWsId=${relayWsId} type=${parsed.type} hasRelayHandle=${!!entry.relayHandle} instanceId=${entry.instanceId ?? "(none)"}`,
+  );
 
   // Instance mode: forward messages via core relay handle
   if (entry.relayHandle) {
@@ -276,7 +302,9 @@ export function handleRelayClose(ws: WsConnection, relayWsId: string, code?: num
   if (!entry) return;
 
   const duration = Math.round((Date.now() - entry.openTime) / 1000);
-  log(`[ACP-Relay] Connection closed: relayWsId=${relayWsId} agentId=${entry.agentId} code=${code ?? "none"} reason=${reason || "(none)"} duration=${duration}s`);
+  log(
+    `[ACP-Relay] Connection closed: relayWsId=${relayWsId} agentId=${entry.agentId} code=${code ?? "none"} reason=${reason || "(none)"} duration=${duration}s`,
+  );
 
   const instanceId = entry.instanceId;
 
@@ -297,9 +325,7 @@ export function handleRelayClose(ws: WsConnection, relayWsId: string, code?: num
   // shutdown 期间跳过：closeAllRelayConnections 已经关闭了 relayHandle，
   // 此处如果再 connectInstanceRelay 会创建新的 WS 连接，导致关闭时出现幽灵 relay
   if (instanceId && !isShuttingDown) {
-    const hasOtherRelay = [...relayConnections.values()].some(
-      (e) => e.instanceId === instanceId,
-    );
+    const hasOtherRelay = [...relayConnections.values()].some((e) => e.instanceId === instanceId);
     if (!hasOtherRelay) {
       // 通过 facade 关闭 relay：先获取 relay handle 再 close
       // 但 facade 没有暴露 getRelayHandle，所以直接从 entry 取
@@ -308,10 +334,13 @@ export function handleRelayClose(ws: WsConnection, relayWsId: string, code?: num
       const snapshot = facade.getInstance(instanceId);
       if (snapshot?.relayConnected) {
         // 使用 connectInstanceRelay 获取已有 handle 然后 close
-        facade.connectInstanceRelay({ instanceId }).then((handle) => {
-          handle.close();
-          log(`[ACP-Relay] Closed core relay handle for instance ${instanceId} (last relay disconnected)`);
-        }).catch(() => {});
+        facade
+          .connectInstanceRelay({ instanceId })
+          .then((handle) => {
+            handle.close();
+            log(`[ACP-Relay] Closed core relay handle for instance ${instanceId} (last relay disconnected)`);
+          })
+          .catch(() => {});
       }
     }
   }

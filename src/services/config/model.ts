@@ -36,7 +36,9 @@ export async function addModel(
   },
 ) {
   const fields = buildModelValues(data);
-  await db.insert(model).values({ providerId, modelId: data.modelId, ...fields })
+  await db
+    .insert(model)
+    .values({ providerId, modelId: data.modelId, ...fields })
     .onConflictDoUpdate({
       target: [model.providerId, model.modelId],
       set: fields,
@@ -61,14 +63,17 @@ export async function updateModel(
   if (data.cost !== undefined) set.cost = data.cost;
   if (data.options !== undefined) set.options = data.options;
 
-  const result = await db.update(model).set(set)
+  const result = await db
+    .update(model)
+    .set(set)
     .where(and(eq(model.providerId, providerId), eq(model.modelId, modelId)))
     .returning({ id: model.id });
   return result.length > 0;
 }
 
 export async function removeModel(providerId: string, modelId: string): Promise<boolean> {
-  const result = await db.delete(model)
+  const result = await db
+    .delete(model)
     .where(and(eq(model.providerId, providerId), eq(model.modelId, modelId)))
     .returning({ id: model.id });
   return result.length > 0;

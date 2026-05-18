@@ -5,13 +5,7 @@
 import type { ToolCallContent, PermissionOption, PlanEntry } from "../acp/types";
 
 // 工具调用状态
-export type ToolCallStatus =
-  | "running"
-  | "complete"
-  | "error"
-  | "waiting_for_confirmation"
-  | "rejected"
-  | "canceled";
+export type ToolCallStatus = "running" | "complete" | "error" | "waiting_for_confirmation" | "rejected" | "canceled";
 
 // 工具调用数据
 export interface ToolCallData {
@@ -31,9 +25,7 @@ export interface ToolCallData {
 }
 
 // 助手消息块 — 普通消息或思考过程
-export type AssistantChunk =
-  | { type: "message"; text: string }
-  | { type: "thought"; text: string };
+export type AssistantChunk = { type: "message"; text: string } | { type: "thought"; text: string };
 
 // 用户消息中的图片
 export interface UserMessageImage {
@@ -70,11 +62,7 @@ export interface PlanDisplayEntry {
 }
 
 // 统一聊天条目类型
-export type ThreadEntry =
-  | UserMessageEntry
-  | AssistantMessageEntry
-  | ToolCallEntry
-  | PlanDisplayEntry;
+export type ThreadEntry = UserMessageEntry | AssistantMessageEntry | ToolCallEntry | PlanDisplayEntry;
 
 // =============================================================================
 // Chat 组件 Props 类型

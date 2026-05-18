@@ -1,8 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  agentKnowledgeBindingRepo,
-  knowledgeBaseRepo,
-} from "../repositories/knowledge-base";
+import { agentKnowledgeBindingRepo, knowledgeBaseRepo } from "../repositories/knowledge-base";
 
 export interface AgentKnowledgePolicy {
   searchFirst?: boolean;
@@ -54,14 +51,14 @@ function normalizeKnowledgeBaseIds(knowledgeBaseIds: string[] | undefined): stri
 /**
  * Resolves a complete runtime policy object from optional agent knowledge config.
  */
-export function resolveAgentKnowledgePolicy(
-  policy?: AgentKnowledgePolicy | null,
-): ResolvedAgentKnowledgePolicy {
+export function resolveAgentKnowledgePolicy(policy?: AgentKnowledgePolicy | null): ResolvedAgentKnowledgePolicy {
   return {
     searchFirst: policy?.searchFirst ?? DEFAULT_SEARCH_FIRST,
     maxResults: policy?.maxResults ?? DEFAULT_MAX_RESULTS,
     defaultNamespaces: Array.isArray(policy?.defaultNamespaces)
-      ? policy!.defaultNamespaces.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      ? policy!.defaultNamespaces.filter(
+          (value): value is string => typeof value === "string" && value.trim().length > 0,
+        )
       : [],
   };
 }
@@ -69,9 +66,7 @@ export function resolveAgentKnowledgePolicy(
 /**
  * Counts how many agent bindings exist for each knowledge base id.
  */
-export async function countBindingsByKnowledgeBaseIds(
-  knowledgeBaseIds: string[],
-): Promise<Record<string, number>> {
+export async function countBindingsByKnowledgeBaseIds(knowledgeBaseIds: string[]): Promise<Record<string, number>> {
   const ids = normalizeKnowledgeBaseIds(knowledgeBaseIds);
   if (ids.length === 0) {
     return {};
@@ -86,7 +81,9 @@ export async function countBindingsByKnowledgeBaseIds(
 let _listAgentKnowledgeBindingsById: ((agentConfigId: string) => Promise<AgentKnowledgeBindingRecord[]>) | null = null;
 
 /** 测试用：注入自定义实现。传 null 恢复默认。 */
-export function setListAgentKnowledgeBindingsById(fn: ((agentConfigId: string) => Promise<AgentKnowledgeBindingRecord[]>) | null) {
+export function setListAgentKnowledgeBindingsById(
+  fn: ((agentConfigId: string) => Promise<AgentKnowledgeBindingRecord[]>) | null,
+) {
   _listAgentKnowledgeBindingsById = fn;
 }
 

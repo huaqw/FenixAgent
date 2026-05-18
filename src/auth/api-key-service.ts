@@ -3,7 +3,6 @@ import { db } from "../db";
 import { apiKey } from "../db/schema";
 import { createHash, randomBytes } from "node:crypto";
 
-
 const KEY_PREFIX = "rcs_";
 
 function generateApiKey(): string {
@@ -41,18 +40,25 @@ function sanitize(record: ApiKeyRecord): ApiKeySanitized {
   };
 }
 
-export async function createApiKey(userId: string, label: string, teamId: string): Promise<{ record: ApiKeySanitized; fullKey: string }> {
+export async function createApiKey(
+  userId: string,
+  label: string,
+  teamId: string,
+): Promise<{ record: ApiKeySanitized; fullKey: string }> {
   const fullKey = generateApiKey();
   const now = new Date();
 
-  const [row] = await db.insert(apiKey).values({
-    userId,
-    teamId,
-    key: fullKey,
-    label: label || "Default",
-    createdAt: now,
-    lastUsedAt: null,
-  }).returning();
+  const [row] = await db
+    .insert(apiKey)
+    .values({
+      userId,
+      teamId,
+      key: fullKey,
+      label: label || "Default",
+      createdAt: now,
+      lastUsedAt: null,
+    })
+    .returning();
 
   const record: ApiKeyRecord = {
     id: row.id,
@@ -66,12 +72,10 @@ export async function createApiKey(userId: string, label: string, teamId: string
   return { record: sanitize(record), fullKey };
 }
 
-export async function validateApiKeyAndGetUser(key: string): Promise<{ userId: string; keyId: string; teamId: string | null } | null> {
-  const rows = await db
-    .select()
-    .from(apiKey)
-    .where(eq(apiKey.key, key))
-    .limit(1);
+export async function validateApiKeyAndGetUser(
+  key: string,
+): Promise<{ userId: string; keyId: string; teamId: string | null } | null> {
+  const rows = await db.select().from(apiKey).where(eq(apiKey.key, key)).limit(1);
 
   if (rows.length === 0) return null;
 
@@ -88,19 +92,18 @@ export async function validateApiKeyAndGetUser(key: string): Promise<{ userId: s
 }
 
 export async function listApiKeysByUser(teamId: string): Promise<ApiKeySanitized[]> {
-  const rows = await db
-    .select()
-    .from(apiKey)
-    .where(eq(apiKey.teamId, teamId));
+  const rows = await db.select().from(apiKey).where(eq(apiKey.teamId, teamId));
 
-  return rows.map((r) => sanitize({
-    id: r.id,
-    userId: r.userId,
-    key: r.key,
-    label: r.label,
-    createdAt: r.createdAt,
-    lastUsedAt: r.lastUsedAt,
-  }));
+  return rows.map((r) =>
+    sanitize({
+      id: r.id,
+      userId: r.userId,
+      key: r.key,
+      label: r.label,
+      createdAt: r.createdAt,
+      lastUsedAt: r.lastUsedAt,
+    }),
+  );
 }
 
 export async function deleteApiKey(teamId: string, keyId: string): Promise<boolean> {
@@ -123,7 +126,10 @@ export async function updateApiKeyLabel(teamId: string, keyId: string, label: st
 
   if (!existing) return false;
 
-  await db.update(apiKey).set({ label }).where(and(eq(apiKey.id, keyId), eq(apiKey.teamId, teamId)));
+  await db
+    .update(apiKey)
+    .set({ label })
+    .where(and(eq(apiKey.id, keyId), eq(apiKey.teamId, teamId)));
   return true;
 }
 

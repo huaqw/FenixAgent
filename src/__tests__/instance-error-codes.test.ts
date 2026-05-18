@@ -7,11 +7,15 @@ const { NotFoundError, AppError } = await import("../errors");
 
 /** 复现 instances.ts 的 statusCode 映射逻辑 */
 function mapSpawnErrorToStatus(err: { code?: string; message: string }): number {
-  return err.code === "NOT_FOUND" ? 404
-    : err.code === "FORBIDDEN" ? 403
-    : err.code === "VALIDATION_ERROR" ? 400
-    : err.code === "MAX_SESSIONS_REACHED" ? 409
-    : 500;
+  return err.code === "NOT_FOUND"
+    ? 404
+    : err.code === "FORBIDDEN"
+      ? 403
+      : err.code === "VALIDATION_ERROR"
+        ? 400
+        : err.code === "MAX_SESSIONS_REACHED"
+          ? 409
+          : 500;
 }
 
 describe("instance spawn 错误码 → HTTP status 映射", () => {

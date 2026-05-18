@@ -34,9 +34,16 @@ import { stopAllInstances, listInstances } from "../services/instance";
 
 function snap(id: string, status: string): RuntimeInstanceSnapshot {
   return {
-    instanceId: id, status: status as any, errorMessage: null,
-    pluginMetadata: {}, createdAt: new Date(), engineType: "opencode",
-    nodeId: "local-default", launchSpec: {}, relayConnected: false, updatedAt: new Date(),
+    instanceId: id,
+    status: status as any,
+    errorMessage: null,
+    pluginMetadata: {},
+    createdAt: new Date(),
+    engineType: "opencode",
+    nodeId: "local-default",
+    launchSpec: {},
+    relayConnected: false,
+    updatedAt: new Date(),
   };
 }
 
@@ -64,10 +71,7 @@ describe("stopAllInstances skips stopping status", () => {
 
   // 全部 stopped/stopping 时无需 stop
   test("no stops when all instances are stopped", async () => {
-    mockListInstances.mockReturnValueOnce([
-      snap("inst_a", "stopped"),
-      snap("inst_b", "stopping"),
-    ]);
+    mockListInstances.mockReturnValueOnce([snap("inst_a", "stopped"), snap("inst_b", "stopping")]);
 
     await stopAllInstances();
     expect(mockStopInstance).not.toHaveBeenCalled();

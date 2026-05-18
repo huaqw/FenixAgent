@@ -1,12 +1,4 @@
-import {
-  mkdir,
-  open,
-  readFile,
-  readdir,
-  stat,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, open, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { environmentRepo } from "../repositories";
@@ -14,21 +6,65 @@ import { environmentRepo } from "../repositories";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TEXT_EXTENSIONS = new Set([
-  ".txt", ".md", ".json", ".yaml", ".yml", ".ts", ".js", ".tsx", ".jsx",
-  ".py", ".go", ".rs", ".css", ".html", ".xml", ".toml", ".ini", ".cfg",
-  ".sh", ".bash", ".zsh", ".sql", ".env",
+  ".txt",
+  ".md",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".ts",
+  ".js",
+  ".tsx",
+  ".jsx",
+  ".py",
+  ".go",
+  ".rs",
+  ".css",
+  ".html",
+  ".xml",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".sql",
+  ".env",
 ]);
 
 const MIME_TYPES: Record<string, string> = {
-  ".html": "text/html", ".htm": "text/html", ".css": "text/css",
-  ".js": "text/javascript", ".ts": "text/typescript", ".tsx": "text/typescript",
-  ".jsx": "text/javascript", ".json": "application/json", ".xml": "application/xml",
-  ".txt": "text/plain", ".md": "text/plain", ".yaml": "text/plain", ".yml": "text/plain",
-  ".py": "text/plain", ".go": "text/plain", ".rs": "text/plain", ".sh": "text/plain",
-  ".bash": "text/plain", ".zsh": "text/plain", ".sql": "text/plain", ".csv": "text/csv",
-  ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-  ".gif": "image/gif", ".svg": "image/svg+xml", ".webp": "image/webp", ".ico": "image/x-icon",
-  ".mp4": "video/mp4", ".webm": "video/webm", ".mp3": "audio/mpeg", ".wav": "audio/wav",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".css": "text/css",
+  ".js": "text/javascript",
+  ".ts": "text/typescript",
+  ".tsx": "text/typescript",
+  ".jsx": "text/javascript",
+  ".json": "application/json",
+  ".xml": "application/xml",
+  ".txt": "text/plain",
+  ".md": "text/plain",
+  ".yaml": "text/plain",
+  ".yml": "text/plain",
+  ".py": "text/plain",
+  ".go": "text/plain",
+  ".rs": "text/plain",
+  ".sh": "text/plain",
+  ".bash": "text/plain",
+  ".zsh": "text/plain",
+  ".sql": "text/plain",
+  ".csv": "text/csv",
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
 };
 
 // ── Pure functions ───────────────────────────────────────────────────────────
@@ -95,9 +131,7 @@ export async function resolveWorkspacePath(
   if (!resolvedPath.startsWith(`${baseDir}/`) && resolvedPath !== baseDir) return null;
 
   const relativeToBase = relative(baseDir, resolvedPath);
-  const displayPath = userScoped
-    ? relativeToBase ? `user/${relativeToBase}` : "user"
-    : relativeToBase || ".";
+  const displayPath = userScoped ? (relativeToBase ? `user/${relativeToBase}` : "user") : relativeToBase || ".";
 
   return { workspaceDir, userDir, resolved: resolvedPath, displayPath };
 }
@@ -133,15 +167,9 @@ export interface FileEntry {
 }
 
 /** 列出目录内容，过滤隐藏条目并构建 FileEntry 数组 */
-export async function listDirectory(
-  dirPath: string,
-  userDir: string,
-  workspaceDir: string,
-): Promise<FileEntry[]> {
+export async function listDirectory(dirPath: string, userDir: string, workspaceDir: string): Promise<FileEntry[]> {
   const entries = await readdir(dirPath, { withFileTypes: true });
-  const visibleEntries = entries.filter(
-    (entry) => !shouldHideWorkspaceEntry(join(dirPath, entry.name), userDir),
-  );
+  const visibleEntries = entries.filter((entry) => !shouldHideWorkspaceEntry(join(dirPath, entry.name), userDir));
   return Promise.all(
     visibleEntries.map(async (entry) => {
       const entryPath = join(dirPath, entry.name);
@@ -149,8 +177,12 @@ export async function listDirectory(
       const inUserDir = entryPath.startsWith(`${userDir}/`) || entryPath === userDir;
       const relPath = relative(inUserDir ? userDir : workspaceDir, entryPath);
       const path = inUserDir
-        ? entry.isDirectory() ? `user/${relPath}/` : `user/${relPath}`
-        : entry.isDirectory() ? `${relPath}/` : relPath;
+        ? entry.isDirectory()
+          ? `user/${relPath}/`
+          : `user/${relPath}`
+        : entry.isDirectory()
+          ? `${relPath}/`
+          : relPath;
       return {
         name: entry.name,
         path,

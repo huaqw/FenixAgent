@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock , afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
 import { setTestAuth, resetTestAuth } from "../plugins/auth";
 import { setTestTeamContext } from "../services/team-context";
 import { join } from "node:path";
@@ -10,15 +10,27 @@ import { existsSync } from "node:fs";
 const tempDir = await mkdtemp(join(tmpdir(), "skill-route-test-"));
 const skillsDir = join(tempDir, "skills");
 const disabledDir = join(skillsDir, "_disabled");
-let importResult: { imported: any[]; skipped: string[]; conflicts: any[] } = { imported: [], skipped: [], conflicts: [] };
+let importResult: { imported: any[]; skipped: string[]; conflicts: any[] } = {
+  imported: [],
+  skipped: [],
+  conflicts: [],
+};
 let importError: (Error & { code?: string }) | null = null;
 
 // Helper to create a skill SKILL.md
-async function createSkill(dir: string, name: string, description: string, content: string, extraMeta?: Record<string, string>) {
+async function createSkill(
+  dir: string,
+  name: string,
+  description: string,
+  content: string,
+  extraMeta?: Record<string, string>,
+) {
   const skillDir = join(dir, name);
   await mkdir(skillDir, { recursive: true });
   const meta: Record<string, string> = { name, description, ...extraMeta };
-  const frontmatter = Object.entries(meta).map(([k, v]) => `${k}: "${v}"`).join("\n");
+  const frontmatter = Object.entries(meta)
+    .map(([k, v]) => `${k}: "${v}"`)
+    .join("\n");
   await writeFile(join(skillDir, "SKILL.md"), `---\n${frontmatter}\n---\n${content}`, "utf-8");
 }
 
@@ -40,7 +52,11 @@ mock.module("../services/skill", () => ({
         if (match) {
           for (const line of match[1].split("\n")) {
             const idx = line.indexOf(":");
-            if (idx > 0) metadata[line.slice(0, idx).trim()] = line.slice(idx + 1).trim().replace(/^"(.*)"$/, "$1");
+            if (idx > 0)
+              metadata[line.slice(0, idx).trim()] = line
+                .slice(idx + 1)
+                .trim()
+                .replace(/^"(.*)"$/, "$1");
           }
         }
         skills.push({ name: entry.name, enabled: true, description: metadata.description ?? "", path: mdPath });
@@ -57,7 +73,11 @@ mock.module("../services/skill", () => ({
         if (match) {
           for (const line of match[1].split("\n")) {
             const idx = line.indexOf(":");
-            if (idx > 0) metadata[line.slice(0, idx).trim()] = line.slice(idx + 1).trim().replace(/^"(.*)"$/, "$1");
+            if (idx > 0)
+              metadata[line.slice(0, idx).trim()] = line
+                .slice(idx + 1)
+                .trim()
+                .replace(/^"(.*)"$/, "$1");
           }
         }
         skills.push({ name: entry.name, enabled: false, description: metadata.description ?? "", path: mdPath });
@@ -78,13 +98,28 @@ mock.module("../services/skill", () => ({
     if (match) {
       for (const line of match[1].split("\n")) {
         const idx = line.indexOf(":");
-        if (idx > 0) metadata[line.slice(0, idx).trim()] = line.slice(idx + 1).trim().replace(/^"(.*)"$/, "$1");
+        if (idx > 0)
+          metadata[line.slice(0, idx).trim()] = line
+            .slice(idx + 1)
+            .trim()
+            .replace(/^"(.*)"$/, "$1");
       }
       content = match[2];
     }
-    return { name, description: metadata.description ?? "", content, enabled: filePath === enabledPath, path: filePath, metadata };
+    return {
+      name,
+      description: metadata.description ?? "",
+      content,
+      enabled: filePath === enabledPath,
+      path: filePath,
+      metadata,
+    };
   },
-  setSkill: async (_ctx: any, name: string, data: { description: string; content: string; metadata?: Record<string, string> }) => {
+  setSkill: async (
+    _ctx: any,
+    name: string,
+    data: { description: string; content: string; metadata?: Record<string, string> },
+  ) => {
     // Delete old
     const enabledDir = join(skillsDir, name);
     const disabledDirPath = join(disabledDir, name);
@@ -100,8 +135,14 @@ mock.module("../services/skill", () => ({
     const enabledDir = join(skillsDir, name);
     const disabledDirPath = join(disabledDir, name);
     let deleted = false;
-    if (existsSync(enabledDir)) { await rm(enabledDir, { recursive: true, force: true }); deleted = true; }
-    if (existsSync(disabledDirPath)) { await rm(disabledDirPath, { recursive: true, force: true }); deleted = true; }
+    if (existsSync(enabledDir)) {
+      await rm(enabledDir, { recursive: true, force: true });
+      deleted = true;
+    }
+    if (existsSync(disabledDirPath)) {
+      await rm(disabledDirPath, { recursive: true, force: true });
+      deleted = true;
+    }
     return deleted;
   },
   enableSkill: async (_ctx: any, name: string) => {
@@ -131,7 +172,11 @@ mock.module("../services/skill", () => ({
   },
   listSkillSources: async () => [],
   getWorkspaceSkill: async () => null,
-  setWorkspaceSkill: async (_ws: string, _name: string, data: any) => ({ name: _name, enabled: true, description: data.description }),
+  setWorkspaceSkill: async (_ws: string, _name: string, data: any) => ({
+    name: _name,
+    enabled: true,
+    description: data.description,
+  }),
   deleteWorkspaceSkill: async () => true,
   listWorkspaceSkills: async () => [],
 }));
@@ -139,7 +184,7 @@ mock.module("../services/skill", () => ({
 const skillsRoute = (await import("../routes/web/config/skills")).default;
 
 describe("Skills Config Route", () => {
-    afterEach(() => {
+  afterEach(() => {
     resetTestAuth();
     setTestTeamContext(null);
   });
@@ -158,11 +203,13 @@ describe("Skills Config Route", () => {
   });
 
   test("list 返回空列表", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.skills).toEqual([]);
@@ -172,11 +219,13 @@ describe("Skills Config Route", () => {
     await createSkill(skillsDir, "enabled-skill", "Enabled", "# Enabled");
     await mkdir(disabledDir, { recursive: true });
     await createSkill(disabledDir, "disabled-skill", "Disabled", "# Disabled");
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      }),
+    );
     const json = await res.json();
     expect(json.data.skills).toHaveLength(2);
     expect(json.data.skills.find((s: any) => s.name === "enabled-skill")!.enabled).toBe(true);
@@ -185,11 +234,13 @@ describe("Skills Config Route", () => {
 
   test("get 返回 skill 详情", async () => {
     await createSkill(skillsDir, "test-skill", "A test skill", "# Test\nHello world", { version: "1.0" });
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get", name: "test-skill" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", name: "test-skill" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("test-skill");
@@ -199,33 +250,39 @@ describe("Skills Config Route", () => {
   });
 
   test("get 不存在 skill", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get", name: "ghost" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", name: "ghost" }),
+      }),
+    );
     expect(res.status).toBe(404);
     const json = await res.json();
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("get 缺少 name", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get" }),
+      }),
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
 
   test("set 创建新 skill", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set", name: "new-skill", data: { description: "New", content: "# New" } }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "new-skill", data: { description: "New", content: "# New" } }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.name).toBe("new-skill");
@@ -239,11 +296,17 @@ describe("Skills Config Route", () => {
     const { rename } = await import("node:fs/promises");
     await rename(join(skillsDir, "my-skill"), join(disabledDir, "my-skill"));
 
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set", name: "my-skill", data: { description: "Updated", content: "# Updated" } }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set",
+          name: "my-skill",
+          data: { description: "Updated", content: "# Updated" },
+        }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.enabled).toBe(true);
@@ -252,11 +315,13 @@ describe("Skills Config Route", () => {
   });
 
   test("set 缺少必填字段", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "set", name: "x", data: { description: "D" } }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", name: "x", data: { description: "D" } }),
+      }),
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
@@ -264,22 +329,26 @@ describe("Skills Config Route", () => {
 
   test("delete 已存在 skill", async () => {
     await createSkill(skillsDir, "to-delete", "Del", "# Del");
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "to-delete" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "to-delete" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(existsSync(join(skillsDir, "to-delete"))).toBe(false);
   });
 
   test("delete 不存在 skill", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", name: "ghost" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", name: "ghost" }),
+      }),
+    );
     expect(res.status).toBe(404);
     const json = await res.json();
     expect(json.error.code).toBe("NOT_FOUND");
@@ -291,11 +360,13 @@ describe("Skills Config Route", () => {
     const { rename } = await import("node:fs/promises");
     await rename(join(skillsDir, "toggle"), join(disabledDir, "toggle"));
 
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "enable", name: "toggle" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enable", name: "toggle" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.enabled).toBe(true);
@@ -303,11 +374,13 @@ describe("Skills Config Route", () => {
   });
 
   test("enable 不存在 skill", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "enable", name: "ghost" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enable", name: "ghost" }),
+      }),
+    );
     expect(res.status).toBe(404);
     const json = await res.json();
     expect(json.error.code).toBe("NOT_FOUND");
@@ -315,11 +388,13 @@ describe("Skills Config Route", () => {
 
   test("disable 启用→禁用", async () => {
     await createSkill(skillsDir, "toggle2", "T2", "# T2");
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "disable", name: "toggle2" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable", name: "toggle2" }),
+      }),
+    );
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.enabled).toBe(false);
@@ -327,22 +402,26 @@ describe("Skills Config Route", () => {
   });
 
   test("disable 不存在 skill", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "disable", name: "ghost" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable", name: "ghost" }),
+      }),
+    );
     expect(res.status).toBe(404);
     const json = await res.json();
     expect(json.error.code).toBe("NOT_FOUND");
   });
 
   test("未知 action", async () => {
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "unknown" }),
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unknown" }),
+      }),
+    );
     expect(res.status).toBe(422);
     const json = await res.json();
     expect(json.type).toBe("validation");
@@ -356,12 +435,14 @@ describe("Skills Config Route", () => {
     };
     const formData = new FormData();
     formData.append("manifest", JSON.stringify([{ skillName: "existing", relativePath: "SKILL.md" }]));
-    formData.append("files", new File(["---\nname: \"existing\"\n---\n# Existing"], "SKILL.md"));
+    formData.append("files", new File(['---\nname: "existing"\n---\n# Existing'], "SKILL.md"));
 
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
-      method: "POST",
-      body: formData,
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills/upload", {
+        method: "POST",
+        body: formData,
+      }),
+    );
 
     expect(res.status).toBe(409);
     const json = await res.json();
@@ -377,18 +458,23 @@ describe("Skills Config Route", () => {
       conflicts: [],
     };
     const formData = new FormData();
-    formData.append("manifest", JSON.stringify([
-      { skillName: "fresh", relativePath: "SKILL.md" },
-      { skillName: "fresh", relativePath: "references/ref.md" },
-    ]));
+    formData.append(
+      "manifest",
+      JSON.stringify([
+        { skillName: "fresh", relativePath: "SKILL.md" },
+        { skillName: "fresh", relativePath: "references/ref.md" },
+      ]),
+    );
     formData.append("conflictStrategy", "ignore");
-    formData.append("files", new File(["---\ndescription: \"Fresh\"\n---\n# Fresh"], "SKILL.md"));
+    formData.append("files", new File(['---\ndescription: "Fresh"\n---\n# Fresh'], "SKILL.md"));
     formData.append("files", new File(["ref"], "ref.md"));
 
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
-      method: "POST",
-      body: formData,
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills/upload", {
+        method: "POST",
+        body: formData,
+      }),
+    );
 
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -401,10 +487,12 @@ describe("Skills Config Route", () => {
     const formData = new FormData();
     formData.append("files", new File(["x"], "SKILL.md"));
 
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
-      method: "POST",
-      body: formData,
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills/upload", {
+        method: "POST",
+        body: formData,
+      }),
+    );
 
     expect(res.status).toBe(400);
     const json = await res.json();
@@ -417,10 +505,12 @@ describe("Skills Config Route", () => {
     formData.append("manifest", JSON.stringify([{ skillName: "broken", relativePath: "notes.md" }]));
     formData.append("files", new File(["# Broken"], "notes.md"));
 
-    const res = await skillsRoute.handle(new Request("http://localhost/web/config/skills/upload", {
-      method: "POST",
-      body: formData,
-    }));
+    const res = await skillsRoute.handle(
+      new Request("http://localhost/web/config/skills/upload", {
+        method: "POST",
+        body: formData,
+      }),
+    );
 
     expect(res.status).toBe(400);
     const json = await res.json();
@@ -429,7 +519,7 @@ describe("Skills Config Route", () => {
 });
 
 // Cleanup
-import { afterAll , afterEach } from "bun:test";
+import { afterAll, afterEach } from "bun:test";
 afterAll(async () => {
   if (existsSync(tempDir)) await rm(tempDir, { recursive: true, force: true });
 });

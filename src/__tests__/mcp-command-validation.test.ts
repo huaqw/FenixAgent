@@ -13,7 +13,11 @@ function validateMcpConfig(config: unknown): string | null {
   const type = cfg.type as string;
 
   if (type === "local") {
-    if (!Array.isArray(cfg.command) || cfg.command.length === 0 || cfg.command.some((c: unknown) => typeof c !== "string")) {
+    if (
+      !Array.isArray(cfg.command) ||
+      cfg.command.length === 0 ||
+      cfg.command.some((c: unknown) => typeof c !== "string")
+    ) {
       return "INVALID_COMMAND";
     }
   } else if (type === "remote" || type === "streamable-http") {
@@ -27,41 +31,51 @@ function validateMcpConfig(config: unknown): string | null {
 describe("validateMcpConfig command validation (some vs every)", () => {
   // 全部为字符串的 command 通过
   test("accepts valid string command array", () => {
-    expect(validateMcpConfig({
-      type: "local",
-      command: ["npx", "-y", "server-github"],
-    })).toBeNull();
+    expect(
+      validateMcpConfig({
+        type: "local",
+        command: ["npx", "-y", "server-github"],
+      }),
+    ).toBeNull();
   });
 
   // 包含非字符串元素的 command 被拒绝
   test("rejects command array with non-string element", () => {
-    expect(validateMcpConfig({
-      type: "local",
-      command: ["npx", 123, "server"],
-    })).toBe("INVALID_COMMAND");
+    expect(
+      validateMcpConfig({
+        type: "local",
+        command: ["npx", 123, "server"],
+      }),
+    ).toBe("INVALID_COMMAND");
   });
 
   // 空数组被拒绝
   test("rejects empty command array", () => {
-    expect(validateMcpConfig({
-      type: "local",
-      command: [],
-    })).toBe("INVALID_COMMAND");
+    expect(
+      validateMcpConfig({
+        type: "local",
+        command: [],
+      }),
+    ).toBe("INVALID_COMMAND");
   });
 
   // command 包含 null 被拒绝
   test("rejects command array with null", () => {
-    expect(validateMcpConfig({
-      type: "local",
-      command: ["npx", null],
-    })).toBe("INVALID_COMMAND");
+    expect(
+      validateMcpConfig({
+        type: "local",
+        command: ["npx", null],
+      }),
+    ).toBe("INVALID_COMMAND");
   });
 
   // command 包含对象被拒绝
   test("rejects command array with object", () => {
-    expect(validateMcpConfig({
-      type: "local",
-      command: [{ bin: "npx" }],
-    })).toBe("INVALID_COMMAND");
+    expect(
+      validateMcpConfig({
+        type: "local",
+        command: [{ bin: "npx" }],
+      }),
+    ).toBe("INVALID_COMMAND");
   });
 });

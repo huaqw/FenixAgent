@@ -33,12 +33,17 @@ class PgChannelBindingRepo implements IChannelBindingRepo {
   }
 
   async delete(bindingId: string): Promise<boolean> {
-    const result = await db.delete(channelBinding).where(eq(channelBinding.id, bindingId)).returning({ id: channelBinding.id });
+    const result = await db
+      .delete(channelBinding)
+      .where(eq(channelBinding.id, bindingId))
+      .returning({ id: channelBinding.id });
     return result.length > 0;
   }
 
   async findByChannelAndAgent(channelId: string, agentId: string) {
-    const rows = await db.select().from(channelBinding)
+    const rows = await db
+      .select()
+      .from(channelBinding)
       .where(and(eq(channelBinding.id, channelId), eq(channelBinding.agentId, agentId)))
       .limit(1);
     return rows[0] ?? null;
@@ -49,7 +54,9 @@ class PgChannelBindingRepo implements IChannelBindingRepo {
   }
 
   async listByPlatformAndEnabled(platform: string) {
-    return db.select().from(channelBinding)
+    return db
+      .select()
+      .from(channelBinding)
       .where(and(eq(channelBinding.platform, platform), eq(channelBinding.enabled, true)));
   }
 }

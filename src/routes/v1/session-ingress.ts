@@ -15,7 +15,9 @@ function adaptWs(ws: any): WsConnection {
   return {
     send: (data: string) => ws.send(data),
     close: (code?: number, reason?: string) => ws.close(code, reason),
-    get readyState() { return ws.readyState; },
+    get readyState() {
+      return ws.readyState;
+    },
   };
 }
 
@@ -41,13 +43,14 @@ function authenticateRequest(request: Request, label: string, expectedSessionId?
   return false;
 }
 
-const app = new Elysia({ name: "v2-session-ingress", prefix: "/v2/session_ingress" })
-  .decorate({ error: errorResponse });
+const app = new Elysia({ name: "v2-session-ingress", prefix: "/v2/session_ingress" }).decorate({
+  error: errorResponse,
+});
 
 /** POST /v2/session_ingress/session/:sessionId/events — HTTP POST (HybridTransport writes) */
 app.post("/session/:sessionId/events", async ({ request, params, error }) => {
   const requestedSessionId = params.sessionId;
-  const sessionId = await resolveExistingSessionId(requestedSessionId) ?? requestedSessionId;
+  const sessionId = (await resolveExistingSessionId(requestedSessionId)) ?? requestedSessionId;
 
   if (!authenticateRequest(request, `POST session/${sessionId}`, sessionId)) {
     return error(401, { error: { type: "unauthorized", message: "Invalid auth" } });
@@ -75,7 +78,7 @@ app.post("/session/:sessionId/events", async ({ request, params, error }) => {
 app.ws("/ws/:sessionId", {
   async open(ws) {
     const requestedSessionId = ws.data.params.sessionId;
-    const sessionId = await resolveExistingSessionId(requestedSessionId) ?? requestedSessionId;
+    const sessionId = (await resolveExistingSessionId(requestedSessionId)) ?? requestedSessionId;
 
     if (!authenticateRequest(ws.data.request, `WS ${sessionId}`, sessionId)) {
       ws.close(4003, "unauthorized");
@@ -94,15 +97,13 @@ app.ws("/ws/:sessionId", {
   },
   async message(ws, message) {
     const requestedSessionId = ws.data.params.sessionId;
-    const sessionId = await resolveExistingSessionId(requestedSessionId) ?? requestedSessionId;
-    const data = typeof message === "string"
-      ? message
-      : new TextDecoder().decode(message as ArrayBuffer);
+    const sessionId = (await resolveExistingSessionId(requestedSessionId)) ?? requestedSessionId;
+    const data = typeof message === "string" ? message : new TextDecoder().decode(message as ArrayBuffer);
     handleWebSocketMessage(adaptWs(ws), sessionId, data);
   },
   async close(ws, code, reason) {
     const requestedSessionId = ws.data.params.sessionId;
-    const sessionId = await resolveExistingSessionId(requestedSessionId) ?? requestedSessionId;
+    const sessionId = (await resolveExistingSessionId(requestedSessionId)) ?? requestedSessionId;
     handleWebSocketClose(adaptWs(ws), sessionId, code, reason);
   },
 });

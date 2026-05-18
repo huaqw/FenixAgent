@@ -8,7 +8,7 @@ const envList = fs.readFileSync(join(srcDir, "components/EnvironmentList.tsx"), 
 const sessionList = fs.readFileSync(join(srcDir, "components/SessionList.tsx"), "utf-8");
 
 describe("AppShell.tsx i18n", () => {
-  test('contains main layout structure', () => {
+  test("contains main layout structure", () => {
     expect(appShell).toContain("AppShell");
   });
 });
@@ -25,7 +25,6 @@ describe("EnvironmentList.tsx i18n", () => {
   test('preserves proper noun "ACP Agent"', () => {
     expect(envList).toContain('"ACP Agent"');
   });
-
 });
 
 describe("SessionList.tsx i18n", () => {

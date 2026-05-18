@@ -20,7 +20,10 @@ class InMemorySessionWorkerRepo implements ISessionWorkerRepo {
     return this.workers.get(sessionId);
   }
 
-  async upsert(sessionId: string, patch: Partial<Omit<SessionWorkerRecord, "sessionId">>): Promise<SessionWorkerRecord> {
+  async upsert(
+    sessionId: string,
+    patch: Partial<Omit<SessionWorkerRecord, "sessionId">>,
+  ): Promise<SessionWorkerRecord> {
     let record = this.workers.get(sessionId);
     if (!record) {
       record = {

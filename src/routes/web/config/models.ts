@@ -5,17 +5,32 @@ import { ConfigBodySchema } from "../../../schemas/config.schema";
 import { configSuccess, configError } from "../../../services/config-utils";
 import { loadTeamContext } from "../../../services/team-context";
 
-const app = new Elysia({ name: "web-config-models", prefix: "/web" })
-  .use(authGuardPlugin)
-  .model({
-    "config-body": ConfigBodySchema,
-  });
+const app = new Elysia({ name: "web-config-models", prefix: "/web" }).use(authGuardPlugin).model({
+  "config-body": ConfigBodySchema,
+});
 
 /** 可用模型缓存 */
-let cachedAvailable: { models: Array<{ id: string; provider: string; fullId: string; label: string; contextLimit: number | null; outputLimit: number | null }>; updatedAt: number } | null = null;
+let cachedAvailable: {
+  models: Array<{
+    id: string;
+    provider: string;
+    fullId: string;
+    label: string;
+    contextLimit: number | null;
+    outputLimit: number | null;
+  }>;
+  updatedAt: number;
+} | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 分钟
 
-type ModelEntry = { id: string; provider: string; fullId: string; label: string; contextLimit: number | null; outputLimit: number | null };
+type ModelEntry = {
+  id: string;
+  provider: string;
+  fullId: string;
+  label: string;
+  contextLimit: number | null;
+  outputLimit: number | null;
+};
 
 async function buildAvailableList(ctx: AuthContext): Promise<ModelEntry[]> {
   const providers = await configPg.listProviders(ctx);
@@ -40,7 +55,7 @@ async function buildAvailableList(ctx: AuthContext): Promise<ModelEntry[]> {
 
 async function getAvailable(ctx: AuthContext, forceRefresh = false): Promise<ModelEntry[]> {
   const now = Date.now();
-  if (!forceRefresh && cachedAvailable && (now - cachedAvailable.updatedAt) < CACHE_TTL_MS) {
+  if (!forceRefresh && cachedAvailable && now - cachedAvailable.updatedAt < CACHE_TTL_MS) {
     return cachedAvailable.models;
   }
   const models = await buildAvailableList(ctx);
@@ -88,23 +103,35 @@ async function handleRefresh(ctx: AuthContext) {
   return configSuccess({ count: available.length });
 }
 
-app.post("/config/models", async ({ store, body, error, request }: any) => {
-  const authContext = await loadTeamContext(store.user!, request);
-  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
-  const authCtx = authContext;
-  const b = (body as any) ?? {};
-  const payload = { action: b.action ?? "", data: b.data as { model?: string; small_model?: string; permission?: unknown } | undefined };
-  try {
-    switch (payload.action) {
-      case "get": return await handleGet(authCtx);
-      case "set": return await handleSet(authCtx, payload.data ?? {});
-      case "refresh": return await handleRefresh(authCtx);
-      default: return error(400, configError("VALIDATION_ERROR", `Unknown action: ${payload.action}`));
+app.post(
+  "/config/models",
+  async ({ store, body, error, request }: any) => {
+    const authContext = await loadTeamContext(store.user!, request);
+    if (!authContext)
+      return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+    const authCtx = authContext;
+    const b = (body as any) ?? {};
+    const payload = {
+      action: b.action ?? "",
+      data: b.data as { model?: string; small_model?: string; permission?: unknown } | undefined,
+    };
+    try {
+      switch (payload.action) {
+        case "get":
+          return await handleGet(authCtx);
+        case "set":
+          return await handleSet(authCtx, payload.data ?? {});
+        case "refresh":
+          return await handleRefresh(authCtx);
+        default:
+          return error(400, configError("VALIDATION_ERROR", `Unknown action: ${payload.action}`));
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      return error(500, configError("CONFIG_READ_ERROR", message));
     }
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return error(500, configError("CONFIG_READ_ERROR", message));
-  }
-}, { sessionAuth: true, body: "config-body" });
+  },
+  { sessionAuth: true, body: "config-body" },
+);
 
 export default app;

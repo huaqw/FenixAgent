@@ -36,23 +36,29 @@ afterEach(() => {
 
 describe("skill import shared validation", () => {
   it("空文件列表抛出验证错误", async () => {
-    await expect(importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, [])).rejects.toThrow("未提供任何上传文件");
+    await expect(importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, [])).rejects.toThrow(
+      "未提供任何上传文件",
+    );
   });
 
   it("空 grouped 抛出验证错误", async () => {
     mockGroupUploadFiles.mockImplementationOnce(() => new Map());
-    await expect(importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, [
-      { skillName: "a", relativePath: "other.txt", content: "x" },
-    ])).rejects.toThrow("未解析出任何 skill");
+    await expect(
+      importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, [
+        { skillName: "a", relativePath: "other.txt", content: "x" },
+      ]),
+    ).rejects.toThrow("未解析出任何 skill");
   });
 
   it("缺少 SKILL.md 抛出验证错误", async () => {
-    mockGroupUploadFiles.mockImplementationOnce(() => new Map([
-      ["bad-skill", [{ skillName: "bad-skill", relativePath: "README.md", content: "x" }]],
-    ]));
-    await expect(importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, [
-      { skillName: "bad-skill", relativePath: "bad-skill/README.md", content: "x" },
-    ])).rejects.toThrow('Skill "bad-skill" 缺少 SKILL.md');
+    mockGroupUploadFiles.mockImplementationOnce(
+      () => new Map([["bad-skill", [{ skillName: "bad-skill", relativePath: "README.md", content: "x" }]]]),
+    );
+    await expect(
+      importSkillDirectories({ teamId: "test-team", userId: "user-1", role: "owner" }, [
+        { skillName: "bad-skill", relativePath: "bad-skill/README.md", content: "x" },
+      ]),
+    ).rejects.toThrow('Skill "bad-skill" 缺少 SKILL.md');
   });
 
   it("workspace 空文件列表同样抛出验证错误", async () => {
@@ -60,11 +66,13 @@ describe("skill import shared validation", () => {
   });
 
   it("workspace 缺少 SKILL.md 抛出验证错误", async () => {
-    mockGroupUploadFiles.mockImplementationOnce(() => new Map([
-      ["ws-skill", [{ skillName: "ws-skill", relativePath: "README.md", content: "x" }]],
-    ]));
-    await expect(importWorkspaceSkillDirectories("/ws", [
-      { skillName: "ws-skill", relativePath: "ws-skill/README.md", content: "x" },
-    ])).rejects.toThrow('Skill "ws-skill" 缺少 SKILL.md');
+    mockGroupUploadFiles.mockImplementationOnce(
+      () => new Map([["ws-skill", [{ skillName: "ws-skill", relativePath: "README.md", content: "x" }]]]),
+    );
+    await expect(
+      importWorkspaceSkillDirectories("/ws", [
+        { skillName: "ws-skill", relativePath: "ws-skill/README.md", content: "x" },
+      ]),
+    ).rejects.toThrow('Skill "ws-skill" 缺少 SKILL.md');
   });
 });

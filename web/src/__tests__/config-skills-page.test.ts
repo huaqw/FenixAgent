@@ -50,21 +50,22 @@ describe("getUploadConflictData", () => {
 
 describe("getUploadItemSummaries", () => {
   test("marks invalid item when SKILL.md is missing", () => {
-    expect(getUploadItemSummaries([
-      { skillName: "skill-a", fileCount: 2, hasSkillMd: true, files: [] },
-      { skillName: "broken", fileCount: 1, hasSkillMd: false, files: [] },
-    ])).toEqual([
-      "skill-a (2 个文件)",
-      "broken (1 个文件，缺少 SKILL.md)",
-    ]);
+    expect(
+      getUploadItemSummaries([
+        { skillName: "skill-a", fileCount: 2, hasSkillMd: true, files: [] },
+        { skillName: "broken", fileCount: 1, hasSkillMd: false, files: [] },
+      ]),
+    ).toEqual(["skill-a (2 个文件)", "broken (1 个文件，缺少 SKILL.md)"]);
   });
 });
 
 describe("getInvalidUploadSkillNames", () => {
   test("returns only invalid directory names", () => {
-    expect(getInvalidUploadSkillNames([
-      { skillName: "skill-a", fileCount: 2, hasSkillMd: true, files: [] },
-      { skillName: "broken", fileCount: 1, hasSkillMd: false, files: [] },
-    ])).toEqual(["broken"]);
+    expect(
+      getInvalidUploadSkillNames([
+        { skillName: "skill-a", fileCount: 2, hasSkillMd: true, files: [] },
+        { skillName: "broken", fileCount: 1, hasSkillMd: false, files: [] },
+      ]),
+    ).toEqual(["broken"]);
   });
 });

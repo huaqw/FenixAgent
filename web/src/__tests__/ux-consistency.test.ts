@@ -90,7 +90,7 @@ describe("SessionDetail UX", () => {
 
   test("uses inline Tailwind for stat colors (no custom CSS class)", () => {
     expect(src).toContain("bg-brand-subtle");
-    expect(src).not.toContain("stat-brand\"");
+    expect(src).not.toContain('stat-brand"');
   });
 });
 

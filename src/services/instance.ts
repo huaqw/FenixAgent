@@ -78,9 +78,7 @@ function getNextInstanceNumber(environmentId: string): number {
   return next;
 }
 
-function mapCoreStatus(
-  status: import("@mothership/core").RuntimeInstanceStatus,
-): SpawnedInstance["status"] {
+function mapCoreStatus(status: import("@mothership/core").RuntimeInstanceStatus): SpawnedInstance["status"] {
   switch (status) {
     case "running":
       return "running";
@@ -98,10 +96,7 @@ function mapCoreStatus(
  * 从 core snapshot 的 pluginMetadata 中读取 port/token/pid，
  * 合并 supplement 中的 RCS 业务字段，生成前端兼容的 SpawnedInstance。
  */
-function toSpawnedInstance(
-  snapshot: RuntimeInstanceSnapshot,
-  supplement: InstanceSupplement,
-): SpawnedInstance {
+function toSpawnedInstance(snapshot: RuntimeInstanceSnapshot, supplement: InstanceSupplement): SpawnedInstance {
   const meta = snapshot.pluginMetadata ?? {};
   return {
     id: snapshot.instanceId,
@@ -128,13 +123,12 @@ function filterInstances(
   predicate: (snapshot: RuntimeInstanceSnapshot, sup: InstanceSupplement) => boolean,
 ): SpawnedInstance[] {
   const facade = _deps.getCoreRuntime();
-  return facade.listInstances()
-    .flatMap((s) => {
-      const sup = supplements.get(s.instanceId);
-      if (!sup) return [];
-      if (!predicate(s, sup)) return [];
-      return [toSpawnedInstance(s, sup)];
-    });
+  return facade.listInstances().flatMap((s) => {
+    const sup = supplements.get(s.instanceId);
+    if (!sup) return [];
+    if (!predicate(s, sup)) return [];
+    return [toSpawnedInstance(s, sup)];
+  });
 }
 
 export async function spawnInstanceFromEnvironment(
@@ -142,12 +136,13 @@ export async function spawnInstanceFromEnvironment(
   environmentId: string,
   prefetchedEnv?: EnvironmentRecord,
 ): Promise<SpawnedInstance> {
-  const env = prefetchedEnv ?? await _deps.environmentRepo.getById(environmentId);
+  const env = prefetchedEnv ?? (await _deps.environmentRepo.getById(environmentId));
   if (!env) throw new NotFoundError("Environment not found");
   // 注意：团队归属由调用方（route 层 getOwnedEnvironment）验证，此处仅确认环境存在
 
   const cwd = env.workspacePath ?? env.directory;
-  if (!cwd) throw new AppError(`Workspace directory not set for environment: ${environmentId}`, "VALIDATION_ERROR", 400);
+  if (!cwd)
+    throw new AppError(`Workspace directory not set for environment: ${environmentId}`, "VALIDATION_ERROR", 400);
 
   // 解析 AgentConfig：有则加载完整配置，无则用默认 "general" agent
   let agentName = "general";
@@ -160,13 +155,19 @@ export async function spawnInstanceFromEnvironment(
     if (!resolvedAgentConfig) {
       throw new NotFoundError(`AgentConfig '${env.agentConfigId}' not found`);
     }
-    fullConfig = await _deps.getAgentFullConfig({ teamId: env.teamId ?? "", userId: env.userId ?? "", role: "owner" }, resolvedAgentConfig.id);
+    fullConfig = await _deps.getAgentFullConfig(
+      { teamId: env.teamId ?? "", userId: env.userId ?? "", role: "owner" },
+      resolvedAgentConfig.id,
+    );
     const ac = fullConfig.agentConfig as Record<string, unknown> | null;
     agentName = resolvedAgentConfig.name;
     agentPrompt = typeof ac?.prompt === "string" ? ac.prompt : null;
     modelRef = typeof ac?.model === "string" ? ac.model : null;
   } else {
-    fullConfig = await _deps.getAgentFullConfig({ teamId: env.teamId ?? "", userId: env.userId ?? "", role: "owner" }, null);
+    fullConfig = await _deps.getAgentFullConfig(
+      { teamId: env.teamId ?? "", userId: env.userId ?? "", role: "owner" },
+      null,
+    );
   }
 
   // 组装 AgentLaunchSpec
@@ -214,8 +215,8 @@ export function listInstances(teamId: string): SpawnedInstance[] {
 }
 
 export function findRunningInstanceByEnvironment(environmentId: string, userId?: string): SpawnedInstance | undefined {
-  const results = filterInstances((s, sup) =>
-    sup.environmentId === environmentId && s.status === "running" && (!userId || sup.userId === userId),
+  const results = filterInstances(
+    (s, sup) => sup.environmentId === environmentId && s.status === "running" && (!userId || sup.userId === userId),
   );
   return results[0];
 }
@@ -225,15 +226,13 @@ export function findInstanceBySessionId(_sessionId: string): SpawnedInstance | u
 }
 
 export function listInstancesByEnvironment(environmentId: string): SpawnedInstance[] {
-  return filterInstances((s, sup) =>
-    sup.environmentId === environmentId && s.status !== "stopped" && s.status !== "error",
+  return filterInstances(
+    (s, sup) => sup.environmentId === environmentId && s.status !== "stopped" && s.status !== "error",
   );
 }
 
 export function getRunningInstancesByEnvironment(environmentId: string): SpawnedInstance[] {
-  return filterInstances((s, sup) =>
-    sup.environmentId === environmentId && s.status === "running",
-  );
+  return filterInstances((s, sup) => sup.environmentId === environmentId && s.status === "running");
 }
 
 /** 一次遍历：按 environmentId 分组所有活跃实例，避免 N 次 listInstances 调用 */
@@ -306,8 +305,7 @@ export async function stopInstance(id: string, teamId: string): Promise<{ ok: bo
 
 export async function stopAllInstances(): Promise<void> {
   const facade = _deps.getCoreRuntime();
-  const active = facade.listInstances()
-    .filter(s => s.status !== "stopped" && s.status !== "stopping");
+  const active = facade.listInstances().filter((s) => s.status !== "stopped" && s.status !== "stopping");
 
   // 并行停止所有活跃实例（每个实例独立，互不依赖）
   await Promise.all(
@@ -374,12 +372,7 @@ export async function enterEnvironment(
   }
 
   // 为该环境查找或创建 RCS session（前端导航需要 session_id）
-  const { id: sessionId } = await _deps.findOrCreateForEnvironment(
-    environmentId,
-    "Web Session",
-    userId,
-    "web",
-  );
+  const { id: sessionId } = await _deps.findOrCreateForEnvironment(environmentId, "Web Session", userId, "web");
 
   return {
     session_id: sessionId,

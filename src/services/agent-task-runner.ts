@@ -7,7 +7,11 @@ import { resolveExecutable } from "../utils/executable";
 
 const SUMMARY_LIMIT = 2000;
 
-export type SpawnFunction = (command: string, args: string[], options: import("node:child_process").SpawnOptions) => ChildProcess;
+export type SpawnFunction = (
+  command: string,
+  args: string[],
+  options: import("node:child_process").SpawnOptions,
+) => ChildProcess;
 
 export interface RunAgentTaskInput {
   userId: string;
@@ -38,7 +42,12 @@ function formatRunTimestamp(date: Date): string {
   return `${year}${month}${day}-${hours}${minutes}${seconds}`;
 }
 
-export function buildRunWorkspacePath(baseWorkspacePath: string, taskId: string, logId: string, now = new Date()): string {
+export function buildRunWorkspacePath(
+  baseWorkspacePath: string,
+  taskId: string,
+  logId: string,
+  now = new Date(),
+): string {
   return join(baseWorkspacePath, ".scheduled-runs", taskId, `${formatRunTimestamp(now)}-${logId}`);
 }
 
@@ -81,7 +90,10 @@ export async function runAgentTask(input: RunAgentTaskInput): Promise<AgentTaskR
   }
 
   const { runDir, workspaceName } = await prepareRunWorkspace(
-    env.workspacePath, input.taskId, input.logId, defaultAgent,
+    env.workspacePath,
+    input.taskId,
+    input.logId,
+    defaultAgent,
   );
 
   const opencodePath = resolveExecutable("opencode");
@@ -111,11 +123,14 @@ export async function runAgentTask(input: RunAgentTaskInput): Promise<AgentTaskR
       proc.kill("SIGTERM");
     }, input.timeoutMinutes * 60_000);
 
-    const killHandle = setTimeout(() => {
-      if (timedOut) {
-        proc.kill("SIGKILL");
-      }
-    }, input.timeoutMinutes * 60_000 + 5_000);
+    const killHandle = setTimeout(
+      () => {
+        if (timedOut) {
+          proc.kill("SIGKILL");
+        }
+      },
+      input.timeoutMinutes * 60_000 + 5_000,
+    );
 
     const finalize = (status: AgentTaskRunResult["status"], error: string | null) => {
       if (settled) {

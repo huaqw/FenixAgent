@@ -16,10 +16,7 @@ export const UpdateSessionRequestSchema = z.object({
 
 /** POST /v1/sessions/:id/events — 向 session 发送事件 */
 export const SendEventsRequestSchema = z.object({
-  events: z.union([
-    z.array(z.record(z.string(), z.unknown())),
-    z.record(z.string(), z.unknown()),
-  ]).optional(),
+  events: z.union([z.array(z.record(z.string(), z.unknown())), z.record(z.string(), z.unknown())]).optional(),
 });
 
 export type CreateSessionRequest = z.infer<typeof CreateSessionRequestSchema>;

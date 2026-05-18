@@ -20,11 +20,9 @@ import {
 } from "../../../services/skill";
 import { loadTeamContext } from "../../../services/team-context";
 
-const app = new Elysia({ name: "web-config-skills", prefix: "/web" })
-  .use(authGuardPlugin)
-  .model({
-    "config-body": ConfigBodySchema,
-  });
+const app = new Elysia({ name: "web-config-skills", prefix: "/web" }).use(authGuardPlugin).model({
+  "config-body": ConfigBodySchema,
+});
 
 async function handleList(ctx: AuthContext) {
   const skills = await listSkills(ctx);
@@ -36,7 +34,11 @@ async function handleWorkspaceList(ctx: AuthContext) {
   return configSuccess({ sources });
 }
 
-async function handleGet(ctx: AuthContext, body: { name?: string; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleGet(
+  ctx: AuthContext,
+  body: { name?: string; source?: string; workspaceId?: string },
+  errorFn: (status: number, body: unknown) => any,
+) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -54,7 +56,16 @@ async function handleGet(ctx: AuthContext, body: { name?: string; source?: strin
   return configSuccess(skill);
 }
 
-async function handleSet(ctx: AuthContext, body: { name?: string; data?: { description: string; content: string; metadata?: Record<string, string> }; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleSet(
+  ctx: AuthContext,
+  body: {
+    name?: string;
+    data?: { description: string; content: string; metadata?: Record<string, string> };
+    source?: string;
+    workspaceId?: string;
+  },
+  errorFn: (status: number, body: unknown) => any,
+) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -71,7 +82,11 @@ async function handleSet(ctx: AuthContext, body: { name?: string; data?: { descr
   return configSuccess({ name: result.name, enabled: result.enabled });
 }
 
-async function handleDelete(ctx: AuthContext, body: { name?: string; source?: string; workspaceId?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleDelete(
+  ctx: AuthContext,
+  body: { name?: string; source?: string; workspaceId?: string },
+  errorFn: (status: number, body: unknown) => any,
+) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -89,7 +104,11 @@ async function handleDelete(ctx: AuthContext, body: { name?: string; source?: st
   return configSuccess(null);
 }
 
-async function handleEnable(ctx: AuthContext, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleEnable(
+  ctx: AuthContext,
+  body: { name?: string },
+  errorFn: (status: number, body: unknown) => any,
+) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -100,7 +119,11 @@ async function handleEnable(ctx: AuthContext, body: { name?: string }, errorFn: 
   return configSuccess({ name: body.name, enabled: true });
 }
 
-async function handleDisable(ctx: AuthContext, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleDisable(
+  ctx: AuthContext,
+  body: { name?: string },
+  errorFn: (status: number, body: unknown) => any,
+) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -119,7 +142,7 @@ interface UploadManifestEntry {
 async function handleUpload(ctx: AuthContext, request: Request, errorFn: (status: number, body: unknown) => any) {
   let formData: globalThis.FormData | null;
   try {
-    formData = await request.formData() as globalThis.FormData;
+    formData = (await request.formData()) as globalThis.FormData;
   } catch {
     formData = null;
   }
@@ -198,43 +221,73 @@ async function handleUpload(ctx: AuthContext, request: Request, errorFn: (status
     }
     return configSuccess(result);
   } catch (error_) {
-    const code = error_ instanceof Error && "code" in error_ && typeof error_.code === "string" ? error_.code : "UNKNOWN_ERROR";
+    const code =
+      error_ instanceof Error && "code" in error_ && typeof error_.code === "string" ? error_.code : "UNKNOWN_ERROR";
     const message = error_ instanceof Error ? error_.message : "技能导入失败";
     const status = code === "VALIDATION_ERROR" ? 400 : 500;
     return errorFn(status, configError(code, message));
   }
 }
 
-type SkillBody = { action: string; name?: string; data?: { description: string; content: string; metadata?: Record<string, string> }; source?: string; workspaceId?: string };
+type SkillBody = {
+  action: string;
+  name?: string;
+  data?: { description: string; content: string; metadata?: Record<string, string> };
+  source?: string;
+  workspaceId?: string;
+};
 
-app.post("/config/skills", async ({ store, body, error, request }: any) => {
-  const authContext = await loadTeamContext(store.user!, request);
-  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
-  const authCtx = authContext;
-  const b = (body as any) ?? {};
-  const payload: SkillBody = { action: b.action ?? "", name: b.name, data: b.data, source: b.source, workspaceId: b.workspaceId };
-  const { action } = payload;
+app.post(
+  "/config/skills",
+  async ({ store, body, error, request }: any) => {
+    const authContext = await loadTeamContext(store.user!, request);
+    if (!authContext)
+      return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+    const authCtx = authContext;
+    const b = (body as any) ?? {};
+    const payload: SkillBody = {
+      action: b.action ?? "",
+      name: b.name,
+      data: b.data,
+      source: b.source,
+      workspaceId: b.workspaceId,
+    };
+    const { action } = payload;
 
-  const errFn = (status: number, data: unknown) => error(status, data);
+    const errFn = (status: number, data: unknown) => error(status, data);
 
-  switch (action) {
-    case "workspace_list": return await handleWorkspaceList(authCtx);
-    case "list": return await handleList(authCtx);
-    case "get": return await handleGet(authCtx, payload, errFn);
-    case "set": return await handleSet(authCtx, payload, errFn);
-    case "delete": return await handleDelete(authCtx, payload, errFn);
-    case "enable": return await handleEnable(authCtx, payload, errFn);
-    case "disable": return await handleDisable(authCtx, payload, errFn);
-    default:
-      return error(400, configValidationError(`Unknown action: ${action}`));
-  }
-}, { sessionAuth: true, body: "config-body" });
+    switch (action) {
+      case "workspace_list":
+        return await handleWorkspaceList(authCtx);
+      case "list":
+        return await handleList(authCtx);
+      case "get":
+        return await handleGet(authCtx, payload, errFn);
+      case "set":
+        return await handleSet(authCtx, payload, errFn);
+      case "delete":
+        return await handleDelete(authCtx, payload, errFn);
+      case "enable":
+        return await handleEnable(authCtx, payload, errFn);
+      case "disable":
+        return await handleDisable(authCtx, payload, errFn);
+      default:
+        return error(400, configValidationError(`Unknown action: ${action}`));
+    }
+  },
+  { sessionAuth: true, body: "config-body" },
+);
 
-app.post("/config/skills/upload", async ({ store, request, error }: any) => {
-  const authContext = await loadTeamContext(store.user!, request);
-  if (!authContext) return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
-  const authCtx = authContext;
-  return await handleUpload(authCtx, request, (status, data) => error(status, data));
-}, { sessionAuth: true });
+app.post(
+  "/config/skills/upload",
+  async ({ store, request, error }: any) => {
+    const authContext = await loadTeamContext(store.user!, request);
+    if (!authContext)
+      return error(500, { success: false, error: { code: "NO_TEAM_CONTEXT", message: "Failed to load team context" } });
+    const authCtx = authContext;
+    return await handleUpload(authCtx, request, (status, data) => error(status, data));
+  },
+  { sessionAuth: true },
+);
 
 export default app;

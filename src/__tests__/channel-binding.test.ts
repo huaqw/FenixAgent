@@ -68,16 +68,25 @@ async function testListBindings(): Promise<ChannelBinding[]> {
 async function testCreateBinding(data: CreateBindingInput): Promise<ChannelBinding> {
   const id = generateBindingId();
   const now = new Date();
-  testDb.insert(channelBinding).values({
+  testDb
+    .insert(channelBinding)
+    .values({
+      id,
+      platform: data.platform,
+      chatId: data.chatId ?? null,
+      agentId: data.agentId,
+      enabled: data.enabled ?? true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  return {
     id,
     platform: data.platform,
     chatId: data.chatId ?? null,
     agentId: data.agentId,
     enabled: data.enabled ?? true,
-    createdAt: now,
-    updatedAt: now,
-  }).run();
-  return { id, platform: data.platform, chatId: data.chatId ?? null, agentId: data.agentId, enabled: data.enabled ?? true };
+  };
 }
 
 async function testDeleteBinding(id: string): Promise<boolean> {
@@ -92,7 +101,8 @@ async function testUpdateBinding(
 ): Promise<ChannelBinding | undefined> {
   const existing = testDb.select().from(channelBinding).where(eq(channelBinding.id, id)).get();
   if (!existing) return undefined;
-  testDb.update(channelBinding)
+  testDb
+    .update(channelBinding)
     .set({ ...data, updatedAt: new Date() })
     .where(eq(channelBinding.id, id))
     .run();
@@ -100,11 +110,10 @@ async function testUpdateBinding(
   return row ? rowToBinding(row) : undefined;
 }
 
-async function testFindBindingForMessage(
-  platform: string,
-  chatId: string,
-): Promise<BindingMatchResult | undefined> {
-  const rows = testDb.select().from(channelBinding)
+async function testFindBindingForMessage(platform: string, chatId: string): Promise<BindingMatchResult | undefined> {
+  const rows = testDb
+    .select()
+    .from(channelBinding)
     .where(and(eq(channelBinding.platform, platform), eq(channelBinding.enabled, true)))
     .all()
     .map(rowToBinding);
