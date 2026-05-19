@@ -21,6 +21,9 @@ const TasksPage = lazy(() => import("./pages/TasksPage").then((m) => ({ default:
 const ChannelsPage = lazy(() => import("./pages/ChannelsPage").then((m) => ({ default: m.ChannelsPage })));
 const WorkflowPage = lazy(() => import("./pages/WorkflowPage").then((m) => ({ default: m.WorkflowPage })));
 const TeamsPage = lazy(() => import("./pages/TeamsPage").then((m) => ({ default: m.TeamsPage })));
+const AgentAppShell = lazy(() =>
+  import("./pages/agent-panel/AgentAppShell").then((m) => ({ default: m.AgentAppShell })),
+);
 
 export function parseConfigView(pathname: string): string | null {
   const configViews = [
@@ -62,10 +65,36 @@ export default function App() {
   const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [configView, setConfigView] = useState<string | null>(null);
+  const [agentPanelMode, setAgentPanelMode] = useState(false);
+  const [agentPanelAgentId, setAgentPanelAgentId] = useState<string | null>(null);
+  const [agentPanelSessionId, setAgentPanelSessionId] = useState<string | null>(null);
 
   const parseRoute = useCallback(() => {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
+
+    // /ctrl/agent/ 路由拦截
+    if (path.startsWith("/ctrl/agent/") || path === "/ctrl/agent") {
+      setAgentPanelMode(true);
+      setConfigView(null);
+      setCurrentSessionId(null);
+      setCurrentSessionCwd(null);
+      // 解析 /ctrl/agent/:agentId 或 /ctrl/agent/:agentId/:sessionId
+      const agentMatch = path.replace(/^\/ctrl\/agent\/?/, "").split("/");
+      if (agentMatch[0]) {
+        setAgentPanelAgentId(agentMatch[0]);
+        setAgentPanelSessionId(agentMatch[1] ?? null);
+      } else {
+        setAgentPanelAgentId(null);
+        setAgentPanelSessionId(null);
+      }
+      return;
+    }
+
+    setAgentPanelMode(false);
+    setAgentPanelAgentId(null);
+    setAgentPanelSessionId(null);
+
     const configViews = [
       "models",
       "agents",
@@ -197,49 +226,62 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="system">
       <TeamProvider>
-        <AppShell currentPage={activeView} onNavigate={handleNavigate}>
+        {agentPanelMode ? (
           <Suspense
             fallback={
-              <div className="flex h-full flex-col items-center justify-center gap-3">
+              <div className="flex h-screen flex-col items-center justify-center gap-3">
                 <div className="h-8 w-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
-                <p className="text-sm text-text-muted">加载中...</p>
+                <p className="text-sm text-text-muted">加载智能体面板...</p>
               </div>
             }
           >
-            {showApiKeys ? (
-              <ApiKeyManager onBack={navigateToDashboard} />
-            ) : configView === "models" ? (
-              <ModelsPage />
-            ) : configView === "agents" ? (
-              <AgentsPage />
-            ) : configView === "skills" ? (
-              <SkillsPage />
-            ) : configView === "knowledge-bases" ? (
-              <KnowledgeBasesPage />
-            ) : configView === "mcp" ? (
-              <McpPage />
-            ) : configView === "tasks" ? (
-              <TasksPage />
-            ) : configView === "channels" ? (
-              <ChannelsPage />
-            ) : configView === "workflow" ? (
-              <WorkflowPage />
-            ) : configView === "environments" ? (
-              <EnvironmentsPage onNavigateToSession={navigateToSession} />
-            ) : configView === "teams" ? (
-              <TeamsPage />
-            ) : currentSessionId ? (
-              <SessionDetail
-                key={currentSessionId}
-                sessionId={currentSessionId}
-                agentId={currentAgentId ?? undefined}
-                initialCwd={currentSessionCwd ?? undefined}
-              />
-            ) : (
-              <Dashboard onNavigateToSession={navigateToSession} />
-            )}
+            <AgentAppShell initialAgentId={agentPanelAgentId} initialSessionId={agentPanelSessionId} />
           </Suspense>
-        </AppShell>
+        ) : (
+          <AppShell currentPage={activeView} onNavigate={handleNavigate}>
+            <Suspense
+              fallback={
+                <div className="flex h-full flex-col items-center justify-center gap-3">
+                  <div className="h-8 w-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                  <p className="text-sm text-text-muted">加载中...</p>
+                </div>
+              }
+            >
+              {showApiKeys ? (
+                <ApiKeyManager onBack={navigateToDashboard} />
+              ) : configView === "models" ? (
+                <ModelsPage />
+              ) : configView === "agents" ? (
+                <AgentsPage />
+              ) : configView === "skills" ? (
+                <SkillsPage />
+              ) : configView === "knowledge-bases" ? (
+                <KnowledgeBasesPage />
+              ) : configView === "mcp" ? (
+                <McpPage />
+              ) : configView === "tasks" ? (
+                <TasksPage />
+              ) : configView === "channels" ? (
+                <ChannelsPage />
+              ) : configView === "workflow" ? (
+                <WorkflowPage />
+              ) : configView === "environments" ? (
+                <EnvironmentsPage onNavigateToSession={navigateToSession} />
+              ) : configView === "teams" ? (
+                <TeamsPage />
+              ) : currentSessionId ? (
+                <SessionDetail
+                  key={currentSessionId}
+                  sessionId={currentSessionId}
+                  agentId={currentAgentId ?? undefined}
+                  initialCwd={currentSessionCwd ?? undefined}
+                />
+              ) : (
+                <Dashboard onNavigateToSession={navigateToSession} />
+              )}
+            </Suspense>
+          </AppShell>
+        )}
         <Toaster richColors position="top-right" />
       </TeamProvider>
     </ThemeProvider>

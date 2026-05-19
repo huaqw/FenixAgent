@@ -1,0 +1,262 @@
+/* ============================================================
+   Unified Agent Panel — 三栏布局专用样式
+   ============================================================ */
+
+/* ---------- CSS 变量 ---------- */
+:root {
+  --agent-sidebar-width: 220px;
+  --agent-sidebar-collapsed: 60px;
+  --agent-artifacts-width: 400px;
+  --agent-artifacts-min: 300px;
+  --agent-artifacts-max: 600px;
+}
+
+/* ---------- 三栏布局容器 ---------- */
+.agent-panel-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ---------- 左侧边栏 ---------- */
+.agent-sidebar {
+  width: var(--agent-sidebar-width);
+  min-width: var(--agent-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-0);
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.agent-sidebar.collapsed {
+  width: var(--agent-sidebar-collapsed);
+  min-width: var(--agent-sidebar-collapsed);
+}
+
+/* ---------- 中间聊天区域 ---------- */
+.agent-chat-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------- 右侧 Artifacts 面板 ---------- */
+.agent-artifacts {
+  width: var(--agent-artifacts-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-1);
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 200ms ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.agent-artifacts.collapsed {
+  width: 0;
+  min-width: 0;
+  border-left: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Artifacts 折叠展开按钮 ---------- */
+.agent-artifacts-expand-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border-subtle);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  background: var(--color-surface-1);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+  z-index: 5;
+}
+
+.agent-artifacts-expand-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+}
+
+/* ---------- 拖拽分隔线 ---------- */
+.agent-artifacts-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 150ms;
+  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+}
+
+.agent-artifacts-resize-handle:hover,
+.agent-artifacts-resize-handle:active {
+  background: var(--color-brand);
+  opacity: 0.4;
+}
+
+/* ---------- Artifacts Tab 栏 ---------- */
+.agent-artifacts-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 0 8px;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
+.agent-artifacts-tab {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 150ms, border-color 150ms;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  white-space: nowrap;
+}
+
+.agent-artifacts-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.agent-artifacts-tab.active {
+  color: var(--color-brand);
+  border-bottom-color: var(--color-brand);
+}
+
+.agent-artifacts-close-btn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+
+.agent-artifacts-close-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+}
+
+/* ---------- 智能体树样式 ---------- */
+.agent-tree-template {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  user-select: none;
+}
+
+.agent-tree-instance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 24px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 150ms;
+  border-radius: 6px;
+  margin: 1px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-tree-instance:hover {
+  background: var(--color-surface-hover);
+}
+
+.agent-tree-instance.selected {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-light);
+}
+
+/* ---------- 状态指示灯 ---------- */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.running {
+  background: var(--color-status-running);
+}
+
+.status-dot.idle,
+.status-dot.starting {
+  background: var(--color-status-warning);
+}
+
+.status-dot.stopped {
+  background: var(--color-text-muted);
+}
+
+.status-dot.error {
+  background: var(--color-status-error);
+}
+
+/* ---------- 欢迎空状态 ---------- */
+.agent-welcome-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--color-text-muted);
+}
+
+.agent-welcome-empty svg {
+  opacity: 0.3;
+}
+
+.agent-welcome-empty .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.agent-welcome-empty .desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
