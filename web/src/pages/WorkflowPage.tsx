@@ -84,7 +84,6 @@ export function WorkflowPage() {
           <WorkflowEditor
             workflowId={route.workflowId}
             runId={route.runId}
-            onViewRuns={() => navigateTo("runs")}
           />
         </div>
       </div>

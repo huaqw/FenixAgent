@@ -329,10 +329,13 @@ describe('createWorkflowEngine', () => {
     expect(verifyResult.valid).toBe(true);
     expect(verifyResult.expired).toBe(false);
 
-    // 审批（注意：approveNode 会重新创建调度器，但 run 已经清理了 activeRuns）
-    // 由于 run 完成后 activeRuns 已清理，approveNode 应该抛出提示使用 recover
-    await expect(
-      engine.approveNode(result.runId, nodeId, approvalToken),
-    ).rejects.toThrow(WorkflowError);
+    // 审批：SUSPENDED 状态的 run 保留在 activeRuns 中，approveNode 可直接恢复
+    await engine.approveNode(result.runId, nodeId, approvalToken);
+
+    // 审批后 step3 应执行完毕，工作流最终状态为 SUCCESS
+    const finalSnapshot = await engine.getRunStatus(result.runId);
+    expect(finalSnapshot?.dag_status).toBe('SUCCESS');
+    const step3Output = await engine.getOutput(result.runId, 'step3');
+    expect(step3Output?.stdout).toContain('after audit');
   });
 });

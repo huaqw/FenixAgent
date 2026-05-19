@@ -46,6 +46,7 @@ import {
   Copy,
   Check,
   ChevronRight,
+  Inbox,
 } from "lucide-react";
 import { nodeTypes } from "./nodes";
 import { autoLayout } from "./layout";
@@ -66,6 +67,7 @@ import {
   type NodeOutput,
   type PendingApproval,
   type DAGStatus,
+  type RunSummary,
 } from "../../api/workflow-engine";
 import { workflowDefApi } from "../../api/workflow-defs";
 import "./workflow.css";
@@ -82,10 +84,9 @@ const PALETTE_ITEMS = [
 interface WorkflowEditorProps {
   workflowId?: string;
   runId?: string;
-  onViewRuns?: () => void;
 }
 
-function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorProps) {
+function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([createStartNode()]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView, screenToFlowPosition } = useReactFlow();
@@ -112,6 +113,7 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
   const [selectedNodeOutput, setSelectedNodeOutput] = useState<NodeOutput | null>(null);
   const [nodeOutputLoading, setNodeOutputLoading] = useState(false);
   const [runRightTab, setRunRightTab] = useState<"events" | "output">("events");
+  const [sidePanelMode, setSidePanelMode] = useState<"runs" | "versions" | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Agent 配置联动 ──
@@ -145,6 +147,10 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingConnectSource = useRef<string | null>(null);
+  const nodeCallbacksRef = useRef<{
+    onViewOutput: (nodeId: string) => void;
+    onRerunFrom: (fromNodeId: string) => void;
+  }>({ onViewOutput: () => {}, onRerunFrom: () => {} });
   const didConnect = useRef(false);
 
   // 保存/发布状态
@@ -186,6 +192,7 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
         setRunApprovals([]);
         setSelectedRunNodeId(null);
         setSelectedNodeOutput(null);
+        setSidePanelMode("runs");
 
         const [snap, evts] = await Promise.all([
           workflowEngineApi.getRunStatus(runId),
@@ -479,15 +486,24 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
 
   // ── Run mode helpers ──
 
-  /** 将 snapshot 的节点状态同步到编辑器节点 */
+  /** 将 snapshot 的节点状态同步到编辑器节点（同时注入节点操作回调） */
   const updateNodesFromSnapshot = useCallback(
     (snap: DAGSnapshot) => {
       setNodes((nds) =>
         nds.map((n) => {
           if (n.id === START_NODE_ID) return n;
           const state = snap.node_states[n.id];
-          if (!state) return { ...n, data: { ...n.data, _runStatus: undefined, _exitCode: undefined } };
-          return { ...n, data: { ...n.data, _runStatus: state.status, _exitCode: state.exit_code } };
+          if (!state) return { ...n, data: { ...n.data, _runStatus: undefined, _exitCode: undefined, _onViewOutput: undefined, _onRerunFrom: undefined } };
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              _runStatus: state.status,
+              _exitCode: state.exit_code,
+              _onViewOutput: nodeCallbacksRef.current.onViewOutput,
+              _onRerunFrom: nodeCallbacksRef.current.onRerunFrom,
+            },
+          };
         }),
       );
     },
@@ -588,18 +604,8 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
       setRunApprovals([]);
       setSelectedRunNodeId(null);
       setSelectedNodeOutput(null);
+      setSidePanelMode("runs");
       await loadRunData(result.runId);
-    } catch (err) {
-      console.error(err);
-      // 重置节点状态
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === START_NODE_ID
-            ? n
-            : { ...n, data: { ...n.data, _runStatus: undefined, _exitCode: undefined } },
-        ),
-      );
-      alert("执行失败: " + (err as Error).message);
     } finally {
       setRunning(false);
     }
@@ -643,6 +649,7 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
     setRunApprovals([]);
     setSelectedRunNodeId(null);
     setSelectedNodeOutput(null);
+    setSidePanelMode(null);
     setNodes((nds) =>
       nds.map((n) => ({ ...n, data: { ...n.data, _runStatus: undefined, _exitCode: undefined } })),
     );
@@ -691,6 +698,7 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
         setRunApprovals([]);
         setSelectedRunNodeId(null);
         setSelectedNodeOutput(null);
+        setSidePanelMode("runs");
         await loadRunData(result.runId);
       } catch (err) {
         console.error(err);
@@ -701,6 +709,33 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
     },
     [activeRunId, syncYaml, workflowId, edges, setNodes, loadRunData],
   );
+
+  // ── View node output (from node button click) ──
+  const handleViewNodeOutput = useCallback(
+    async (nodeId: string) => {
+      if (!activeRunId) return;
+      setSelectedRunNodeId(nodeId);
+      setRunRightTab("output");
+      setNodeOutputLoading(true);
+      setSelectedNodeOutput(null);
+      // 确保运行面板打开
+      setSidePanelMode("runs");
+      try {
+        const out = await workflowEngineApi.getOutput(activeRunId, nodeId);
+        setSelectedNodeOutput(out ?? null);
+      } catch (err) {
+        console.error(err);
+        setSelectedNodeOutput(null);
+      } finally {
+        setNodeOutputLoading(false);
+      }
+    },
+    [activeRunId],
+  );
+
+  // 保持 ref 同步
+  nodeCallbacksRef.current.onViewOutput = handleViewNodeOutput;
+  nodeCallbacksRef.current.onRerunFrom = handleRerunFrom;
 
   // ── Update selected node data ──
   const updateNodeData = useCallback(
@@ -873,11 +908,9 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
                   </button>
                   <button
                     type="button"
-                    className="wf-toolbar-btn"
-                    onClick={handlePublish}
-                    disabled={publishing}
-                    data-tooltip="发布为新版本（可回滚）"
-                    style={{ color: "#22c55e" }}
+                    className={`wf-toolbar-btn ${sidePanelMode === "versions" ? "active" : ""}`}
+                    onClick={() => setSidePanelMode(sidePanelMode === "versions" ? null : "versions")}
+                    data-tooltip="版本管理（发布、回滚、查看历史）"
                   >
                     <Rocket size={15} />
                   </button>
@@ -923,19 +956,15 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
               >
                 {readOnly ? <Eye size={15} /> : <Edit3 size={15} />}
               </button>
-              {onViewRuns && (
-                <>
-                  <div className="wf-toolbar-divider" />
-                  <button
-                    type="button"
-                    className="wf-toolbar-btn"
-                    onClick={onViewRuns}
-                    data-tooltip="查看历史运行记录"
-                  >
-                    <List size={15} />
-                  </button>
-                </>
-              )}
+              <div className="wf-toolbar-divider" />
+              <button
+                type="button"
+                className="wf-toolbar-btn"
+                onClick={() => setSidePanelMode(sidePanelMode === "runs" ? null : "runs")}
+                data-tooltip="查看历史运行记录"
+              >
+                <List size={15} />
+              </button>
             </div>
           </Panel>
         </ReactFlow>
@@ -1027,321 +1056,8 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
         </div>
       </div>
 
-      {/* 右侧属性面板 */}
+      {/* 右侧属性面板（始终显示编辑模式） */}
       <aside className="wf-prop-panel">
-        {isRunMode ? (
-          /* ── 运行模式面板 ── */
-          <>
-            <div className="wf-prop-header" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span className="wf-prop-title">运行结果</span>
-              {runSnapshot && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                    padding: "1px 7px",
-                    borderRadius: 99,
-                    fontSize: 10,
-                    fontWeight: 500,
-                    color: DAG_STATUS_CFG[dagStatus!]?.color ?? "#6b7280",
-                    background: DAG_STATUS_CFG[dagStatus!]?.bg ?? "#f3f4f6",
-                  }}
-                >
-                  {dagStatus === "RUNNING" && (
-                    <span
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: "#3b82f6",
-                        animation: "wf-pulse 1.5s ease-in-out infinite",
-                      }}
-                    />
-                  )}
-                  {DAG_STATUS_CFG[dagStatus!]?.label ?? dagStatus}
-                </span>
-              )}
-              <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-                {!isRunDone && (
-                  <button
-                    type="button"
-                    onClick={handleCancelRun}
-                    data-tooltip="取消运行"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 24,
-                      height: 24,
-                      border: "none",
-                      background: "#fef2f2",
-                      borderRadius: 4,
-                      color: "#ef4444",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Square size={11} />
-                  </button>
-                )}
-                {isRunDone && (
-                  <button
-                    type="button"
-                    onClick={handleBackToEdit}
-                    data-tooltip="返回编辑"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 24,
-                      height: 24,
-                      border: "none",
-                      background: "#f3f4f6",
-                      borderRadius: 4,
-                      color: "#6b7280",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Edit3 size={11} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* 审批卡片 */}
-            {dagStatus === "SUSPENDED" && runApprovals.length > 0 && (
-              <div
-                style={{
-                  padding: 10,
-                  borderBottom: "1px solid #fbbf24",
-                  background: "#fffbeb",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#92400e",
-                    marginBottom: 6,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <ShieldCheck size={12} /> 等待审批
-                </div>
-                {runApprovals.map((a) => (
-                  <div key={a.nodeId} style={{ fontSize: 10, color: "#78350f", marginBottom: 6 }}>
-                    <div style={{ fontWeight: 500, marginBottom: 2 }}>节点: {a.nodeId}</div>
-                    {a.displayData && typeof a.displayData === "object" && (
-                      <div style={{ color: "#92400e", marginBottom: 3 }}>
-                        {(a.displayData as Record<string, string>).message ?? ""}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(a)}
-                      style={{
-                        padding: "2px 8px",
-                        border: "1px solid #f59e0b",
-                        borderRadius: 4,
-                        background: "#f59e0b",
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      通过
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 进度条 */}
-            {runSnapshot && (
-              <div
-                style={{
-                  padding: "4px 12px",
-                  borderBottom: "1px solid #f3f4f6",
-                  fontSize: 10,
-                  color: "#9ca3af",
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span>
-                  {Object.values(runSnapshot.node_states).filter((s) => s.status === "COMPLETED").length}/
-                  {Object.keys(runSnapshot.node_states).length} 节点
-                </span>
-                <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 9 }}>
-                  {activeRunId?.substring(0, 16)}...
-                </span>
-              </div>
-            )}
-
-            {/* Tab 切换 */}
-            <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb" }}>
-              <button
-                type="button"
-                onClick={() => setRunRightTab("events")}
-                style={{
-                  flex: 1,
-                  padding: "7px 0",
-                  border: "none",
-                  background: "none",
-                  fontSize: 11,
-                  fontWeight: runRightTab === "events" ? 600 : 400,
-                  color: runRightTab === "events" ? "#111827" : "#9ca3af",
-                  borderBottom: runRightTab === "events" ? "2px solid #3b82f6" : "2px solid transparent",
-                  cursor: "pointer",
-                }}
-              >
-                事件流 ({selectedRunNodeId ? runEvents.filter((e) => e.node_id === selectedRunNodeId).length : runEvents.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setRunRightTab("output")}
-                style={{
-                  flex: 1,
-                  padding: "7px 0",
-                  border: "none",
-                  background: "none",
-                  fontSize: 11,
-                  fontWeight: runRightTab === "output" ? 600 : 400,
-                  color: runRightTab === "output" ? "#111827" : "#9ca3af",
-                  borderBottom: runRightTab === "output" ? "2px solid #3b82f6" : "2px solid transparent",
-                  cursor: "pointer",
-                }}
-              >
-                {selectedRunNodeId ? `输出 (${selectedRunNodeId})` : "节点输出"}
-              </button>
-            </div>
-
-            {/* 事件列表 */}
-            {runRightTab === "events" && (
-              <div style={{ flex: 1, overflowY: "auto", fontSize: 11 }}>
-                {(() => {
-                  const filtered = selectedRunNodeId
-                    ? runEvents.filter((e) => e.node_id === selectedRunNodeId)
-                    : runEvents;
-                  return filtered.length === 0 ? (
-                    <div style={{ padding: 20, textAlign: "center", color: "#d1d5db" }}>
-                      {selectedRunNodeId ? "该节点暂无事件" : "暂无事件"}
-                    </div>
-                  ) : (
-                    filtered.map((evt) => (
-                      <div
-                        key={evt.event_id}
-                        style={{
-                          padding: "5px 10px",
-                          borderBottom: "1px solid #f3f4f6",
-                          display: "flex",
-                          gap: 5,
-                          alignItems: "flex-start",
-                          cursor: evt.node_id ? "pointer" : "default",
-                        }}
-                        onClick={() => {
-                          if (evt.node_id) setSelectedRunNodeId(evt.node_id);
-                        }}
-                      >
-                        <EventIcon type={evt.type} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
-                            <span style={{ fontWeight: 500, color: "#374151" }}>{formatEventType(evt.type)}</span>
-                            <span style={{ color: "#d1d5db", fontSize: 9, flexShrink: 0 }}>
-                              {new Date(evt.timestamp).toLocaleTimeString("zh-CN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                          {evt.node_id && (
-                            <span
-                              style={{ color: "#9ca3af", fontFamily: "ui-monospace, monospace", fontSize: 9 }}
-                            >
-                              {evt.node_id}
-                            </span>
-                          )}
-                          {evt.metadata && Object.keys(evt.metadata).length > 0 && (
-                            <div
-                              style={{
-                                color: "#9ca3af",
-                                fontSize: 9,
-                                marginTop: 1,
-                                fontFamily: "ui-monospace, monospace",
-                              }}
-                            >
-                              {formatMeta(evt.type, evt.metadata)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* 节点输出 */}
-            {runRightTab === "output" && (
-              <div style={{ flex: 1, overflowY: "auto", fontSize: 11 }}>
-                {!selectedRunNodeId ? (
-                  <div style={{ padding: 20, textAlign: "center", color: "#d1d5db" }}>点击节点查看输出</div>
-                ) : nodeOutputLoading ? (
-                  <div style={{ padding: 20, textAlign: "center", color: "#9ca3af" }}>
-                    <Loader size={14} style={{ animation: "wf-spin 1s linear infinite", display: "inline-block" }} />
-                  </div>
-                ) : !selectedNodeOutput ? (
-                  <div style={{ padding: 20, textAlign: "center", color: "#d1d5db" }}>暂无输出</div>
-                ) : (
-                  <>
-                    <div
-                      style={{
-                        padding: "6px 10px",
-                        borderBottom: "1px solid #f3f4f6",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 6,
-                      }}
-                    >
-                      <span style={{ fontSize: 10, color: "#6b7280", fontFamily: "ui-monospace, monospace" }}>
-                        {selectedRunNodeId}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRerunFrom(selectedRunNodeId)}
-                        disabled={running}
-                        data-tooltip={`从 ${selectedRunNodeId} 开始重跑`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 3,
-                          padding: "2px 8px",
-                          border: "1px solid #3b82f6",
-                          borderRadius: 4,
-                          background: "#eff6ff",
-                          color: "#3b82f6",
-                          fontSize: 10,
-                          fontWeight: 500,
-                          cursor: running ? "not-allowed" : "pointer",
-                          opacity: running ? 0.5 : 1,
-                        }}
-                      >
-                        <RefreshCw size={10} /> 从此重跑
-                      </button>
-                    </div>
-                    <NodeOutputView output={selectedNodeOutput} />
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          /* ── 编辑模式面板（原有内容） ── */
           <>
             <div className="wf-prop-header">
               <span className="wf-prop-title">
@@ -1782,8 +1498,279 @@ function WorkflowEditorInner({ workflowId, runId, onViewRuns }: WorkflowEditorPr
           )}
         </div>
           </>
-        )}
       </aside>
+
+      {/* ── 侧边栏（运行记录 / 版本管理） ── */}
+      {sidePanelMode && (
+        <aside className="wf-run-panel">
+          {sidePanelMode === "versions" ? (
+            <VersionPanel
+              workflowId={workflowId}
+              onClose={() => setSidePanelMode(null)}
+              onPublish={handlePublish}
+              publishing={publishing}
+            />
+          ) : isRunMode ? (
+            <>
+              <div className="wf-prop-header" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="wf-prop-title">运行结果</span>
+                {runSnapshot && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
+                      padding: "1px 7px",
+                      borderRadius: 99,
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: DAG_STATUS_CFG[dagStatus!]?.color ?? "#6b7280",
+                      background: DAG_STATUS_CFG[dagStatus!]?.bg ?? "#f3f4f6",
+                    }}
+                  >
+                    {dagStatus === "RUNNING" && (
+                      <span
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          background: "#3b82f6",
+                          animation: "wf-pulse 1.5s ease-in-out infinite",
+                        }}
+                      />
+                    )}
+                    {DAG_STATUS_CFG[dagStatus!]?.label ?? dagStatus}
+                  </span>
+                )}
+                <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                  {!isRunDone && (
+                    <button
+                      type="button"
+                      onClick={handleCancelRun}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        width: 24, height: 24, border: "none", background: "#fef2f2",
+                        borderRadius: 4, color: "#ef4444", cursor: "pointer",
+                      }}
+                    >
+                      <Square size={11} />
+                    </button>
+                  )}
+                  {isRunDone && (
+                    <button
+                      type="button"
+                      onClick={handleBackToEdit}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        width: 24, height: 24, border: "none", background: "#f3f4f6",
+                        borderRadius: 4, color: "#6b7280", cursor: "pointer",
+                      }}
+                    >
+                      <Edit3 size={11} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSidePanelMode(null)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 24, height: 24, border: "none", background: "#f3f4f6",
+                      borderRadius: 4, color: "#6b7280", cursor: "pointer",
+                    }}
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              </div>
+
+              {/* 审批卡片 */}
+              {dagStatus === "SUSPENDED" && runApprovals.length > 0 && (
+                <div style={{ padding: 10, borderBottom: "1px solid #fbbf24", background: "#fffbeb" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#92400e", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                    <ShieldCheck size={12} /> 等待审批
+                  </div>
+                  {runApprovals.map((a) => (
+                    <div key={a.nodeId} style={{ fontSize: 10, color: "#78350f", marginBottom: 6 }}>
+                      <div style={{ fontWeight: 500, marginBottom: 2 }}>节点: {a.nodeId}</div>
+                      {a.displayData && typeof a.displayData === "object" && (
+                        <div style={{ color: "#92400e", marginBottom: 3 }}>
+                          {(a.displayData as Record<string, string>).message ?? ""}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(a)}
+                        style={{
+                          padding: "2px 8px", border: "1px solid #f59e0b", borderRadius: 4,
+                          background: "#f59e0b", color: "#fff", fontSize: 10, fontWeight: 500, cursor: "pointer",
+                        }}
+                      >
+                        通过
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 进度条 */}
+              {runSnapshot && (
+                <div style={{
+                  padding: "4px 12px", borderBottom: "1px solid #f3f4f6",
+                  fontSize: 10, color: "#9ca3af", display: "flex", justifyContent: "space-between",
+                }}>
+                  <span>
+                    {Object.values(runSnapshot.node_states).filter((s) => s.status === "COMPLETED").length}/
+                    {Object.keys(runSnapshot.node_states).length} 节点
+                  </span>
+                  <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 9 }}>
+                    {activeRunId?.substring(0, 16)}...
+                  </span>
+                </div>
+              )}
+
+              {/* Tab 切换 */}
+              <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb" }}>
+                <button
+                  type="button"
+                  onClick={() => setRunRightTab("events")}
+                  style={{
+                    flex: 1, padding: "7px 0", border: "none", background: "none", fontSize: 11,
+                    fontWeight: runRightTab === "events" ? 600 : 400,
+                    color: runRightTab === "events" ? "#111827" : "#9ca3af",
+                    borderBottom: runRightTab === "events" ? "2px solid #3b82f6" : "2px solid transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  事件流 ({selectedRunNodeId ? runEvents.filter((e) => e.node_id === selectedRunNodeId).length : runEvents.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRunRightTab("output")}
+                  style={{
+                    flex: 1, padding: "7px 0", border: "none", background: "none", fontSize: 11,
+                    fontWeight: runRightTab === "output" ? 600 : 400,
+                    color: runRightTab === "output" ? "#111827" : "#9ca3af",
+                    borderBottom: runRightTab === "output" ? "2px solid #3b82f6" : "2px solid transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  {selectedRunNodeId ? `输出 (${selectedRunNodeId})` : "节点输出"}
+                </button>
+              </div>
+
+              {/* 事件列表 */}
+              {runRightTab === "events" && (
+                <div style={{ flex: 1, overflowY: "auto", fontSize: 11 }}>
+                  {(() => {
+                    const filtered = selectedRunNodeId
+                      ? runEvents.filter((e) => e.node_id === selectedRunNodeId)
+                      : runEvents;
+                    return filtered.length === 0 ? (
+                      <div style={{ padding: 20, textAlign: "center", color: "#d1d5db" }}>
+                        {selectedRunNodeId ? "该节点暂无事件" : "暂无事件"}
+                      </div>
+                    ) : (
+                      filtered.map((evt) => (
+                        <div
+                          key={evt.event_id}
+                          style={{
+                            padding: "5px 12px", borderBottom: "1px solid #f3f4f6",
+                            display: "flex", gap: 5, alignItems: "flex-start",
+                            cursor: evt.node_id ? "pointer" : "default",
+                          }}
+                          onClick={() => { if (evt.node_id) setSelectedRunNodeId(evt.node_id); }}
+                        >
+                          <EventIcon type={evt.type} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
+                              <span style={{ fontWeight: 500, color: "#374151" }}>{formatEventType(evt.type)}</span>
+                              <span style={{ color: "#d1d5db", fontSize: 9, flexShrink: 0 }}>
+                                {new Date(evt.timestamp).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                              </span>
+                            </div>
+                            {evt.node_id && (
+                              <span style={{ color: "#9ca3af", fontFamily: "ui-monospace, monospace", fontSize: 9 }}>{evt.node_id}</span>
+                            )}
+                            {evt.metadata && Object.keys(evt.metadata).length > 0 && (
+                              <div style={{ color: "#9ca3af", fontSize: 9, marginTop: 1, fontFamily: "ui-monospace, monospace" }}>
+                                {formatMeta(evt.type, evt.metadata)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* 节点输出 */}
+              {runRightTab === "output" && (
+                <div style={{ flex: 1, overflowY: "auto", fontSize: 11 }}>
+                  {!selectedRunNodeId ? (
+                    <div style={{ padding: 20, textAlign: "center", color: "#d1d5db" }}>点击节点查看输出</div>
+                  ) : nodeOutputLoading ? (
+                    <div style={{ padding: 20, textAlign: "center", color: "#9ca3af" }}>
+                      <Loader size={14} style={{ animation: "wf-spin 1s linear infinite", display: "inline-block" }} />
+                    </div>
+                  ) : !selectedNodeOutput ? (
+                    <div style={{ padding: 20, textAlign: "center", color: "#d1d5db" }}>暂无输出</div>
+                  ) : (
+                    <>
+                      <div style={{
+                        padding: "6px 12px", borderBottom: "1px solid #f3f4f6",
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+                      }}>
+                        <span style={{ fontSize: 10, color: "#6b7280", fontFamily: "ui-monospace, monospace" }}>{selectedRunNodeId}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRerunFrom(selectedRunNodeId)}
+                          disabled={running}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 3, padding: "2px 8px",
+                            border: "1px solid #3b82f6", borderRadius: 4, background: "#eff6ff",
+                            color: "#3b82f6", fontSize: 10, fontWeight: 500,
+                            cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.5 : 1,
+                          }}
+                        >
+                          <RefreshCw size={10} /> 从此重跑
+                        </button>
+                      </div>
+                      <NodeOutputView output={selectedNodeOutput} />
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            /* 历史运行列表模式 */
+            <RunListPanel
+              onSelect={async (runId) => {
+                setActiveRunId(runId);
+                setRunSnapshot(null);
+                setRunEvents([]);
+                setRunApprovals([]);
+                setSelectedRunNodeId(null);
+                setSelectedNodeOutput(null);
+                try {
+                  const [snap, evts] = await Promise.all([
+                    workflowEngineApi.getRunStatus(runId),
+                    workflowEngineApi.getEvents(runId),
+                  ]);
+                  if (snap) {
+                    setRunSnapshot(snap);
+                    updateNodesFromSnapshot(snap);
+                  }
+                  if (Array.isArray(evts)) setRunEvents(dedupEvents(evts));
+                } catch (err) {
+                  console.error("加载运行数据失败:", err);
+                }
+              }}
+              onClose={() => setSidePanelMode(null)}
+            />
+          )}
+        </aside>
+      )}
     </div>
   );
 }
@@ -1796,6 +1783,392 @@ function dedupEvents(events: DAGEvent[]): DAGEvent[] {
     seen.add(e.event_id);
     return true;
   });
+}
+
+// ── 版本管理面板 ──
+
+function VersionPanel({ workflowId, onClose, onPublish, publishing }: {
+  workflowId?: string;
+  onClose: () => void;
+  onPublish: () => Promise<void>;
+  publishing: boolean;
+}) {
+  const [wf, setWf] = useState<import("../../api/workflow-defs").WorkflowDefItem | null>(null);
+  const [versions, setVersions] = useState<import("../../api/workflow-defs").WorkflowVersionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewingVersion, setViewingVersion] = useState<number | null>(null);
+  const [viewingYaml, setViewingYaml] = useState<string | null>(null);
+  const [publishingLocal, setPublishingLocal] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!workflowId) return;
+    setLoading(true);
+    try {
+      const [wfData, versionList] = await Promise.all([
+        workflowDefApi.get(workflowId),
+        workflowDefApi.getVersions(workflowId),
+      ]);
+      setWf(wfData);
+      setVersions(Array.isArray(versionList) ? versionList : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [workflowId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handlePublishClick = useCallback(async () => {
+    setPublishingLocal(true);
+    try {
+      await onPublish();
+      loadData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPublishingLocal(false);
+    }
+  }, [onPublish, loadData]);
+
+  const handleSetLatest = useCallback(async (version: number) => {
+    if (!workflowId) return;
+    try {
+      await workflowDefApi.setLatest(workflowId, version);
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert("操作失败: " + (err as Error).message);
+    }
+  }, [workflowId, loadData]);
+
+  const handleRestoreToDraft = useCallback(async (version: number) => {
+    if (!workflowId) return;
+    try {
+      await workflowDefApi.restoreToDraft(workflowId, version);
+      alert("已恢复到草稿");
+    } catch (err) {
+      console.error(err);
+      alert("恢复失败: " + (err as Error).message);
+    }
+  }, [workflowId]);
+
+  const handleViewYaml = useCallback(async (version: number) => {
+    if (!workflowId) return;
+    if (viewingVersion === version) {
+      setViewingVersion(null);
+      setViewingYaml(null);
+      return;
+    }
+    try {
+      const result = await workflowDefApi.getVersion(workflowId, version);
+      setViewingVersion(version);
+      setViewingYaml(result.yaml);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [workflowId, viewingVersion]);
+
+  const isBusy = publishing || publishingLocal;
+
+  return (
+    <>
+      <div className="wf-prop-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span className="wf-prop-title">版本管理</span>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 24, height: 24, border: "none", background: "#f3f4f6",
+            borderRadius: 4, color: "#6b7280", cursor: "pointer",
+          }}
+        >
+          <X size={11} />
+        </button>
+      </div>
+
+      {/* 发布按钮 */}
+      {workflowId && (
+        <div style={{ padding: "8px 12px", borderBottom: "1px solid #f3f4f6" }}>
+          <button
+            type="button"
+            onClick={handlePublishClick}
+            disabled={isBusy}
+            style={{
+              width: "100%", padding: "7px 0", border: "none", borderRadius: 6,
+              background: isBusy ? "#d1d5db" : "#22c55e", color: "#fff",
+              fontSize: 12, fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+            }}
+          >
+            <Rocket size={13} />
+            {isBusy ? "发布中..." : `发布新版本${wf?.latestVersion ? `（当前 v${wf.latestVersion}）` : ""}`}
+          </button>
+        </div>
+      )}
+
+      {/* 状态摘要 */}
+      {wf && (
+        <div style={{
+          padding: "6px 12px", borderBottom: "1px solid #f3f4f6",
+          fontSize: 10, color: "#9ca3af", display: "flex", justifyContent: "space-between",
+        }}>
+          <span>latest: <strong style={{ color: wf.latestVersion ? "#22c55e" : "#d1d5db" }}>
+            {wf.latestVersion ? `v${wf.latestVersion}` : "未发布"}
+          </strong></span>
+          <span>共 {versions.length} 个版本</span>
+        </div>
+      )}
+
+      {/* 版本列表 */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 24, color: "#9ca3af", fontSize: 11 }}>
+            <Loader size={16} style={{ animation: "wf-spin 1s linear infinite", display: "inline-block" }} />
+            <p style={{ marginTop: 4 }}>加载中...</p>
+          </div>
+        ) : versions.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 24, color: "#d1d5db", fontSize: 11 }}>
+            <Inbox size={24} style={{ margin: "0 auto 4px" }} />
+            <p>暂无发布版本</p>
+            <p style={{ fontSize: 9, marginTop: 2 }}>点击上方按钮发布第一个版本</p>
+          </div>
+        ) : (
+          versions.map((v) => {
+            const isLatest = wf?.latestVersion === v.version;
+            const isViewing = viewingVersion === v.version;
+            const cfg = DAG_STATUS_CFG[v.status === "active" ? "SUCCESS" : "CANCELLED"] ?? DAG_STATUS_CFG.PENDING;
+            return (
+              <div key={v.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <div
+                  style={{
+                    padding: "8px 12px", cursor: "pointer", transition: "background 0.1s",
+                  }}
+                  onClick={() => handleViewYaml(v.version)}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, color: "#111827", fontSize: 12 }}>
+                      v{v.version}
+                    </span>
+                    {isLatest && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 2,
+                        fontSize: 9, fontWeight: 500, color: "#22c55e", background: "#f0fdf4",
+                        padding: "1px 5px", borderRadius: 99,
+                      }}>
+                        latest
+                      </span>
+                    )}
+                    <span style={{ marginLeft: "auto", fontSize: 9, color: "#d1d5db" }}>
+                      {new Date(v.createdAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 3 }} onClick={(e) => e.stopPropagation()}>
+                    {!isLatest && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetLatest(v.version)}
+                        style={{
+                          padding: "2px 6px", border: "1px solid #e5e7eb", borderRadius: 3,
+                          background: "#fff", color: "#6b7280", fontSize: 9, cursor: "pointer",
+                        }}
+                      >
+                        设为 latest
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRestoreToDraft(v.version)}
+                      style={{
+                        padding: "2px 6px", border: "1px solid #e5e7eb", borderRadius: 3,
+                        background: "#fff", color: "#6b7280", fontSize: 9, cursor: "pointer",
+                      }}
+                    >
+                      恢复到草稿
+                    </button>
+                  </div>
+                </div>
+                {isViewing && viewingYaml !== null && (
+                  <div style={{ padding: "0 12px 8px" }}>
+                    <pre style={{
+                      background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 4,
+                      padding: 8, fontSize: 9, fontFamily: "ui-monospace, monospace",
+                      color: "#374151", maxHeight: 200, overflow: "auto", margin: 0,
+                      whiteSpace: "pre-wrap",
+                    }}>
+                      {viewingYaml}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── 历史运行记录面板 ──
+
+function RunListPanel({ onClose, onSelect }: {
+  onClose: () => void;
+  onSelect: (runId: string) => void;
+}) {
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    workflowEngineApi.listRuns()
+      .then((data) => setRuns(Array.isArray(data) ? data : []))
+      .catch((err) => { console.error(err); setError(err.message); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = runs.filter((r) => {
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    return true;
+  });
+
+  return (
+    <>
+      <div className="wf-prop-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span className="wf-prop-title">运行记录</span>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 24, height: 24, border: "none", background: "#f3f4f6",
+            borderRadius: 4, color: "#6b7280", cursor: "pointer",
+          }}
+        >
+          <X size={11} />
+        </button>
+      </div>
+
+      {/* 筛选 */}
+      <div style={{ display: "flex", gap: 3, padding: "6px 12px", borderBottom: "1px solid #f3f4f6", flexWrap: "wrap" }}>
+        {["all", "RUNNING", "SUSPENDED", "SUCCESS", "FAILED"].map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStatusFilter(s)}
+            style={{
+              padding: "2px 6px",
+              border: "1px solid",
+              borderColor: statusFilter === s ? "#3b82f6" : "#e5e7eb",
+              borderRadius: 4,
+              background: statusFilter === s ? "#eff6ff" : "#fff",
+              color: statusFilter === s ? "#3b82f6" : "#6b7280",
+              fontSize: 10,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            {s === "all" ? "全部" : DAG_STATUS_CFG[s]?.label ?? s}
+          </button>
+        ))}
+      </div>
+
+      {/* 列表 */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 24, color: "#9ca3af", fontSize: 11 }}>
+            <Loader size={16} style={{ animation: "wf-spin 1s linear infinite", display: "inline-block" }} />
+            <p style={{ marginTop: 4 }}>加载中...</p>
+          </div>
+        ) : error ? (
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <AlertTriangle size={20} style={{ color: "#ef4444", margin: "0 auto 4px" }} />
+            <p style={{ fontSize: 11, color: "#6b7280" }}>加载失败</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 24, color: "#d1d5db", fontSize: 11 }}>
+            <Inbox size={24} style={{ margin: "0 auto 4px" }} />
+            <p>{statusFilter !== "all" ? "没有匹配的记录" : "暂无运行记录"}</p>
+          </div>
+        ) : (
+          filtered.map((r) => {
+            const cfg = DAG_STATUS_CFG[r.status] ?? DAG_STATUS_CFG.PENDING;
+            const isRunning = r.status === "RUNNING";
+            return (
+              <div
+                key={r.run_id}
+                onClick={() => onSelect(r.run_id)}
+                style={{
+                  padding: "8px 12px",
+                  borderBottom: "1px solid #f3f4f6",
+                  cursor: "pointer",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
+                      padding: "1px 6px",
+                      borderRadius: 99,
+                      fontSize: 9,
+                      fontWeight: 500,
+                      color: cfg.color,
+                      background: cfg.bg,
+                    }}
+                  >
+                    {isRunning && (
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.color, animation: "wf-pulse 1.5s ease-in-out infinite" }} />
+                    )}
+                    {cfg.label}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#9ca3af", fontFamily: "ui-monospace, monospace" }}>
+                    {r.node_summary.completed}/{r.node_summary.total}
+                  </span>
+                  <span style={{ marginLeft: "auto", fontSize: 9, color: "#d1d5db" }}>
+                    {relativeTime(r.started_at)}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {r.workflow_name}
+                </div>
+                <div style={{ fontSize: 9, color: "#d1d5db", fontFamily: "ui-monospace, monospace" }}>
+                  {r.run_id.substring(0, 20)}...
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 底部统计 */}
+      {runs.length > 0 && (
+        <div style={{ padding: "6px 12px", borderTop: "1px solid #f3f4f6", fontSize: 10, color: "#d1d5db", textAlign: "center" }}>
+          共 {runs.length} 条记录
+        </div>
+      )}
+    </>
+  );
+}
+
+function relativeTime(iso?: string | null): string {
+  if (!iso) return "--";
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 0) return "刚刚";
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)} 天前`;
+  return new Date(iso).toLocaleDateString("zh-CN");
 }
 
 // ── DAG 状态样式 ──

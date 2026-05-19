@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import {
   Terminal,
@@ -11,6 +12,8 @@ import {
   XCircle,
   Loader,
   Clock,
+  Eye,
+  ArrowRight,
 } from "lucide-react";
 
 const NODE_COLORS: Record<string, { main: string; light: string; headerText: string }> = {
@@ -93,7 +96,7 @@ function getPreview(type: string, data: Record<string, unknown>): string {
   }
 }
 
-export function WorkflowNode({ data, selected, type }: NodeProps) {
+export function WorkflowNode({ data, id, selected, type }: NodeProps) {
   const nodeType = type ?? "shell";
   const colors = NODE_COLORS[nodeType] ?? NODE_COLORS.shell;
   const label = NODE_LABELS[nodeType] ?? nodeType;
@@ -106,6 +109,13 @@ export function WorkflowNode({ data, selected, type }: NodeProps) {
   const runStatus = d._runStatus as string | undefined;
   const exitCode = d._exitCode as number | undefined;
   const statusCfg = runStatus ? RUN_STATUS_CFG[runStatus] ?? RUN_STATUS_CFG.PENDING : null;
+
+  // 回调（通过 data 注入）
+  const onViewOutput = d._onViewOutput as ((nodeId: string) => void) | undefined;
+  const onRerunFrom = d._onRerunFrom as ((nodeId: string) => void) | undefined;
+
+  const isTerminal = runStatus === "COMPLETED" || runStatus === "FAILED";
+  const showActions = isTerminal && !isStart;
 
   const borderColor = statusCfg ? statusCfg.color : selected ? colors.main : "#e5e7eb";
   const boxShadow = statusCfg
@@ -175,7 +185,7 @@ export function WorkflowNode({ data, selected, type }: NodeProps) {
         </div>
       )}
 
-      {/* 运行状态条 */}
+      {/* 运行状态条 + 操作按钮 */}
       {statusCfg && !isStart && (
         <div
           style={{
@@ -184,14 +194,58 @@ export function WorkflowNode({ data, selected, type }: NodeProps) {
             borderTop: `1px solid ${statusCfg.color}20`,
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            gap: 4,
             fontSize: 10,
             color: statusCfg.color,
             fontWeight: 500,
           }}
         >
-          <span>{statusCfg.label}</span>
+          <span style={{ flex: 1 }}>{statusCfg.label}</span>
           {exitCode != null && <span>exit: {exitCode}</span>}
+          {showActions && onViewOutput && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onViewOutput(id); }}
+              title="查看输出"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 18,
+                height: 18,
+                border: `1px solid ${statusCfg.color}40`,
+                borderRadius: 3,
+                background: "#fff",
+                color: statusCfg.color,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              <Eye size={10} />
+            </button>
+          )}
+          {showActions && onRerunFrom && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRerunFrom(id); }}
+              title="从此节点重跑"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 18,
+                height: 18,
+                border: `1px solid ${statusCfg.color}40`,
+                borderRadius: 3,
+                background: "#fff",
+                color: statusCfg.color,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              <ArrowRight size={9} />
+            </button>
+          )}
         </div>
       )}
 

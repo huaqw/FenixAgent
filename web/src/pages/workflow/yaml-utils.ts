@@ -138,9 +138,10 @@ export function flowToYaml(nodes: Node[], edges: Edge[], meta: WfMeta): string {
       entry.depends_on = depends;
     }
 
-    // 合并 node.data 中的非空字段
+    // 合并 node.data 中的非空字段（跳过 _ 开头的内部运行时字段）
     const data = node.data as Record<string, unknown>;
     for (const [k, v] of Object.entries(data)) {
+      if (k.startsWith("_")) continue;
       if (v !== undefined && v !== null && v !== "") {
         entry[k] = v;
       }

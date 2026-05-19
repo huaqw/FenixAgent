@@ -389,3 +389,14 @@
   color: #6b7280;
   cursor: default;
 }
+
+/* ── Run Panel (second sidebar) ── */
+.wf-run-panel {
+  width: 300px;
+  min-width: 300px;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

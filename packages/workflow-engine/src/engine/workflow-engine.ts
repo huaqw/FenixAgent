@@ -189,14 +189,17 @@ export function createWorkflowEngine(options: WorkflowEngineOptions): WorkflowEn
     // 6. 存储活跃运行
     activeRuns.set(runId, { cancellation, workflowDef: validation.def });
 
+    let result: DAGRunResult | undefined;
     try {
       // 7. 执行
       const scheduler = new DAGScheduler(context);
-      const result = await scheduler.run();
+      result = await scheduler.run();
       return result;
     } finally {
-      // 运行结束后清理活跃记录（无论成功或失败）
-      activeRuns.delete(runId);
+      // SUSPENDED 状态保留 activeRun，等待 approveNode 恢复
+      if (result?.status !== 'SUSPENDED') {
+        activeRuns.delete(runId);
+      }
     }
   }
 
@@ -325,7 +328,12 @@ export function createWorkflowEngine(options: WorkflowEngineOptions): WorkflowEn
     };
 
     const scheduler = new DAGScheduler(context);
-    await scheduler.run();
+    const result = await scheduler.run();
+
+    // 恢复执行后，若非再次 SUSPENDED 则清理活跃记录
+    if (result.status !== 'SUSPENDED') {
+      activeRuns.delete(runId);
+    }
   }
 
   /** 非活跃运行的审批恢复 */
@@ -457,6 +465,7 @@ export function createWorkflowEngine(options: WorkflowEngineOptions): WorkflowEn
     // 存储为活跃运行
     activeRuns.set(runId, { cancellation, workflowDef: validation.def });
 
+    let result: DAGRunResult | undefined;
     try {
       const context: SchedulerContext = {
         runId,
@@ -468,9 +477,13 @@ export function createWorkflowEngine(options: WorkflowEngineOptions): WorkflowEn
         cancellation,
       };
 
-      return await recoverRun(context);
+      result = await recoverRun(context);
+      return result;
     } finally {
-      activeRuns.delete(runId);
+      // SUSPENDED 状态保留 activeRun，等待 approveNode 恢复
+      if (result?.status !== 'SUSPENDED') {
+        activeRuns.delete(runId);
+      }
     }
   }
 
@@ -560,6 +573,7 @@ export function createWorkflowEngine(options: WorkflowEngineOptions): WorkflowEn
 
     activeRuns.set(newRunId, { cancellation, workflowDef: validation.def });
 
+    let result: DAGRunResult | undefined;
     try {
       const context: SchedulerContext = {
         runId: newRunId,
@@ -574,9 +588,13 @@ export function createWorkflowEngine(options: WorkflowEngineOptions): WorkflowEn
       };
 
       const scheduler = new DAGScheduler(context);
-      return await scheduler.run();
+      result = await scheduler.run();
+      return result;
     } finally {
-      activeRuns.delete(newRunId);
+      // SUSPENDED 状态保留 activeRun，等待 approveNode 恢复
+      if (result?.status !== 'SUSPENDED') {
+        activeRuns.delete(newRunId);
+      }
     }
   }
 
