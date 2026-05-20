@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { apiKey } from "../db/schema";
 
@@ -17,6 +17,7 @@ export interface ApiKeyRecord {
   label: string;
   createdAt: Date;
   lastUsedAt: Date | null;
+  expiresAt: Date | null;
 }
 
 export interface ApiKeySanitized {
@@ -25,6 +26,7 @@ export interface ApiKeySanitized {
   keyPrefix: string;
   createdAt: number;
   lastUsedAt: number | null;
+  expiresAt: number | null;
 }
 
 function computeKeyPrefix(fullKey: string): string {
@@ -38,6 +40,7 @@ function sanitize(record: ApiKeyRecord): ApiKeySanitized {
     keyPrefix: record.keyPrefix,
     createdAt: Math.floor(record.createdAt.getTime() / 1000),
     lastUsedAt: record.lastUsedAt ? Math.floor(record.lastUsedAt.getTime() / 1000) : null,
+    expiresAt: record.expiresAt ? Math.floor(record.expiresAt.getTime() / 1000) : null,
   };
 }
 
@@ -45,6 +48,7 @@ export async function createApiKey(
   userId: string,
   label: string,
   teamId: string,
+  options?: { expiresAt?: Date },
 ): Promise<{ record: ApiKeySanitized; fullKey: string }> {
   const fullKey = generateApiKey();
   const keyHash = hashApiKey(fullKey);
@@ -59,6 +63,7 @@ export async function createApiKey(
     label: label || "Default",
     createdAt: now,
     lastUsedAt: null,
+    expiresAt: options?.expiresAt ?? null,
   });
 
   const record: ApiKeyRecord = {
@@ -69,6 +74,7 @@ export async function createApiKey(
     label: label || "Default",
     createdAt: now,
     lastUsedAt: null,
+    expiresAt: options?.expiresAt ?? null,
   };
 
   return { record: sanitize(record), fullKey };
@@ -78,7 +84,11 @@ export async function validateApiKeyAndGetUser(
   key: string,
 ): Promise<{ userId: string; keyId: string; teamId: string | null } | null> {
   const inputHash = hashApiKey(key);
-  const rows = await db.select().from(apiKey).where(eq(apiKey.keyHash, inputHash)).limit(1);
+  const rows = await db
+    .select()
+    .from(apiKey)
+    .where(and(eq(apiKey.keyHash, inputHash), or(sql`${apiKey.expiresAt} IS NULL`, sql`${apiKey.expiresAt} > NOW()`)))
+    .limit(1);
 
   if (rows.length === 0) return null;
 
@@ -106,6 +116,7 @@ export async function listApiKeysByUser(teamId: string): Promise<ApiKeySanitized
       label: r.label,
       createdAt: r.createdAt,
       lastUsedAt: r.lastUsedAt,
+      expiresAt: r.expiresAt,
     }),
   );
 }
