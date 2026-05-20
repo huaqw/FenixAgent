@@ -253,7 +253,7 @@ export async function updateTask(
 }
 
 export async function deleteTask(organizationId: string, taskId: string): Promise<ServiceResult<undefined>> {
-  const deleted = await scheduledTaskRepo.deleteByTeamAndId(organizationId, taskId);
+  const deleted = await scheduledTaskRepo.deleteByOrgAndId(organizationId, taskId);
   if (!deleted) return { success: false, error: { code: "NOT_FOUND", message: "任务不存在" } };
 
   unscheduleTask(taskId);
@@ -392,7 +392,10 @@ export async function executeTaskById(
   }
 }
 
-export async function triggerTask(organizationId: string, taskId: string): Promise<ServiceResult<TaskExecutionLogResponse>> {
+export async function triggerTask(
+  organizationId: string,
+  taskId: string,
+): Promise<ServiceResult<TaskExecutionLogResponse>> {
   const task = await scheduledTaskRepo.getByOrgAndId(organizationId, taskId);
   if (!task) return { success: false, error: { code: "NOT_FOUND", message: "任务不存在" } };
   return executeTaskById(taskId, "manual", task);

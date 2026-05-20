@@ -1,13 +1,13 @@
 import { describe, expect, test, mock, beforeEach } from "bun:test";
 
 const mockCreateWebEnvironment = mock<(params: any) => Promise<any>>();
-const mockListEnvironmentsWithInstances = mock<(teamId: string) => Promise<any[]>>();
+const mockListEnvironmentsWithInstances = mock<(organizationId: string) => Promise<any[]>>();
 const mockSpawnInstanceFromEnvironment = mock<(userId: string, envId: string) => Promise<any>>();
 const mockUpsertSkill = mock<(ctx: any, name: string, data: any) => Promise<string>>();
 const mockGetAgentConfig = mock<(ctx: any, name: string) => Promise<any>>();
 const mockCreateAgentConfig = mock<(ctx: any, name: string, data: any) => Promise<any>>();
 const mockWriteMetaSkillFile = mock<() => Promise<string>>();
-const mockCreateApiKey = mock<(userId: string, label: string, teamId: string, options?: any) => Promise<any>>();
+const mockCreateApiKey = mock<(userId: string, label: string, organizationId: string, options?: any) => Promise<any>>();
 
 mock.module("../auth/api-key-service", () => ({
   createApiKey: mockCreateApiKey,
@@ -41,7 +41,7 @@ mock.module("../services/config/skill-meta-content", () => ({
 import { META_ENVIRONMENT_NAME, findMetaEnvironment, ensureMetaEnvironment } from "../services/meta-agent";
 
 const testCtx = {
-  teamId: "team-001",
+  organizationId: "team-001",
   userId: "user-001",
   role: "owner" as const,
 };

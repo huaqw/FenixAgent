@@ -141,7 +141,11 @@ export async function publishVersion(workflowId: string, ctx: AuthCtx): Promise<
 
 /** 列出工作流（按 updatedAt 降序） */
 export async function listWorkflowDefs(organizationId: string): Promise<WorkflowDefRow[]> {
-  return db.select().from(workflow).where(eq(workflow.organizationId, organizationId)).orderBy(desc(workflow.updatedAt));
+  return db
+    .select()
+    .from(workflow)
+    .where(eq(workflow.organizationId, organizationId))
+    .orderBy(desc(workflow.updatedAt));
 }
 
 /** 获取单个工作流 */
@@ -219,7 +223,10 @@ export async function updateWorkflowMeta(
 
 /** 扫描文件系统中可恢复的孤立工作流 */
 export async function listRecoverableWorkflows(organizationId: string): Promise<string[]> {
-  const existing = await db.select({ id: workflow.id }).from(workflow).where(eq(workflow.organizationId, organizationId));
+  const existing = await db
+    .select({ id: workflow.id })
+    .from(workflow)
+    .where(eq(workflow.organizationId, organizationId));
   const existingIds = new Set(existing.map((r) => r.id));
 
   return fsListRecoverable(WORKFLOW_BASE_DIR, organizationId, existingIds);

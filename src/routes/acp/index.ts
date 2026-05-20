@@ -1,6 +1,5 @@
 import Elysia from "elysia";
 import { v4 as uuid } from "uuid";
-import { validateApiKeyAndGetUser } from "../../auth/api-key-service";
 import { auth } from "../../auth/better-auth";
 import { log, error as logError } from "../../logger";
 import { authGuardPlugin, lookupUserById } from "../../plugins/auth";
@@ -48,13 +47,18 @@ async function resolveTokenAuth(token: string | undefined): Promise<{ userId: st
     }
   }
 
-  // 1. Per-user API Key
-  const keyInfo = await validateApiKeyAndGetUser(token);
-  if (keyInfo) {
-    const userRow = await lookupUserById(keyInfo.userId);
-    if (userRow) {
-      return { userId: userRow.id };
+  // 1. better-auth API Key verification
+  try {
+    const result = await (auth.api as any).verifyApiKey({ body: { key: token } });
+    if (result.valid && result.key) {
+      const apiKeyMeta = result.key as any;
+      const userRow = await lookupUserById(apiKeyMeta.userId);
+      if (userRow) {
+        return { userId: userRow.id };
+      }
     }
+  } catch {
+    // verifyApiKey may throw for invalid keys
   }
 
   return null;

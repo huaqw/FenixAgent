@@ -97,7 +97,7 @@ beforeEach(() => {
       secret: "env_secret_test123",
       maxSessions: 5,
       status: "active",
-      teamId: "team-test",
+      organizationId: "team-test",
     })),
     update: mock(async () => true),
     create: mock(async (params: any) => ({

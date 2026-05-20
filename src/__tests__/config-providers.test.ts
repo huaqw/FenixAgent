@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetTestAuth, setTestAuth } from "../plugins/auth";
-import { setTestTeamContext } from "../services/team-context";
+import { setTestOrgContext } from "../services/org-context";
 
 // In-memory PG mock for providers
 let _providers: Map<
@@ -127,15 +127,15 @@ function createFetchMock(handler: () => Promise<Response> | Response): typeof fe
 describe("Providers Config Route", () => {
   afterEach(() => {
     resetTestAuth();
-    setTestTeamContext(null);
+    setTestOrgContext(null);
   });
 
   beforeEach(() => {
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
     _providers = new Map();
   });
 
@@ -654,9 +654,9 @@ describe("Provider Test action - edge cases", () => {
     _providers = new Map();
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
   });
 
   test("test non-existent provider returns NOT_FOUND", async () => {
@@ -678,9 +678,9 @@ describe("Provider atomic write", () => {
     _providers = new Map();
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
   });
 
   test("concurrent set operations don't lose data", async () => {

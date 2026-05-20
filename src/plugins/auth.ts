@@ -170,14 +170,15 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
               store.user = user;
               store.authEnvironmentId = envRecord.id;
               const organizationId = envRecord.organizationId ?? envRecord.userId;
-              const role = envRecord.organizationId && envRecord.organizationId !== envRecord.userId ? "member" : "owner";
+              const role =
+                envRecord.organizationId && envRecord.organizationId !== envRecord.userId ? "member" : "owner";
               store.authContext = { organizationId, userId: user.id, role: role as "owner" | "admin" | "member" };
               return;
             }
           }
 
           // 1. better-auth API Key 验证
-          const result = await auth.api.verifyApiKey({ key: token });
+          const result: any = await auth.api.verifyApiKey({ body: { key: token } });
           if (result.valid && result.key) {
             const apiKeyMeta = result.key as any;
             const userId = apiKeyMeta.userId;

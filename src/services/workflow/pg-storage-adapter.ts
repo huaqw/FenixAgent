@@ -268,7 +268,9 @@ export function createPgStorageAdapter(organizationId: string): StorageAdapter {
     /** 删除指定运行的所有关联数据（事件、快照、节点输出），在事务中执行 */
     async deleteRun(runId: string): Promise<void> {
       await db.transaction(async (tx) => {
-        await tx.delete(workflowEvent).where(and(eq(workflowEvent.runId, runId), eq(workflowEvent.organizationId, organizationId)));
+        await tx
+          .delete(workflowEvent)
+          .where(and(eq(workflowEvent.runId, runId), eq(workflowEvent.organizationId, organizationId)));
         await tx
           .delete(workflowSnapshot)
           .where(and(eq(workflowSnapshot.runId, runId), eq(workflowSnapshot.organizationId, organizationId)));

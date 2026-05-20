@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetTestAuth, setTestAuth } from "../plugins/auth";
-import { setTestTeamContext } from "../services/team-context";
+import { setTestOrgContext } from "../services/org-context";
 
 // In-memory mock for agent configs and user config
 let _agentStore: Record<string, any> = {};
@@ -55,7 +55,7 @@ mock.module("../services/agent-knowledge", () => ({
     code = "INVALID_KNOWLEDGE_BINDINGS";
   },
   syncAgentKnowledgeBindingsById: async (
-    teamId: string,
+    organizationId: string,
     agentConfigId: string,
     knowledge: { knowledgeBaseIds: string[] } | null | undefined,
   ) => {
@@ -100,15 +100,15 @@ const agentsRoute = (await import("../routes/web/config/agents")).default;
 describe("Agents Config Route", () => {
   afterEach(() => {
     resetTestAuth();
-    setTestTeamContext(null);
+    setTestOrgContext(null);
   });
 
   beforeEach(() => {
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
     _agentStore = {
       build: { model: "claude-sonnet-4-6", prompt: "Build code", tools: ["Read", "Write"], steps: 50, mode: "primary" },
       plan: { model: "claude-opus-4-7", prompt: "Plan tasks", steps: 30 },

@@ -77,7 +77,7 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     }));
 
     await importSkillDirectories(
-      { teamId: "test-team", userId: "user_1", role: "owner" },
+      { organizationId: "test-team", userId: "user_1", role: "owner" },
       [makeFile("skill-a"), makeFile("skill-b"), makeFile("skill-c")],
       "overwrite",
     );
@@ -91,7 +91,7 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     getSkillMock.mockImplementation(async () => null);
 
     await importSkillDirectories(
-      { teamId: "test-team", userId: "user_1", role: "owner" },
+      { organizationId: "test-team", userId: "user_1", role: "owner" },
       [makeFile("new-skill")],
       "overwrite",
     );
@@ -110,7 +110,9 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     deleteSkillMock.mockImplementation(async () => true);
 
     await expect(
-      importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("fail-skill")]),
+      importSkillDirectories({ organizationId: "test-team", userId: "user_1", role: "owner" }, [
+        makeFile("fail-skill"),
+      ]),
     ).rejects.toThrow("disk full");
 
     expect(deleteSkillMock).toHaveBeenCalledTimes(1);
@@ -129,7 +131,7 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     });
 
     await expect(
-      importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("fail2")]),
+      importSkillDirectories({ organizationId: "test-team", userId: "user_1", role: "owner" }, [makeFile("fail2")]),
     ).rejects.toThrow("original error");
   });
 });

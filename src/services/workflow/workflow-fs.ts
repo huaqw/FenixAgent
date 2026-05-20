@@ -41,7 +41,11 @@ export async function readYamlFile(dir: string, fileName: string): Promise<strin
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function listRecoverable(baseDir: string, _organizationId: string, excludeIds: Set<string>): Promise<string[]> {
+export async function listRecoverable(
+  baseDir: string,
+  _organizationId: string,
+  excludeIds: Set<string>,
+): Promise<string[]> {
   if (!existsSync(baseDir)) return [];
 
   const entries = await readdir(baseDir, { withFileTypes: true });

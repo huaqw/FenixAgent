@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetConfig, setConfig } from "../config";
 import { resetTestAuth, setTestAuth } from "../plugins/auth";
-import { setTestTeamContext } from "../services/team-context";
+import { setTestOrgContext } from "../services/org-context";
 
 setConfig({ acpxGUrl: "http://localhost:8848" });
 
@@ -18,14 +18,14 @@ describe("Workflow Proxy", () => {
   beforeEach(() => {
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
   });
 
   afterEach(() => {
     resetTestAuth();
-    setTestTeamContext(null);
+    setTestOrgContext(null);
     globalThis.fetch = originalFetch;
   });
 

@@ -64,7 +64,7 @@ export async function resolveBoundKnowledgeBasesByConfigId(
 ): Promise<BoundKnowledgeBase[]> {
   const rows = await agentKnowledgeBindingRepo.listJoinedWithKnowledgeBaseByConfigId(agentConfigId);
   return rows
-    .filter((row) => !!row.kbRemoteId && (!orgId || row.kbUserId === organizationId))
+    .filter((row) => !!row.kbRemoteId && (!orgId || row.kbUserId === orgId))
     .sort((a, b) => a.priority - b.priority)
     .map((row) => ({
       id: row.kbId,

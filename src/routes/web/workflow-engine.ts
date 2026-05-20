@@ -39,7 +39,12 @@ app.post(
             await db
               .update(workflowSnapshot)
               .set({ workflowId })
-              .where(and(eq(workflowSnapshot.runId, result.runId), eq(workflowSnapshot.organizationId, authCtx.organizationId)));
+              .where(
+                and(
+                  eq(workflowSnapshot.runId, result.runId),
+                  eq(workflowSnapshot.organizationId, authCtx.organizationId),
+                ),
+              );
           }
           return { success: true, data: result };
         }
@@ -125,7 +130,12 @@ app.post(
             await db
               .update(workflowSnapshot)
               .set({ workflowId })
-              .where(and(eq(workflowSnapshot.runId, result.runId), eq(workflowSnapshot.organizationId, authCtx.organizationId)));
+              .where(
+                and(
+                  eq(workflowSnapshot.runId, result.runId),
+                  eq(workflowSnapshot.organizationId, authCtx.organizationId),
+                ),
+              );
           }
           return { success: true, data: result };
         }

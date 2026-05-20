@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { resetTestAuth, setTestAuth } from "../plugins/auth";
-import { setTestTeamContext } from "../services/team-context";
+import { setTestOrgContext } from "../services/org-context";
 
 // mock logger
 // mock errors

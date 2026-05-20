@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetTestAuth, setTestAuth } from "../plugins/auth";
-import { setTestTeamContext } from "../services/team-context";
+import { setTestOrgContext } from "../services/org-context";
 
 // In-memory mock for user config and providers
 let _userConfig: {
@@ -37,15 +37,15 @@ const modelsRoute = (await import("../routes/web/config/models")).default;
 describe("Models Config Route", () => {
   afterEach(() => {
     resetTestAuth();
-    setTestTeamContext(null);
+    setTestOrgContext(null);
   });
 
   beforeEach(() => {
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
     _userConfig = { defaultAgent: null, currentModel: null, smallModel: null, permission: null };
     _providers = new Map();
   });

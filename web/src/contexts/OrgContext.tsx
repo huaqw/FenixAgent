@@ -94,9 +94,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <OrgContext.Provider value={{ org, role, orgs, loading, switchOrg, refreshOrgs }}>
-      {children}
-    </OrgContext.Provider>
+    <OrgContext.Provider value={{ org, role, orgs, loading, switchOrg, refreshOrgs }}>{children}</OrgContext.Provider>
   );
 }
 

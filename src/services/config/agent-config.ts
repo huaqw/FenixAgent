@@ -69,7 +69,12 @@ function buildSetFromData(data: Record<string, unknown>): Partial<typeof agentCo
 
 export async function createAgentConfig(ctx: AuthContext, name: string, data: Record<string, unknown>) {
   const set = buildSetFromData(data);
-  const values = { organizationId: ctx.organizationId, userId: ctx.userId, name, ...set } as typeof agentConfig.$inferInsert;
+  const values = {
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    name,
+    ...set,
+  } as typeof agentConfig.$inferInsert;
 
   await db
     .insert(agentConfig)

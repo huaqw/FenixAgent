@@ -159,7 +159,7 @@ async function completeResource(
 }
 
 export async function uploadKnowledgeResource(userId: string, knowledgeBaseId: string, file: File) {
-  const kb = await knowledgeBaseRepo.getByTeamAndId(userId, knowledgeBaseId);
+  const kb = await knowledgeBaseRepo.getByOrgAndId(userId, knowledgeBaseId);
   if (!kb) {
     throw new Error("知识库不存在");
   }
@@ -208,7 +208,7 @@ export async function importKnowledgeResourceFromUrl(
   knowledgeBaseId: string,
   input: { url: string; sourceName?: string },
 ) {
-  const kb = await knowledgeBaseRepo.getByTeamAndId(userId, knowledgeBaseId);
+  const kb = await knowledgeBaseRepo.getByOrgAndId(userId, knowledgeBaseId);
   if (!kb) {
     throw new Error("知识库不存在");
   }
@@ -247,7 +247,7 @@ export async function importKnowledgeResourceFromUrl(
 }
 
 export async function listKnowledgeResources(userId: string, knowledgeBaseId: string) {
-  const kb = await knowledgeBaseRepo.getByTeamAndId(userId, knowledgeBaseId);
+  const kb = await knowledgeBaseRepo.getByOrgAndId(userId, knowledgeBaseId);
   if (!kb) {
     return null;
   }
@@ -256,7 +256,7 @@ export async function listKnowledgeResources(userId: string, knowledgeBaseId: st
 }
 
 export async function deleteKnowledgeResource(userId: string, knowledgeBaseId: string, resourceId: string) {
-  const kb = await knowledgeBaseRepo.getByTeamAndId(userId, knowledgeBaseId);
+  const kb = await knowledgeBaseRepo.getByOrgAndId(userId, knowledgeBaseId);
   if (!kb) {
     return { success: false as const, error: { code: "NOT_FOUND", message: "知识库不存在" } };
   }
@@ -282,7 +282,7 @@ export async function deleteKnowledgeResource(userId: string, knowledgeBaseId: s
 }
 
 export async function refreshKnowledgeResourceStatus(userId: string, knowledgeBaseId: string) {
-  const kb = await knowledgeBaseRepo.getByTeamAndId(userId, knowledgeBaseId);
+  const kb = await knowledgeBaseRepo.getByOrgAndId(userId, knowledgeBaseId);
   if (!kb) {
     return null;
   }

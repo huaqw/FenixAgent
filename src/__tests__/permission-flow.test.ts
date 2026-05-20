@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetTestAuth, setTestAuth } from "../plugins/auth";
-import { setTestTeamContext } from "../services/team-context";
+import { setTestOrgContext } from "../services/org-context";
 
 // In-memory mock for agent configs and user config
 let _agentStore: Record<string, any> = {};
@@ -57,15 +57,15 @@ const agentsRoute = (await import("../routes/web/config/agents")).default;
 describe("Permission 更新流程验证", () => {
   afterEach(() => {
     resetTestAuth();
-    setTestTeamContext(null);
+    setTestOrgContext(null);
   });
 
   beforeEach(() => {
     setTestAuth({
       user: { id: "test-user", email: "test@test.com", name: "Test" },
-      authContext: { teamId: "test-team", userId: "test-user", role: "owner" },
+      authContext: { organizationId: "test-team", userId: "test-user", role: "owner" },
     });
-    setTestTeamContext({ teamId: "test-team", userId: "test-user", role: "owner" });
+    setTestOrgContext({ organizationId: "test-team", userId: "test-user", role: "owner" });
     _agentStore = {
       demo: {
         model: "qwen",

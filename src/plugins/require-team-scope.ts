@@ -16,7 +16,9 @@ export function requireOrgScope(
     return errorResponse(403, { error: { type: "forbidden", message: "Access denied" } });
   }
   if (authContext.organizationId !== resourceOrgId) {
-    return errorResponse(403, { error: { type: "forbidden", message: "Resource does not belong to your organization" } });
+    return errorResponse(403, {
+      error: { type: "forbidden", message: "Resource does not belong to your organization" },
+    });
   }
   return undefined;
 }

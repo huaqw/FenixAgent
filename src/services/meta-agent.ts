@@ -12,7 +12,7 @@ import { createWebEnvironment, listEnvironmentsWithInstances } from "./environme
 import { spawnInstanceFromEnvironment } from "./instance";
 import { upsertSkill } from "./config/skill";
 import { getAgentConfig, createAgentConfig } from "./config/agent-config";
-import { createApiKey } from "../auth/api-key-service";
+import { auth } from "../auth/better-auth";
 import type { AuthContext } from "../plugins/auth";
 import { META_SKILL_NAME, META_SKILL_DESCRIPTION, writeMetaSkillFile } from "./config/skill-meta-content";
 
@@ -39,12 +39,13 @@ export async function findMetaEnvironment(ctx: AuthContext): Promise<{ id: strin
 async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
   let agentConfig = await getAgentConfig(ctx, META_AGENT_CONFIG_NAME);
   if (!agentConfig) {
-    agentConfig = await createAgentConfig(ctx, META_AGENT_CONFIG_NAME, {
+    await createAgentConfig(ctx, META_AGENT_CONFIG_NAME, {
       description: "Meta Agent — 工作流编排助手",
       model: null,
       prompt: null,
       steps: null,
     });
+    agentConfig = await getAgentConfig(ctx, META_AGENT_CONFIG_NAME);
   }
 
   await writeMetaSkillFile();
@@ -62,8 +63,13 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
 /** 为 meta agent 创建 API key（1 小时过期） */
 async function createMetaApiKey(ctx: AuthContext): Promise<string> {
   const expiresAt = new Date(Date.now() + META_KEY_EXPIRY_MS);
-  const { fullKey } = await createApiKey(ctx.userId, META_KEY_LABEL, ctx.organizationId, { expiresAt });
-  return fullKey;
+  const result: any = await (auth.api as any).createApiKey({
+    name: META_KEY_LABEL,
+    prefix: "rcs_",
+    expiresAt,
+    metadata: { organizationId: ctx.organizationId, role: ctx.role },
+  });
+  return result?.key ?? result?.fullKey ?? "";
 }
 
 /** 查找或创建 meta environment + spawn 实例 */

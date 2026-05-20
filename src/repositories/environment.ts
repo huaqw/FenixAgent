@@ -35,7 +35,7 @@ export interface EnvironmentCreateParams {
   agentConfigId?: string | null;
   secret?: string;
   userId: string;
-  organizationId?: string;
+  organizationId?: string | null;
   status?: string;
   machineName?: string;
   directory?: string;
@@ -117,6 +117,7 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
     const workspacePath = params.workspacePath || params.directory || "/tmp";
     const status = params.status || "active";
     const secret = params.secret || `sec_${uuid().replace(/-/g, "")}`;
+    const orgId = params.organizationId ?? params.userId;
     await db.insert(environment).values({
       id,
       name,
@@ -132,7 +133,7 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
       capabilities: params.capabilities ?? null,
       status,
       userId: params.userId,
-      organizationId: params.organizationId ?? null,
+      organizationId: orgId,
       autoStart: params.autoStart ?? false,
       lastPollAt: now,
     });
@@ -153,7 +154,7 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
       status,
       username: params.username ?? null,
       userId: params.userId,
-      organizationId: params.organizationId ?? null,
+      organizationId: orgId,
       autoStart: params.autoStart ?? false,
       lastPollAt: now,
       createdAt: now,
