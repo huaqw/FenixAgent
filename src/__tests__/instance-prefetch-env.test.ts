@@ -1,7 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { resetCoreRuntime } from "../services/core-bootstrap";
-import { _deps, _resetDeps } from "../services/instance";
-import { setBuildLaunchSpec } from "../services/launch-spec-builder";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGetById = mock(() =>
   Promise.resolve({
@@ -29,31 +26,42 @@ const mockGetById = mock(() =>
   }),
 );
 
-beforeEach(() => {
-  resetCoreRuntime();
-  _deps.getCoreRuntime = () =>
-    ({
-      launchInstance: mock(async () => ({
-        instanceId: "inst_test",
-        status: "running",
-        createdAt: new Date(),
-        errorMessage: null,
-        pluginMetadata: {},
-      })),
-      listInstances: mock(() => []),
-      getInstance: mock(() => undefined),
-    }) as any;
-  _deps.getAgentConfigById = mock(async () => null as any) as any;
-  _deps.getAgentFullConfig = mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] }));
-  _deps.environmentRepo = { getById: mockGetById } as any;
-  _deps.findOrCreateForEnvironment = mock(async () => ({ id: "ses_test" })) as any;
-  setBuildLaunchSpec(mock(async () => ({})) as any);
-});
+const fakeFacade = {
+  launchInstance: mock(async () => ({
+    instanceId: "inst_test",
+    status: "running",
+    createdAt: new Date(),
+    errorMessage: null,
+    pluginMetadata: {},
+  })),
+  listInstances: mock(() => []),
+  getInstance: mock(() => undefined),
+  stopInstance: mock(async () => {}),
+};
 
-afterEach(() => {
-  _resetDeps();
-  setBuildLaunchSpec(null);
-});
+mock.module("../services/core-bootstrap", () => ({
+  getCoreRuntime: () => fakeFacade,
+  resetCoreRuntime: () => {},
+  setCoreRuntimeFactory: () => {},
+}));
+
+mock.module("../services/config-pg", () => ({
+  getAgentConfigById: mock(async () => null as any),
+  getAgentFullConfig: mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] })),
+}));
+
+mock.module("../repositories", () => ({
+  environmentRepo: { getById: mockGetById },
+}));
+
+mock.module("../services/session", () => ({
+  findOrCreateForEnvironment: mock(async () => ({ id: "ses_test" })),
+}));
+
+mock.module("../services/launch-spec-builder", () => ({
+  buildLaunchSpec: mock(async () => ({})),
+  setBuildLaunchSpec: () => {},
+}));
 
 import { spawnInstanceFromEnvironment } from "../services/instance";
 

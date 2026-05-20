@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { RuntimeInstanceSnapshot } from "@mothership/core";
-import { resetCoreRuntime } from "../services/core-bootstrap";
-import { _deps, _resetDeps } from "../services/instance";
-import { setBuildLaunchSpec } from "../services/launch-spec-builder";
 
 // ────────────────────────────────────────────
-// Mock 依赖
+// Mock 依赖 — mock.module 必须在 import 被测模块之前
 // ────────────────────────────────────────────
 
 const mockLaunchInstance = mock(
@@ -45,48 +42,44 @@ const fakeFacade = {
   listPlugins: () => [],
 };
 
-// envId → userId 映射
-const envOwnerMap = new Map<string, string>();
+mock.module("../services/core-bootstrap", () => ({
+  getCoreRuntime: () => fakeFacade as any,
+  resetCoreRuntime: () => {},
+  setCoreRuntimeFactory: () => {},
+}));
 
-beforeEach(() => {
-  mockLaunchInstance.mockClear();
-  mockStopInstance.mockClear();
-  mockListInstances.mockClear();
-  mockGetInstance.mockClear();
-  envOwnerMap.clear();
-
-  // 注入 fake facade
-  resetCoreRuntime();
-  _deps.getCoreRuntime = () => fakeFacade as any;
-
-  // 注入 fake config-pg
-  _deps.getAgentConfigById = mock(async (id: string) => ({ name: "test-agent", id })) as any;
-  _deps.getAgentFullConfig = mock(async () => ({
+mock.module("../services/config-pg", () => ({
+  getAgentConfigById: mock(async (id: string) => ({ name: "test-agent", id })),
+  getAgentFullConfig: mock(async () => ({
     agentConfig: { name: "test-agent", model: "openai/gpt-4", prompt: "test" },
     providers: [{ name: "openai", baseUrl: "https://api.openai.com/v1", apiKey: "sk-test", npm: "@ai-sdk/openai" }],
     skills: [],
     mcpServers: [],
-  })) as any;
+  })),
+}));
 
-  // 注入 fake launch-spec-builder
-  setBuildLaunchSpec(
-    mock(async () => ({
-      workspace: "/tmp/test-workspace",
-      agent: { name: "test-agent" },
-      model: {
-        provider: "openai",
-        protocol: "openai",
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        model: "gpt-4",
-      },
-      skills: [],
-      mcpServers: [],
-    })) as any,
-  );
+mock.module("../services/launch-spec-builder", () => ({
+  buildLaunchSpec: mock(async () => ({
+    workspace: "/tmp/test-workspace",
+    agent: { name: "test-agent" },
+    model: {
+      provider: "openai",
+      protocol: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-test",
+      model: "gpt-4",
+    },
+    skills: [],
+    mcpServers: [],
+  })),
+  setBuildLaunchSpec: () => {},
+}));
 
-  // 注入 fake repos
-  _deps.environmentRepo = {
+// envId → userId 映射
+const envOwnerMap = new Map<string, string>();
+
+mock.module("../repositories", () => ({
+  environmentRepo: {
     getById: mock(async (id: string) => ({
       id,
       userId: envOwnerMap.get(id) ?? "test-user",
@@ -109,14 +102,19 @@ beforeEach(() => {
     listActive: mock(async () => []),
     listAll: mock(async () => []),
     listByUserId: mock(async () => []),
-  } as any;
+  },
+}));
 
-  _deps.findOrCreateForEnvironment = mock(async () => ({ id: "session_test" })) as any;
-});
+mock.module("../services/session", () => ({
+  findOrCreateForEnvironment: mock(async () => ({ id: "session_test" })),
+}));
 
-afterEach(() => {
-  _resetDeps();
-  setBuildLaunchSpec(null);
+beforeEach(() => {
+  mockLaunchInstance.mockClear();
+  mockStopInstance.mockClear();
+  mockListInstances.mockClear();
+  mockGetInstance.mockClear();
+  envOwnerMap.clear();
 });
 
 // ────────────────────────────────────────────

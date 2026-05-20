@@ -4,34 +4,12 @@ import { AppError, NotFoundError } from "../errors";
 import { log, error as logError } from "../logger";
 import type { AuthContext } from "../plugins/auth";
 import type { EnvironmentRecord } from "../repositories";
-import { environmentRepo as _environmentRepo } from "../repositories";
+import { environmentRepo } from "../repositories";
 import type { AgentFullConfig } from "./config-pg";
-import { getAgentConfigById as _getAgentConfigById, getAgentFullConfig as _getAgentFullConfig } from "./config-pg";
-import { getCoreRuntime as _getCoreRuntime } from "./core-bootstrap";
-import { buildLaunchSpec as _buildLaunchSpec } from "./launch-spec-builder";
-import { findOrCreateForEnvironment as _findOrCreateForEnvironment } from "./session";
-
-// ────────────────────────────────────────────
-// 可替换依赖（测试时注入 mock）
-// ────────────────────────────────────────────
-
-export const _deps = {
-  getCoreRuntime: _getCoreRuntime,
-  buildLaunchSpec: _buildLaunchSpec,
-  getAgentConfigById: _getAgentConfigById,
-  getAgentFullConfig: _getAgentFullConfig,
-  environmentRepo: _environmentRepo,
-  findOrCreateForEnvironment: _findOrCreateForEnvironment,
-};
-
-export function _resetDeps() {
-  _deps.getCoreRuntime = _getCoreRuntime;
-  _deps.buildLaunchSpec = _buildLaunchSpec;
-  _deps.getAgentConfigById = _getAgentConfigById;
-  _deps.getAgentFullConfig = _getAgentFullConfig;
-  _deps.environmentRepo = _environmentRepo;
-  _deps.findOrCreateForEnvironment = _findOrCreateForEnvironment;
-}
+import { getAgentConfigById, getAgentFullConfig } from "./config-pg";
+import { getCoreRuntime } from "./core-bootstrap";
+import { buildLaunchSpec } from "./launch-spec-builder";
+import { findOrCreateForEnvironment } from "./session";
 
 // ────────────────────────────────────────────
 // 公共类型
@@ -122,7 +100,7 @@ function toSpawnedInstance(snapshot: RuntimeInstanceSnapshot, supplement: Instan
 function filterInstances(
   predicate: (snapshot: RuntimeInstanceSnapshot, sup: InstanceSupplement) => boolean,
 ): SpawnedInstance[] {
-  const facade = _deps.getCoreRuntime();
+  const facade = getCoreRuntime();
   return facade.listInstances().flatMap((s) => {
     const sup = supplements.get(s.instanceId);
     if (!sup) return [];
@@ -137,7 +115,7 @@ export async function spawnInstanceFromEnvironment(
   prefetchedEnv?: EnvironmentRecord,
   extraEnv?: Record<string, string>,
 ): Promise<SpawnedInstance> {
-  const env = prefetchedEnv ?? (await _deps.environmentRepo.getById(environmentId));
+  const env = prefetchedEnv ?? (await environmentRepo.getById(environmentId));
   if (!env) throw new NotFoundError("Environment not found");
   // 注意：团队归属由调用方（route 层 getOwnedEnvironment）验证，此处仅确认环境存在
 
@@ -152,11 +130,11 @@ export async function spawnInstanceFromEnvironment(
   let fullConfig: AgentFullConfig;
 
   if (env.agentConfigId) {
-    const resolvedAgentConfig = await _deps.getAgentConfigById(env.agentConfigId);
+    const resolvedAgentConfig = await getAgentConfigById(env.agentConfigId);
     if (!resolvedAgentConfig) {
       throw new NotFoundError(`AgentConfig '${env.agentConfigId}' not found`);
     }
-    fullConfig = await _deps.getAgentFullConfig(
+    fullConfig = await getAgentFullConfig(
       { organizationId: env.organizationId ?? "", userId: env.userId ?? "", role: "owner" },
       resolvedAgentConfig.id,
     );
@@ -165,14 +143,14 @@ export async function spawnInstanceFromEnvironment(
     agentPrompt = typeof ac?.prompt === "string" ? ac.prompt : null;
     modelRef = typeof ac?.model === "string" ? ac.model : null;
   } else {
-    fullConfig = await _deps.getAgentFullConfig(
+    fullConfig = await getAgentFullConfig(
       { organizationId: env.organizationId ?? "", userId: env.userId ?? "", role: "owner" },
       null,
     );
   }
 
   // 组装 AgentLaunchSpec
-  const launchSpec = await _deps.buildLaunchSpec({
+  const launchSpec = await buildLaunchSpec({
     workspacePath: cwd,
     agentName,
     agentConfigId: env.agentConfigId ?? null,
@@ -188,7 +166,7 @@ export async function spawnInstanceFromEnvironment(
 
   // 委托 core 执行 launch
   // port/token/pid 由 core-bootstrap 的 onInstanceStarted 回调写入 pluginMetadata
-  const facade = _deps.getCoreRuntime();
+  const facade = getCoreRuntime();
   const snapshot = await facade.launchInstance({
     instanceId,
     engineType: "opencode",
@@ -239,7 +217,7 @@ export function getRunningInstancesByEnvironment(environmentId: string): Spawned
 
 /** 一次遍历：按 environmentId 分组所有活跃实例，避免 N 次 listInstances 调用 */
 export function groupActiveInstancesByEnvironment(): Map<string, SpawnedInstance[]> {
-  const facade = _deps.getCoreRuntime();
+  const facade = getCoreRuntime();
   const result = new Map<string, SpawnedInstance[]>();
   for (const s of facade.listInstances()) {
     const sup = supplements.get(s.instanceId);
@@ -257,7 +235,7 @@ export function groupActiveInstancesByEnvironment(): Map<string, SpawnedInstance
 }
 
 export function getInstance(id: string, userId?: string): SpawnedInstance | undefined {
-  const facade = _deps.getCoreRuntime();
+  const facade = getCoreRuntime();
   const snapshot = facade.getInstance(id);
   const sup = supplements.get(id);
   if (!snapshot) {
@@ -275,7 +253,7 @@ export async function stopInstance(id: string, organizationId: string): Promise<
   if (!sup) return { ok: false, error: "Instance not found" };
   if (sup.organizationId !== organizationId) return { ok: false, error: "Not your instance" };
 
-  const facade = _deps.getCoreRuntime();
+  const facade = getCoreRuntime();
   const snapshot = facade.getInstance(id);
   if (!snapshot) {
     // core 中不存在实例时清理残留 supplement 避免内存泄漏
@@ -306,7 +284,7 @@ export async function stopInstance(id: string, organizationId: string): Promise<
 }
 
 export async function stopAllInstances(): Promise<void> {
-  const facade = _deps.getCoreRuntime();
+  const facade = getCoreRuntime();
   const active = facade.listInstances().filter((s) => s.status !== "stopped" && s.status !== "stopping");
 
   // 并行停止所有活跃实例（每个实例独立，互不依赖）
@@ -328,7 +306,7 @@ export async function ensureRunning(userId: string, environmentId: string): Prom
   const existing = runningInstances[0];
   if (existing) return { instance: existing, status: "reused" };
 
-  const env = await _deps.environmentRepo.getById(environmentId);
+  const env = await environmentRepo.getById(environmentId);
   if (!env) throw new NotFoundError("Environment not found");
 
   // async gap 后重新检查：await 期间可能有并发请求新启了实例
@@ -374,7 +352,7 @@ export async function enterEnvironment(
   }
 
   // 为该环境查找或创建 RCS session（前端导航需要 session_id）
-  const { id: sessionId } = await _deps.findOrCreateForEnvironment(environmentId, "Web Session", userId, "web");
+  const { id: sessionId } = await findOrCreateForEnvironment(environmentId, "Web Session", userId, "web");
 
   return {
     session_id: sessionId,

@@ -1,8 +1,5 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { RuntimeInstanceSnapshot } from "@mothership/core";
-import { resetCoreRuntime } from "../services/core-bootstrap";
-import { _deps, _resetDeps } from "../services/instance";
-import { setBuildLaunchSpec } from "../services/launch-spec-builder";
 
 const mockListInstances = mock((): RuntimeInstanceSnapshot[] => []);
 const mockGetInstance = mock((): RuntimeInstanceSnapshot | null => null);
@@ -15,20 +12,29 @@ const fakeFacade = {
   launchInstance: mock(async () => ({})),
 };
 
-beforeEach(() => {
-  resetCoreRuntime();
-  _deps.getCoreRuntime = () => fakeFacade as any;
-  _deps.getAgentConfigById = mock(async () => null as any) as any;
-  _deps.getAgentFullConfig = mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] }));
-  _deps.environmentRepo = { getById: mock(async () => null) } as any;
-  _deps.findOrCreateForEnvironment = mock(async () => ({ id: "ses_1" })) as any;
-  setBuildLaunchSpec(mock(async () => ({})) as any);
-});
+mock.module("../services/core-bootstrap", () => ({
+  getCoreRuntime: () => fakeFacade,
+  resetCoreRuntime: () => {},
+  setCoreRuntimeFactory: () => {},
+}));
 
-afterEach(() => {
-  _resetDeps();
-  setBuildLaunchSpec(null);
-});
+mock.module("../services/config-pg", () => ({
+  getAgentConfigById: mock(async () => null as any),
+  getAgentFullConfig: mock(async () => ({ agentConfig: null, providers: [], skills: [], mcpServers: [] })),
+}));
+
+mock.module("../repositories", () => ({
+  environmentRepo: { getById: mock(async () => null) },
+}));
+
+mock.module("../services/session", () => ({
+  findOrCreateForEnvironment: mock(async () => ({ id: "ses_1" })),
+}));
+
+mock.module("../services/launch-spec-builder", () => ({
+  buildLaunchSpec: mock(async () => ({})),
+  setBuildLaunchSpec: () => {},
+}));
 
 import { stopInstance } from "../services/instance";
 
