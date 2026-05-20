@@ -25,7 +25,6 @@ function extractActiveOrgId(request: Request): string | null {
 /**
  * 从 user + request 加载组织上下文。
  * 解析 activeOrganizationId，通过 better-auth organization API 查角色，构建 AuthContext。
- * 无组织时自动创建个人组织。
  */
 export async function loadOrgContext(user: { id: string }, request: Request): Promise<AuthContext | null> {
   if (_testOrgContext) return _testOrgContext;
@@ -70,18 +69,7 @@ export async function loadOrgContext(user: { id: string }, request: Request): Pr
       }
     }
 
-    // 无组织 → 自动创建个人组织
-    const personalOrg = await api.createOrganization({
-      body: { name: "Personal", slug: `personal-${user.id.slice(0, 8)}` },
-      headers: request.headers,
-    });
-    if (personalOrg) {
-      return {
-        organizationId: personalOrg.id,
-        userId: user.id,
-        role: "owner" as const,
-      };
-    }
+    // 无组织 → 返回 null（由上层处理首次组织创建）
   } catch (e: any) {
     console.error("[org-context] Failed to load:", e.message);
   }
