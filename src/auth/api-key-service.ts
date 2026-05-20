@@ -17,6 +17,7 @@ export interface ApiKeyRecord {
   id: string;
   userId: string;
   key: string;
+  keyPrefix: string;
   label: string;
   createdAt: Date;
   lastUsedAt: Date | null;
@@ -30,11 +31,16 @@ export interface ApiKeySanitized {
   lastUsedAt: number | null;
 }
 
+/** 从完整 key 计算 "rcs_1234...ab12" 格式前缀 */
+function computeKeyPrefix(fullKey: string): string {
+  return fullKey.slice(0, 8) + "..." + fullKey.slice(-4);
+}
+
 function sanitize(record: ApiKeyRecord): ApiKeySanitized {
   return {
     id: record.id,
     label: record.label,
-    keyPrefix: record.key.slice(0, 8) + "..." + record.key.slice(-4),
+    keyPrefix: record.keyPrefix || computeKeyPrefix(record.key),
     createdAt: Math.floor(record.createdAt.getTime() / 1000),
     lastUsedAt: record.lastUsedAt ? Math.floor(record.lastUsedAt.getTime() / 1000) : null,
   };
@@ -46,6 +52,8 @@ export async function createApiKey(
   teamId: string,
 ): Promise<{ record: ApiKeySanitized; fullKey: string }> {
   const fullKey = generateApiKey();
+  const keyHash = hashApiKey(fullKey);
+  const keyPrefix = computeKeyPrefix(fullKey);
   const now = new Date();
 
   const [row] = await db
@@ -53,7 +61,9 @@ export async function createApiKey(
     .values({
       userId,
       teamId,
-      key: fullKey,
+      key: keyHash,
+      keyHash,
+      keyPrefix,
       label: label || "Default",
       createdAt: now,
       lastUsedAt: null,
@@ -64,6 +74,7 @@ export async function createApiKey(
     id: row.id,
     userId,
     key: fullKey,
+    keyPrefix,
     label: label || "Default",
     createdAt: now,
     lastUsedAt: null,
@@ -75,7 +86,15 @@ export async function createApiKey(
 export async function validateApiKeyAndGetUser(
   key: string,
 ): Promise<{ userId: string; keyId: string; teamId: string | null } | null> {
-  const rows = await db.select().from(apiKey).where(eq(apiKey.key, key)).limit(1);
+  const inputHash = hashApiKey(key);
+
+  // 优先查 keyHash 列（新格式）
+  let rows = await db.select().from(apiKey).where(eq(apiKey.keyHash, inputHash)).limit(1);
+
+  // 回退查 key 列（兼容迁移期未 hash 的旧 key）
+  if (rows.length === 0) {
+    rows = await db.select().from(apiKey).where(eq(apiKey.key, key)).limit(1);
+  }
 
   if (rows.length === 0) return null;
 
@@ -99,6 +118,7 @@ export async function listApiKeysByUser(teamId: string): Promise<ApiKeySanitized
       id: r.id,
       userId: r.userId,
       key: r.key,
+      keyPrefix: r.keyPrefix ?? "",
       label: r.label,
       createdAt: r.createdAt,
       lastUsedAt: r.lastUsedAt,

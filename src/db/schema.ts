@@ -109,12 +109,20 @@ export const apiKey = pgTable(
     teamId: uuid("team_id")
       .notNull()
       .references(() => team.id, { onDelete: "cascade" }),
+    // 旧列保留做迁移兼容
     key: varchar("key").notNull().unique(),
+    // SHA-256 hash（64 hex chars）
+    keyHash: varchar("key_hash", { length: 64 }),
+    // 展示用前缀 "rcs_1234...ab12"
+    keyPrefix: varchar("key_prefix", { length: 20 }).notNull().default(""),
     label: varchar("label").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   },
-  (t) => [index("idx_api_key_team_id").on(t.teamId)],
+  (t) => [
+    index("idx_api_key_team_id").on(t.teamId),
+    uniqueIndex("idx_api_key_hash").on(t.keyHash),
+  ],
 );
 
 // MCP Tool 缓存表
