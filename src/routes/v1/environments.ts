@@ -1,6 +1,8 @@
 import Elysia from "elysia";
 import { NotFoundError } from "../../errors";
 import { authGuardPlugin } from "../../plugins/auth";
+import { requireTeamScope } from "../../plugins/require-team-scope";
+import { environmentRepo } from "../../repositories";
 import { type BridgeRegistrationRequest, BridgeRegistrationRequestSchema } from "../../schemas/v1-environment.schema";
 import { deregisterBridge, reconnectBridge, registerBridge } from "../../services/environment";
 
@@ -13,12 +15,14 @@ app.post(
   "/bridge",
   async ({ store, body, error }) => {
     const user = store.user!;
+    const authContext = store.authContext;
     const b = body as BridgeRegistrationRequest;
     const authEnvId = store.authEnvironmentId as string | undefined;
 
     return registerBridge({
       authEnvironmentId: authEnvId,
       userId: user.id,
+      teamId: authContext?.teamId,
       machine_name: b.machine_name,
       directory: b.directory,
       branch: b.branch,
@@ -37,6 +41,15 @@ app.delete(
   "/bridge/:id",
   async ({ store, params, error }) => {
     const user = store.user!;
+    const authContext = store.authContext;
+
+    const env = await environmentRepo.getById(params.id);
+    if (!env) {
+      return error(404, { error: { type: "not_found", message: "Environment not found" } });
+    }
+    const denied = requireTeamScope(authContext, env.teamId);
+    if (denied) return denied;
+
     try {
       await deregisterBridge(params.id, user.id);
       return { status: "ok" };
@@ -55,6 +68,15 @@ app.post(
   "/:id/bridge/reconnect",
   async ({ store, params, error }) => {
     const user = store.user!;
+    const authContext = store.authContext;
+
+    const env = await environmentRepo.getById(params.id);
+    if (!env) {
+      return error(404, { error: { type: "not_found", message: "Environment not found" } });
+    }
+    const denied = requireTeamScope(authContext, env.teamId);
+    if (denied) return denied;
+
     try {
       await reconnectBridge(params.id, user.id);
       return { status: "ok" };

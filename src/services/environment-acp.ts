@@ -43,6 +43,7 @@ export async function getEnvironmentBySecret(
 export interface BridgeRegistrationInput {
   authEnvironmentId?: string;
   userId: string;
+  teamId?: string;
   machine_name?: string;
   directory?: string;
   branch?: string;
@@ -230,6 +231,7 @@ export async function registerBridge(input: BridgeRegistrationInput): Promise<Br
   const record = await _deps.environmentRepo.create({
     secret,
     userId,
+    teamId: input.teamId,
     machineName: machine_name,
     directory,
     branch,
