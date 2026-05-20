@@ -188,9 +188,13 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
               if (result.teamId) {
                 const { getAuthContextByTeamId } = await import("../services/team");
                 const ctx = await getAuthContextByTeamId(user.id, result.teamId);
-                if (ctx) store.authContext = ctx;
+                if (ctx) {
+                  store.authContext = ctx;
+                  return;
+                }
               }
-              return;
+              // API Key 无有效团队上下文 → 拒绝
+              return error(403, { error: { type: "forbidden", message: "API key has no valid team context" } });
             }
           }
 
