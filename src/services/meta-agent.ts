@@ -41,12 +41,16 @@ export async function findMetaEnvironment(
 async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
   let agentConfig = await getAgentConfig(ctx, META_AGENT_CONFIG_NAME);
   if (!agentConfig) {
-    agentConfig = await createAgentConfig(ctx, META_AGENT_CONFIG_NAME, {
+    await createAgentConfig(ctx, META_AGENT_CONFIG_NAME, {
       description: "Meta Agent — 工作流编排助手",
       model: null,
       prompt: null,
       steps: null,
     });
+    agentConfig = await getAgentConfig(ctx, META_AGENT_CONFIG_NAME);
+    if (!agentConfig) {
+      throw new Error("Failed to create meta agent config");
+    }
   }
 
   await writeMetaSkillFile();

@@ -6,9 +6,9 @@
  */
 
 import { existsSync } from "node:fs";
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 // ────────────────────────────────────────────
 // 类型
@@ -67,6 +67,25 @@ export function createSkillValidationError(message: string): Error & { code: str
   return error;
 }
 
+/** 校验并规范化 skill 名称，避免空名称和路径穿越。 */
+export function assertValidSkillName(name: string): string {
+  const skillName = name.trim();
+  if (!skillName || skillName === "." || skillName === ".." || skillName.includes("/") || skillName.includes("\\")) {
+    throw createSkillValidationError(`Skill 名称不合法: ${skillName}`);
+  }
+  return skillName;
+}
+
+/** 返回 skill 源目录路径。 */
+export function getSkillSourceDir(skillRoot: string, name: string): string {
+  return join(skillRoot, assertValidSkillName(name));
+}
+
+/** 返回 skill zip artifact 路径。 */
+export function getSkillArchivePath(skillRoot: string, name: string): string {
+  return join(skillRoot, `${assertValidSkillName(name)}.zip`);
+}
+
 /** 从原始 Markdown 文本中解析 YAML frontmatter */
 export function parseFrontmatter(raw: string): { metadata: Record<string, string>; content: string } {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
@@ -117,13 +136,7 @@ export function groupUploadFiles(files: UploadSkillFile[]): Map<string, UploadSk
   const grouped = new Map<string, UploadSkillFile[]>();
 
   for (const file of files) {
-    const skillName = file.skillName.trim();
-    if (!skillName) {
-      throw createSkillValidationError("上传文件缺少 skill 名称");
-    }
-    if (skillName.includes("/") || skillName.includes("\\")) {
-      throw createSkillValidationError(`Skill 名称不合法: ${skillName}`);
-    }
+    const skillName = assertValidSkillName(file.skillName);
 
     const normalizedPath = normalizeUploadPath(file.relativePath);
     const items = grouped.get(skillName) ?? [];
@@ -135,6 +148,115 @@ export function groupUploadFiles(files: UploadSkillFile[]): Map<string, UploadSk
   }
 
   return grouped;
+}
+
+const CRC32_TABLE = new Uint32Array(256);
+for (let i = 0; i < CRC32_TABLE.length; i++) {
+  let crc = i;
+  for (let bit = 0; bit < 8; bit++) {
+    crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+  }
+  CRC32_TABLE[i] = crc >>> 0;
+}
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+async function collectFiles(baseDir: string): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await readdir(baseDir, { withFileTypes: true })) {
+    const entryPath = join(baseDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectFiles(entryPath)));
+    } else if (entry.isFile()) {
+      files.push(entryPath);
+    }
+  }
+  return files.sort();
+}
+
+function createLocalFileHeader(name: Buffer, crc: number, size: number): Buffer {
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(0x0800, 6);
+  header.writeUInt16LE(0, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt32LE(crc, 14);
+  header.writeUInt32LE(size, 18);
+  header.writeUInt32LE(size, 22);
+  header.writeUInt16LE(name.length, 26);
+  header.writeUInt16LE(0, 28);
+  return header;
+}
+
+function createCentralDirectoryHeader(name: Buffer, crc: number, size: number, offset: number): Buffer {
+  const header = Buffer.alloc(46);
+  header.writeUInt32LE(0x02014b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(20, 6);
+  header.writeUInt16LE(0x0800, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt16LE(0, 14);
+  header.writeUInt32LE(crc, 16);
+  header.writeUInt32LE(size, 20);
+  header.writeUInt32LE(size, 24);
+  header.writeUInt16LE(name.length, 28);
+  header.writeUInt16LE(0, 30);
+  header.writeUInt16LE(0, 32);
+  header.writeUInt16LE(0, 34);
+  header.writeUInt16LE(0, 36);
+  header.writeUInt32LE(0, 38);
+  header.writeUInt32LE(offset, 42);
+  return header;
+}
+
+function createEndOfCentralDirectory(entryCount: number, centralSize: number, centralOffset: number): Buffer {
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(0, 4);
+  end.writeUInt16LE(0, 6);
+  end.writeUInt16LE(entryCount, 8);
+  end.writeUInt16LE(entryCount, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(centralOffset, 16);
+  end.writeUInt16LE(0, 20);
+  return end;
+}
+
+/** 生成仅使用 Store method 的 skill zip artifact。 */
+export async function buildSkillArchive(sourceDir: string, archivePath: string): Promise<void> {
+  const rootInfo = await stat(sourceDir);
+  if (!rootInfo.isDirectory()) {
+    throw createSkillValidationError("Skill 源目录不存在");
+  }
+
+  const parts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+
+  for (const filePath of await collectFiles(sourceDir)) {
+    const entryName = normalizeUploadPath(relative(sourceDir, filePath));
+    const nameBuffer = Buffer.from(entryName, "utf-8");
+    const data = await readFile(filePath);
+    const checksum = crc32(data);
+    const localHeader = createLocalFileHeader(nameBuffer, checksum, data.length);
+    parts.push(localHeader, nameBuffer, data);
+    centralParts.push(createCentralDirectoryHeader(nameBuffer, checksum, data.length, offset), nameBuffer);
+    offset += localHeader.length + nameBuffer.length + data.length;
+  }
+
+  const centralOffset = offset;
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  await mkdir(dirname(archivePath), { recursive: true });
+  await writeFile(archivePath, Buffer.concat([...parts, ...centralParts, createEndOfCentralDirectory(centralParts.length / 2, centralSize, centralOffset)]));
 }
 
 // ────────────────────────────────────────────
@@ -189,6 +311,11 @@ export async function deleteSkillDir(skillDir: string): Promise<void> {
   if (existsSync(skillDir)) {
     await rm(skillDir, { recursive: true, force: true });
   }
+}
+
+/** 删除 skill zip artifact（如果存在）。 */
+export async function deleteSkillArchive(skillRoot: string, name: string): Promise<void> {
+  await rm(getSkillArchivePath(skillRoot, name), { force: true });
 }
 
 /** 根据冲突列表和策略，决定哪些 entries 需要写入、哪些跳过 */

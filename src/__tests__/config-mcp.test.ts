@@ -184,6 +184,39 @@ describe("MCP Config Route", () => {
     expect(_mcpStore["remote-srv"].config.url).toBe("https://example.com/mcp");
   });
 
+  // 兼容前端保存表单使用 data 字段提交 MCP 配置。
+  test("handleCreate 使用 data 字段创建后可列表返回", async () => {
+    _mcpStore = {};
+    const createRes = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: "data-server",
+          data: { type: "remote", url: "https://example.com/mcp" },
+        }),
+      }),
+    );
+    const createJson = await createRes.json();
+    expect(createJson.success).toBe(true);
+
+    const listRes = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+      }),
+    );
+    const listJson = await listRes.json();
+    expect(listJson.data.servers).toHaveLength(1);
+    expect(listJson.data.servers[0]).toMatchObject({
+      name: "data-server",
+      type: "remote",
+      summary: "https://example.com/mcp",
+    });
+  });
+
   test("handleCreate 重名", async () => {
     const res = await mcpRoute.handle(
       new Request("http://localhost/web/config/mcp", {
@@ -287,6 +320,25 @@ describe("MCP Config Route", () => {
     expect(json.data.name).toBe("my-local");
     expect(_mcpStore["my-local"].config.command).toEqual(["npx", "updated-server"]);
     expect(_mcpStore["my-local"].config.timeout).toBe(10000);
+  });
+
+  // 兼容前端编辑表单使用 set action 和 data 字段提交 MCP 配置。
+  test("handleSet 使用 data 字段更新", async () => {
+    const res = await mcpRoute.handle(
+      new Request("http://localhost/web/config/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set",
+          name: "my-local",
+          data: { type: "local", command: ["bunx", "updated-server"], timeout: 7000 },
+        }),
+      }),
+    );
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(_mcpStore["my-local"].config.command).toEqual(["bunx", "updated-server"]);
+    expect(_mcpStore["my-local"].config.timeout).toBe(7000);
   });
 
   test("handleUpdate 不存在的服务器", async () => {

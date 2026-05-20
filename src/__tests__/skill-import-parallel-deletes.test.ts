@@ -14,6 +14,11 @@ beforeEach(() => {
     listSkills: mock(async () => []),
   } as any;
   _deps.skillFs = {
+    assertValidSkillName: (name: string) => name.trim(),
+    getSkillSourceDir: (root: string, name: string) => `${root}/${name}`,
+    getSkillArchivePath: (root: string, name: string) => `${root}/${name}.zip`,
+    buildSkillArchive: mock(async () => {}),
+    deleteSkillArchive: mock(async () => {}),
     createSkillValidationError: (msg: string) => {
       const e = new Error(msg) as any;
       e.code = "TEST";

@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdirSync, realpathSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 // ── workspace 路径符号链接逃逸验证 ──
@@ -30,8 +29,8 @@ function ensureWorkspaceDir(workspacePath: string): string {
 }
 
 describe("workspace path symlink escape prevention", () => {
-  // macOS tmpdir 为 /var/folders，属于 BLOCKED /var 子目录，改用 home
-  const testDir = join(homedir(), ".rcs-symlink-test-" + process.pid);
+  // 使用 sandbox 可写且不在 BLOCKED_PATHS 内的目录。
+  const testDir = join("/private/tmp", ".rcs-symlink-test-" + process.pid);
   const linkPath = join(testDir, "link_to_blocked");
 
   beforeEach(() => {

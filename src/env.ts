@@ -11,6 +11,7 @@ const envSchema = z.object({
   RCS_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   RCS_BASE_URL: z.string().default(""),
   RCS_VERSION: z.string().default("0.1.0"),
+  SKILL_DIR: z.string().default("./data/skills"),
 
   // ── 可选：HTTP/WebSocket ──
   RCS_POLL_TIMEOUT: z.coerce.number().int().positive().default(8),

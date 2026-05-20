@@ -7,6 +7,10 @@ describe("env validation", () => {
 
   beforeEach(() => {
     process.env.NODE_ENV = "test";
+    delete process.env.RCS_HOST;
+    delete process.env.RCS_PORT;
+    delete process.env.RCS_S3_ENABLED;
+    delete process.env.SKILL_DIR;
   });
 
   afterEach(() => {
@@ -40,6 +44,7 @@ describe("env validation", () => {
     expect(env.RCS_PORT).toBe(3000);
     expect(env.RCS_HOST).toBe("0.0.0.0");
     expect(env.RCS_S3_ENABLED).toBe(false);
+    expect(env.SKILL_DIR).toBe("./data/skills");
   });
 
   test("PORT 非数字时校验失败", () => {

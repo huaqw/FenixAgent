@@ -33,34 +33,6 @@ mock.module("../services/config-pg", () => ({
   disableSkill: async () => true,
 }));
 
-// Mock skill service
-mock.module("../services/skill", () => ({
-  SKILLS_DIR: "/tmp/test-skills",
-  listSkills: async () => [],
-  getSkill: async () => null,
-  setSkill: async (_ctx: any, _name: string, data: any) => ({
-    name: _name,
-    enabled: true,
-    description: data.description,
-    path: "/tmp/test-skills/" + _name + "/SKILL.md",
-  }),
-  deleteSkill: async () => true,
-  enableSkill: async () => true,
-  disableSkill: async () => true,
-  listSkillSources: async () => [],
-  importSkillDirectories: async () => ({ imported: [], skipped: [], conflicts: [] }),
-  importWorkspaceSkillDirectories: async () => ({ imported: [], skipped: [], conflicts: [] }),
-  getWorkspaceSkill: async () => null,
-  setWorkspaceSkill: async (_ws: string, _name: string, data: any) => ({
-    name: _name,
-    enabled: true,
-    description: data.description,
-    path: "/tmp/test/" + _name + "/SKILL.md",
-  }),
-  deleteWorkspaceSkill: async () => true,
-  listWorkspaceSkills: async () => [],
-}));
-
 const configRoute = (await import("../routes/web/config/index")).default;
 
 function request(path: string, init?: RequestInit) {

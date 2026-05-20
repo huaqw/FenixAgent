@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   getInvalidUploadSkillNames,
+  normalizeSkillUploadResult,
   getUploadConflictData,
   getUploadItemSummaries,
   getUploadResultMessage,
@@ -28,6 +29,23 @@ describe("getUploadResultMessage", () => {
 
   test("imported with skipped", () => {
     expect(getUploadResultMessage(2, 1)).toBe("已导入 2 个技能，跳过 1 个冲突技能");
+  });
+});
+
+describe("normalizeSkillUploadResult", () => {
+  test("unwraps config success response", () => {
+    const result = normalizeSkillUploadResult({
+      success: true,
+      data: { imported: [{ name: "a" }], skipped: [{ name: "b" }] },
+    });
+    expect(result.imported).toHaveLength(1);
+    expect(result.skipped).toHaveLength(1);
+  });
+
+  test("defaults missing arrays to empty arrays", () => {
+    const result = normalizeSkillUploadResult({ success: true, data: {} });
+    expect(result.imported).toEqual([]);
+    expect(result.skipped).toEqual([]);
   });
 });
 

@@ -33,6 +33,7 @@ import webInstances from "./routes/web/instances";
 import webKnowledgeBases from "./routes/web/knowledge-bases";
 import webS3Files from "./routes/web/s3-files";
 import webSessions from "./routes/web/sessions";
+import webSkills from "./routes/web/skills";
 import webTasks from "./routes/web/tasks";
 import webTeams from "./routes/web/teams";
 import webMetaAgent from "./routes/web/meta-agent";
@@ -43,7 +44,6 @@ import { getCoreRuntime } from "./services/core-bootstrap";
 import { getHermesClient, initHermesClient } from "./services/hermes-client";
 import { findRunningInstanceByEnvironment, spawnInstanceFromEnvironment, stopAllInstances } from "./services/instance";
 import { startScheduler, stopScheduler } from "./services/scheduler";
-import { migrateSkillsDir } from "./services/skill";
 import { closeAllRelayConnections } from "./transport/acp-relay-handler";
 import { closeAllAcpConnections } from "./transport/acp-ws-handler";
 
@@ -56,7 +56,6 @@ applyEnv(env);
 getCoreRuntime();
 console.log("[RCS] Core runtime initialized (opencode engine + local node)");
 
-await migrateSkillsDir();
 await startScheduler();
 
 // Initialize Hermes client if configured
@@ -169,6 +168,7 @@ const app = new Elysia()
   .use(webEnvironments)
   .use(webApiKeys)
   .use(webConfig)
+  .use(webSkills)
   .use(webInstances)
   .use(webTasks)
   .use(webChannels)
