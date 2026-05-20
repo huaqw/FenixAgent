@@ -486,28 +486,6 @@ describe('AgentExecutor request forwarding', () => {
     const lastReq = transport.getLastRequest('default');
     expect(lastReq?.skill).toBe('code-review');
   });
-
-  test('cwd 参数透传到 connect 和 AgentRequest', async () => {
-    const transport = new FakeTransport();
-    transport.setResponse('default', { stdout: 'ok', exit_code: 0 });
-
-    let connectOptions: { cwd?: string } | undefined;
-    const origConnect = transport.connect.bind(transport);
-    transport.connect = async function (agentId: string, options?: { cwd?: string }) {
-      connectOptions = options;
-      return origConnect(agentId, options);
-    };
-
-    const executor = new AgentExecutor(transport);
-    const ctx = makeCtx();
-    const node = agentNode('test', { cwd: '/tmp/workspace' });
-
-    await executor.execute(node, ctx);
-
-    expect(connectOptions?.cwd).toBe('/tmp/workspace');
-    const lastReq = transport.getLastRequest('default');
-    expect(lastReq?.cwd).toBe('/tmp/workspace');
-  });
 });
 
 // ========== Agent Config 合并测试 ==========

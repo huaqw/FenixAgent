@@ -361,7 +361,9 @@ params:
 nodes:
   - id: echo-param
     type: shell
-    command: 'echo "\${{ params.message }}"'
+    inputs:
+      MSG: params.message
+    command: 'printf "%s" "$MSG"'
 `);
 
     const executor = new SubWorkflowExecutor('parent-run', registry, tmpDir);

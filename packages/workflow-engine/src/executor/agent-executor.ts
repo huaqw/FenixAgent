@@ -125,16 +125,13 @@ export class AgentExecutor implements NodeExecutor {
     });
 
     // 连接 Transport
-    const session = await this.transport.connect(resolvedAgent ?? 'default', {
-      cwd: node.cwd,
-    });
+    const session = await this.transport.connect(resolvedAgent ?? 'default');
 
     // 构建请求
     const request: AgentRequest = {
       prompt: resolvedPrompt,
       agent: resolvedAgent,
       skill: resolvedSkill,
-      cwd: node.cwd,
       signal: ctx.signal,
       model: mergedConfig.model ?? undefined,
       temperature: mergedConfig.temperature ?? undefined,

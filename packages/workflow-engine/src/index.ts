@@ -62,6 +62,11 @@ export type { PendingApproval } from "./executor/awaitable-executor";
 export { NodeExecutorRegistry, createNodeExecutorRegistry } from "./executor/node-executor";
 export { LoopExecutor } from "./executor/loop-executor";
 export { SubWorkflowExecutor } from "./executor/sub-workflow-executor";
+// Inputs 解析器
+export { resolveInputs, generateShellEnvVars, generatePythonPreamble } from "./parser/inputs-resolver";
+export type { ResolvedInput } from "./parser/inputs-resolver";
+// Python 执行器
+export { PythonExecutor } from "./executor/python-executor";
 // Secrets
 export { SecretsResolver } from "./secrets/secrets-resolver";
 export type { SecretsResolverOptions } from "./secrets/secrets-resolver";
