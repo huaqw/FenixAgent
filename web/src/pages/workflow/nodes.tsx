@@ -172,6 +172,20 @@ export function WorkflowNode({ data, id, selected, type }: NodeProps) {
 
       {!isStart && (
         <div style={{ background: statusCfg?.bg ?? colors.light, padding: "6px 10px" }}>
+          {d.description ? (
+            <div
+              style={{
+                color: "#6b7280",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontSize: 11,
+                marginBottom: preview ? 2 : 0,
+              }}
+            >
+              {String(d.description)}
+            </div>
+          ) : null}
           {preview ? (
             <div
               style={{
@@ -185,9 +199,9 @@ export function WorkflowNode({ data, id, selected, type }: NodeProps) {
             >
               {preview.substring(0, 40)}
             </div>
-          ) : (
+          ) : !d.description ? (
             <div style={{ color: "#9ca3af", fontSize: 11, fontStyle: "italic" }}>未配置</div>
-          )}
+          ) : null}
         </div>
       )}
 

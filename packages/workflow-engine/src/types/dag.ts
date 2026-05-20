@@ -21,6 +21,8 @@ export type NodeType = 'shell' | 'python' | 'agent' | 'api' | 'audit' | 'workflo
 export interface BaseNodeDef {
   id: string;
   type: NodeType;
+  /** 节点描述，用于说明该节点的用途 */
+  description?: string;
   depends_on?: string[];
   condition?: string;
   timeout?: number;

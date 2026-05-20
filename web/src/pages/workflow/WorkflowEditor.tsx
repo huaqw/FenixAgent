@@ -1147,6 +1147,14 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
                     <option value="workflow">子流程 (Workflow)</option>
                     <option value="loop">循环 (Loop)</option>
                   </select>
+                <div className="wf-prop-field">
+                  <label>描述</label>
+                  <input
+                    value={String(sd?.description ?? "")}
+                    onChange={(e) => updateNodeData({ description: e.target.value || undefined })}
+                    placeholder="说明该节点的用途..."
+                    readOnly={readOnly}
+                  />
                 </div>
               </div>
 
