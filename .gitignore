@@ -52,6 +52,7 @@ user
 .opencode
 
 workspace/
+workspaces/
 .tmp
 
 ov.conf

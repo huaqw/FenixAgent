@@ -197,6 +197,38 @@ cd web && bunx vite build && cd .. && ls src/
 - 自定义表：`mcpTool`、`scheduledTask`、`taskExecutionLog`、`shareLink`、`shareEventSnapshot`、`environment`
 - 配置表（F002）：`provider`、`model`、`agentConfig`、`mcpServer`、`skill`、`userConfig`
 
+### Workspace 自动计算
+
+用户创建/编辑智能体时不再手动填写 workspace 路径，系统根据 `organizationId` + `userId` 自动计算用户隔离的工作区目录。
+
+**路径算法**：
+
+```
+{WORKSPACE_ROOT ?? process.cwd()/workspaces}/{organizationId}/{userId}
+```
+
+- `WORKSPACE_ROOT`：可选环境变量，在 `src/env.ts` 中通过 Zod 声明为 `z.string().optional()`
+- 未设置时 fallback 为 `{process.cwd()}/workspaces`
+- 每个用户在同一个组织下共享同一个工作区，多次启动智能体复用同一目录
+
+**核心实现**：
+
+- `src/services/workspace-resolver.ts`：共享工具函数 `resolveWorkspacePath(organizationId, userId)`，后端所有需要 workspace 路径的地方统一调用
+- `packages/plugin-sdk/src/agent-launch-spec.ts`：`AgentLaunchSpec` 类型使用 `organizationId: string` + `userId: string`（不传 `workspace`），插件运行时自行计算
+- `packages/plugin-opencode/src/runtime/opencode-runtime.ts`：内部有独立的 `resolveWorkspace` 闭包（因为 plugin-opencode 无法 import `src/`），使用相同算法
+
+**数据流**：
+
+1. 创建智能体 → `environment-web.ts` 调用 `resolveWorkspacePath(orgId, userId)` 计算路径，写入 DB `workspacePath` 列
+2. 启动智能体 → `instance.ts` 从 environment 取 `organizationId`/`userId`，通过 `buildLaunchSpec()` 传入 `AgentLaunchSpec`
+3. plugin-opencode → `opencode-runtime.ts` 的 `resolveWorkspace` 闭包从 `launchSpec.organizationId` + `launchSpec.userId` 计算实际路径
+
+**注意事项**：
+
+- DB `workspacePath` 列保留（存储自动计算的值），下游 consumer（`workspace-fs.ts`、`agent-task-runner.ts`）无需改动
+- 前端创建/编辑表单不再包含 workspace 输入字段
+- `src/index.ts` 自动启动时使用 `resolveWorkspacePath(env.organizationId, env.userId)` 替代旧的 `env.workspacePath`
+
 ### ACP 协议要点
 
 acp-link 是连接 AI Agent 和 RCS 的桥梁，通过 WebSocket 进行双向通信。
