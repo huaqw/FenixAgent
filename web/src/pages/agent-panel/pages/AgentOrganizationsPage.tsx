@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { client, unwrapEden } from "../../../api/client";
+import { orgAction } from "../../../api/client";
 import { useOrg } from "../../../contexts/OrgContext";
 import { AgentPageHeader } from "../shared/AgentPageHeader";
 
@@ -86,8 +86,7 @@ export function AgentOrganizationsPage() {
 
   const loadMyOrgs = useCallback(async () => {
     try {
-      const res = await client.web.organizations.post({ action: "list" });
-      const list = unwrapEden<{ id: string; name: string; slug: string; role: string }[]>(res);
+      const list = await orgAction<{ id: string; name: string; slug: string; role: string }[]>("list");
       setMyOrgs(list);
     } catch (err) {
       console.error(err);
@@ -110,11 +109,9 @@ export function AgentOrganizationsPage() {
       return;
     }
     setLoading(true);
-    client.web.organizations
-      .post({ action: "get", organizationId: selectedOrgId })
-      .then((r: unknown) => unwrapEden<OrgDetail>(r))
-      .then((d: OrgDetail) => setDetail(d))
-      .catch((err: unknown) => {
+    orgAction<OrgDetail>("get", { organizationId: selectedOrgId })
+      .then((d) => setDetail(d))
+      .catch((err) => {
         console.error(err);
         toast.error(t("toast.loadDetailFailed"));
       })
@@ -129,13 +126,11 @@ export function AgentOrganizationsPage() {
     if (!formName.trim()) return;
     setFormSaving(true);
     try {
-      const createRes = await client.web.organizations.post({
-        action: "create",
+      const result = await orgAction<{ id: string }>("create", {
         name: formName.trim(),
         slug: formSlug || nameToSlug(formName),
         description: formDesc.trim() || undefined,
       });
-      const result = unwrapEden<{ id: string }>(createRes);
       toast.success(t("toast.createSuccess"));
       setCreateOpen(false);
       setFormName("");
@@ -156,12 +151,10 @@ export function AgentOrganizationsPage() {
     if (!selectedOrgId || !editName.trim()) return;
     setEditSaving(true);
     try {
-      const updateRes = await client.web.organizations.post({
-        action: "update",
+      await orgAction("update", {
         organizationId: selectedOrgId,
         data: { name: editName.trim() },
       });
-      unwrapEden(updateRes);
       toast.success(t("toast.updateSuccess"));
       setEditingName(false);
       setDetail((d) => (d ? { ...d, name: editName.trim() } : d));
@@ -179,18 +172,15 @@ export function AgentOrganizationsPage() {
     if (!selectedOrgId || !addMemberEmail.trim()) return;
     setAddMemberSaving(true);
     try {
-      const addRes = await client.web.organizations.post({
-        action: "add-member",
+      await orgAction("add-member", {
         organizationId: selectedOrgId,
         email: addMemberEmail.trim(),
         role: addMemberRole,
       });
-      unwrapEden(addRes);
       toast.success(t("toast.inviteSent"));
       setAddMemberOpen(false);
       setAddMemberEmail("");
-      const dRes = await client.web.organizations.post({ action: "get", organizationId: selectedOrgId });
-      const d = unwrapEden<OrgDetail>(dRes);
+      const d = await orgAction<OrgDetail>("get", { organizationId: selectedOrgId });
       setDetail(d);
     } catch (err) {
       console.error(err);
@@ -203,15 +193,12 @@ export function AgentOrganizationsPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!selectedOrgId) return;
     try {
-      const rmRes = await client.web.organizations.post({
-        action: "remove-member",
+      await orgAction("remove-member", {
         organizationId: selectedOrgId,
         userId,
       });
-      unwrapEden(rmRes);
       toast.success(t("toast.removeSuccess"));
-      const gdRes = await client.web.organizations.post({ action: "get", organizationId: selectedOrgId });
-      const d = unwrapEden<OrgDetail>(gdRes);
+      const d = await orgAction<OrgDetail>("get", { organizationId: selectedOrgId });
       setDetail(d);
     } catch (err) {
       console.error(err);
@@ -222,16 +209,13 @@ export function AgentOrganizationsPage() {
   const handleUpdateRole = async (userId: string, newRole: string) => {
     if (!selectedOrgId) return;
     try {
-      const roleRes = await client.web.organizations.post({
-        action: "update-role",
+      await orgAction("update-role", {
         organizationId: selectedOrgId,
         userId,
         role: newRole,
       });
-      unwrapEden(roleRes);
       toast.success(t("toast.roleUpdated"));
-      const dRes2 = await client.web.organizations.post({ action: "get", organizationId: selectedOrgId });
-      const d = unwrapEden<OrgDetail>(dRes2);
+      const d = await orgAction<OrgDetail>("get", { organizationId: selectedOrgId });
       setDetail(d);
     } catch (err) {
       console.error(err);
@@ -243,13 +227,12 @@ export function AgentOrganizationsPage() {
     if (!selectedOrgId) return;
     setDeleteSaving(true);
     try {
-      const delRes = await client.web.organizations.post({ action: "delete", organizationId: selectedOrgId });
-      unwrapEden(delRes);
+      await orgAction("delete", { organizationId: selectedOrgId });
       toast.success(t("toast.deleteSuccess"));
       setDeleteOpen(false);
-      setSelectedOrgId(null);
       setDetail(null);
       await loadMyOrgs();
+      setSelectedOrgId(null);
       await refreshOrgs();
     } catch (err) {
       console.error(err);
@@ -416,10 +399,18 @@ export function AgentOrganizationsPage() {
                 <div className="pt-4 border-t border-border-subtle">
                   <h3 className="text-sm font-semibold text-destructive mb-2">{t("dangerZone.title")}</h3>
                   <p className="text-sm text-text-dim mb-3">{t("dangerZone.description")}</p>
-                  <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteOpen(true)}
+                    disabled={myOrgs.length <= 1}
+                  >
                     <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                     {t("dangerZone.deleteOrg")}
                   </Button>
+                  {myOrgs.length <= 1 && (
+                    <p className="text-xs text-text-dim mt-2">{t("dangerZone.cannotDeleteLast")}</p>
+                  )}
                 </div>
               )}
             </div>

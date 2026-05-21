@@ -26,7 +26,8 @@
   "dangerZone": {
     "title": "危险区域",
     "description": "删除组织将同时删除所有关联资源，此操作不可撤销。",
-    "deleteOrg": "删除组织"
+    "deleteOrg": "删除组织",
+    "cannotDeleteLast": "无法删除最后一个组织，请先创建一个新组织。"
   },
   "createDialog": {
     "title": "创建组织",

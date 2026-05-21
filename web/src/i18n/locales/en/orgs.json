@@ -26,7 +26,8 @@
   "dangerZone": {
     "title": "Danger Zone",
     "description": "Deleting the organization will also delete all associated resources. This action cannot be undone.",
-    "deleteOrg": "Delete Organization"
+    "deleteOrg": "Delete Organization",
+    "cannotDeleteLast": "You cannot delete the last organization. Please create a new one first."
   },
   "createDialog": {
     "title": "Create Organization",

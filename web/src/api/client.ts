@@ -93,3 +93,16 @@ export function getUuid(): string {
 export function setUuid(uuid: string): void {
   localStorage.setItem(UUID_KEY, uuid);
 }
+
+// --- 组织 API helper ---
+
+type OrgActionBody = Record<string, unknown>;
+
+/**
+ * 组织管理 API 统一调用入口。
+ * 封装 Eden Treaty 调用 + unwrapEden 解包，消除各页面重复的 try/catch + unwrap 模式。
+ */
+export async function orgAction<T = unknown>(action: string, params?: OrgActionBody): Promise<T> {
+  const res = await client.web.organizations.post({ action, ...params });
+  return unwrapEden<T>(res);
+}
