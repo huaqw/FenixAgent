@@ -92,7 +92,7 @@ describe("ensureMetaEnvironment", () => {
     mockUpsertSkill.mockResolvedValueOnce("skill-1");
     mockSpawnInstanceFromEnvironment.mockResolvedValueOnce({ id: "inst-1", status: "running" });
 
-    const result = await ensureMetaEnvironment(testCtx);
+    const result = await ensureMetaEnvironment(testCtx, new Request("http://localhost"));
     expect(result.environmentId).toBe("env-meta-1");
     expect(result.status).toBe("reused");
     expect(mockCreateWebEnvironment).not.toHaveBeenCalled();
@@ -105,7 +105,7 @@ describe("ensureMetaEnvironment", () => {
     mockSpawnInstanceFromEnvironment.mockResolvedValueOnce({ id: "inst-1", status: "running" });
     mockUpsertSkill.mockResolvedValueOnce("skill-1");
 
-    const result = await ensureMetaEnvironment(testCtx);
+    const result = await ensureMetaEnvironment(testCtx, new Request("http://localhost"));
     expect(result.environmentId).toBe("env-new-meta");
     expect(result.status).toBe("created");
     expect(mockCreateWebEnvironment).toHaveBeenCalledWith(expect.objectContaining({ name: "meta-agent" }));

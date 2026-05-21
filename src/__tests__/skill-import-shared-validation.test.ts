@@ -22,7 +22,6 @@ beforeEach(() => {
       return e;
     },
     groupUploadFiles: mockGroupUploadFiles,
-    listSkillsFromDir: mock(async () => []),
     readSkillDetailFromMd: mock(async () => null),
     writeSkillMd: mock(async () => "/tmp/skill/SKILL.md"),
     deleteSkillDir: mock(async () => {}),

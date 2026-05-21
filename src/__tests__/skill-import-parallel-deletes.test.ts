@@ -33,7 +33,6 @@ beforeEach(() => {
       }
       return map;
     },
-    listSkillsFromDir: mock(async () => []),
     readSkillDetailFromMd: mock(async () => null),
     writeSkillMd: mock(async (_dir: string, _name: string) => "/path/SKILL.md"),
     deleteSkillDir: mock(async () => {}),
@@ -77,12 +76,11 @@ describe("importSkillDirectories PG deletes 并行化", () => {
   test("overwrite 策略下冲突 skill 的 PG delete 应并行执行", async () => {
     getSkillMock.mockImplementation(async (_ctx: any, name: string) => ({
       name,
-      enabled: true,
       contentPath: `/path/${name}/SKILL.md`,
     }));
 
     await importSkillDirectories(
-      { teamId: "test-team", userId: "user_1", role: "owner" },
+      { organizationId: "test-org", userId: "user_1", role: "owner" },
       [makeFile("skill-a"), makeFile("skill-b"), makeFile("skill-c")],
       "overwrite",
     );
@@ -96,7 +94,7 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     getSkillMock.mockImplementation(async () => null);
 
     await importSkillDirectories(
-      { teamId: "test-team", userId: "user_1", role: "owner" },
+      { organizationId: "test-org", userId: "user_1", role: "owner" },
       [makeFile("new-skill")],
       "overwrite",
     );
@@ -115,7 +113,7 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     deleteSkillMock.mockImplementation(async () => true);
 
     await expect(
-      importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("fail-skill")]),
+      importSkillDirectories({ organizationId: "test-org", userId: "user_1", role: "owner" }, [makeFile("fail-skill")]),
     ).rejects.toThrow("disk full");
 
     expect(deleteSkillMock).toHaveBeenCalledTimes(1);
@@ -134,7 +132,7 @@ describe("importSkillDirectories PG deletes 并行化", () => {
     });
 
     await expect(
-      importSkillDirectories({ teamId: "test-team", userId: "user_1", role: "owner" }, [makeFile("fail2")]),
+      importSkillDirectories({ organizationId: "test-org", userId: "user_1", role: "owner" }, [makeFile("fail2")]),
     ).rejects.toThrow("original error");
   });
 });

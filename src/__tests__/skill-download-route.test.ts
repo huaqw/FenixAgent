@@ -22,7 +22,7 @@ mock.module("../db", () => ({
 
 const webSkills = (await import("../routes/web/skills")).default;
 
-const skill = { id: "skill-1", teamId: "team-1", name: "demo" };
+const skill = { id: "skill-1", organizationId: "org-1", name: "demo" };
 
 function requestUrl(name: string, token?: string): string {
   const query = token === undefined ? "" : `?token=${token}`;

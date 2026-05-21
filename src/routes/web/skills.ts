@@ -1,6 +1,6 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import Elysia from "elysia";
 import { db } from "../../db";
 import { skill } from "../../db/schema";
@@ -36,8 +36,6 @@ app.get("/:name/download", async ({ params, query, set }) => {
         eq(skill.id, payload.skillId),
         eq(skill.organizationId, payload.organizationId),
         eq(skill.name, name),
-        eq(skill.enabled, true),
-        isNull(skill.environmentId),
       ),
     )
     .limit(1);

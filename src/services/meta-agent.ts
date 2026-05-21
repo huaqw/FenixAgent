@@ -56,8 +56,6 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
   await upsertSkill(ctx, META_SKILL_NAME, {
     description: META_SKILL_DESCRIPTION,
     contentPath: `meta/${META_SKILL_NAME}/SKILL.md`,
-    enabled: true,
-    agentConfigId: agentConfig.id,
   });
 
   return agentConfig.id;
