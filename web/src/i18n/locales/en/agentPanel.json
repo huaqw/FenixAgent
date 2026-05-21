@@ -30,5 +30,8 @@
   "agentOfflineDesc": "Agent is not online. Please make sure acp-link is started.",
   "connecting": "Connecting...",
   "enterFailed": "Failed to enter instance",
-  "loading_agent_panel": "Loading agent panel..."
+  "loading_agent_panel": "Loading agent panel...",
+  "navigation": "Settings",
+  "createAgent": "New Agent",
+  "newInstance": "New Instance"
 }

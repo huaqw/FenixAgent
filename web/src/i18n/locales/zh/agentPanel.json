@@ -30,5 +30,8 @@
   "agentOfflineDesc": "Agent 尚未上线，请确保 acp-link 已启动",
   "connecting": "正在连接...",
   "enterFailed": "进入失败",
-  "loading_agent_panel": "加载智能体面板..."
+  "loading_agent_panel": "加载智能体面板...",
+  "navigation": "设置",
+  "createAgent": "新建智能体",
+  "newInstance": "新建实例"
 }

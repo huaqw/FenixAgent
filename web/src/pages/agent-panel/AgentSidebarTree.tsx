@@ -1,4 +1,4 @@
-import { Bot, Loader2, Power, RefreshCw } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Loader2, Plus, Power, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -10,12 +10,14 @@ interface AgentSidebarTreeProps {
   collapsed: boolean;
   selectedInstanceId: string | null;
   onSelectInstance: (instanceId: string, envId: string, sessionId: string | null) => void;
+  onCreateAgent?: () => void;
 }
 
-export function AgentSidebarTree({ collapsed, selectedInstanceId, onSelectInstance }: AgentSidebarTreeProps) {
+export function AgentSidebarTree({ collapsed, selectedInstanceId, onSelectInstance, onCreateAgent }: AgentSidebarTreeProps) {
   const { t } = useTranslation(NS.AGENT_PANEL);
   const [envs, setEnvs] = useState<Environment[]>([]);
   const [instancesMap, setInstancesMap] = useState<Record<string, EnvironmentInstance[]>>({});
+  const [collapsedEnvs, setCollapsedEnvs] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -149,32 +151,64 @@ export function AgentSidebarTree({ collapsed, selectedInstanceId, onSelectInstan
   }
 
   return (
-    <div className="flex-1 overflow-y-auto py-1">
-      <div className="px-5 pt-2 pb-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-dim">{t("agents")}</span>
+    <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex items-center justify-between px-4 pt-1 pb-2">
+        <span className="agent-tree-section-title">{t("agents")}</span>
+        {onCreateAgent && (
+          <button
+            type="button"
+            onClick={onCreateAgent}
+            title={t("createAgent")}
+            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-surface-hover cursor-pointer transition-colors text-text-dim hover:text-text-primary"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
-      {tree.map(({ env, instances }) => (
-        <div key={env.id}>
-          <div className="agent-tree-template">{env.name}</div>
-          {instances.length > 0 ? (
-            instances.map((inst) => (
-              <div
-                key={inst.id}
-                className={`agent-tree-instance ${selectedInstanceId === inst.id ? "selected" : ""}`}
-                onClick={() => handleEnterInstance(env, inst.instance_number)}
-              >
-                <span className={`status-dot ${getInstanceStatus(inst)}`} />
-                <span className="truncate">{t("instanceN", { number: inst.instance_number })}</span>
-              </div>
-            ))
-          ) : (
-            <div className="agent-tree-instance" onClick={() => handleEnterInstance(env)}>
-              <span className="status-dot stopped" />
+      {tree.map(({ env, instances }, idx) => {
+        const collapsed = !!collapsedEnvs[env.id];
+        return (
+          <div key={env.id} className={idx > 0 ? "mt-1.5" : ""}>
+            <button
+              type="button"
+              onClick={() => setCollapsedEnvs((prev) => ({ ...prev, [env.id]: !prev[env.id] }))}
+              className="agent-tree-env-header"
+            >
+              {collapsed ? <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />}
+              <Bot className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{env.name}</span>
-            </div>
-          )}
-        </div>
-      ))}
+              {instances.length > 0 && (
+                <span className="agent-tree-instance-count">{instances.length}</span>
+              )}
+            </button>
+            {!collapsed && (
+              <div className="agent-tree-env-body">
+                <button
+                  type="button"
+                  onClick={() => handleEnterInstance(env)}
+                  title={t("newInstance")}
+                  className="agent-tree-new-instance"
+                >
+                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{t("newInstance")}</span>
+                </button>
+                {instances.length > 0
+                  ? instances.map((inst) => (
+                      <div
+                        key={inst.id}
+                        className={`agent-tree-instance ${selectedInstanceId === inst.id ? "selected" : ""}`}
+                        onClick={() => handleEnterInstance(env, inst.instance_number)}
+                      >
+                        <span className={`status-dot ${getInstanceStatus(inst)}`} />
+                        <span className="truncate">{t("instanceN", { number: inst.instance_number })}</span>
+                      </div>
+                    ))
+                  : null}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

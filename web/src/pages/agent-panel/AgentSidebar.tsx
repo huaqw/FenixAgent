@@ -10,6 +10,7 @@ interface AgentSidebarProps {
   selectedInstanceId: string | null;
   onSelectInstance: (instanceId: string, envId: string, sessionId: string | null) => void;
   onNavigate: (pageId: string) => void;
+  onCreateAgent?: () => void;
 }
 
 export function AgentSidebar({
@@ -18,12 +19,13 @@ export function AgentSidebar({
   selectedInstanceId,
   onSelectInstance,
   onNavigate,
+  onCreateAgent,
 }: AgentSidebarProps) {
   const { t } = useTranslation("agentPanel");
 
   return (
     <aside className={["agent-sidebar", collapsed ? "collapsed" : ""].join(" ")}>
-      {/* 品牌区 */}
+      {/* 品牌区 + 团队切换器 */}
       <div
         className={[
           "flex items-center gap-2.5 px-4",
@@ -70,27 +72,25 @@ export function AgentSidebar({
         </button>
       </div>
 
-      {/* 配置导航区 */}
-      <AgentSidebarConfig collapsed={collapsed} onNavigate={onNavigate} />
-
-      {/* 分隔线 */}
-      <div className="mx-3 border-t border-border-subtle" />
+      {/* 团队切换器 */}
+      <div className="border-b border-border-subtle px-2 py-2">
+        {!collapsed && (
+          <div className="px-1">
+            <OrgSwitcher />
+          </div>
+        )}
+      </div>
 
       {/* 智能体树 */}
       <AgentSidebarTree
         collapsed={collapsed}
         selectedInstanceId={selectedInstanceId}
         onSelectInstance={onSelectInstance}
+        onCreateAgent={onCreateAgent}
       />
 
-      {/* 底部团队切换器 */}
-      <div className="border-t border-border-subtle px-2 py-2">
-        {!collapsed && (
-          <div className="px-1 mb-1.5">
-            <OrgSwitcher />
-          </div>
-        )}
-      </div>
+      {/* 配置导航 */}
+      <AgentSidebarConfig collapsed={collapsed} onNavigate={onNavigate} />
     </aside>
   );
 }

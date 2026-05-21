@@ -14,7 +14,7 @@
 /* ---------- 三栏布局容器 ---------- */
 .agent-panel-layout {
   display: flex;
-  height: 100%;
+  height: 100dvh;
   width: 100%;
   overflow: hidden;
 }
@@ -181,27 +181,71 @@
 }
 
 /* ---------- 智能体树样式 ---------- */
-.agent-tree-template {
-  padding: 4px 12px 2px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-muted);
+
+/* 区块标题 */
+.agent-tree-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-dim);
+}
+
+/* 智能体名称（可点击折叠） */
+.agent-tree-env-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
+  border: none;
+  border-radius: 6px;
+  margin: 0 4px;
+  background: none;
+  width: calc(100% - 8px);
+  transition: background 150ms, color 150ms;
 }
 
+.agent-tree-env-header:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+/* 实例数量徽标 */
+.agent-tree-instance-count {
+  margin-left: auto;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-dim);
+  background: var(--color-surface-2);
+  border-radius: 8px;
+  line-height: 18px;
+  flex-shrink: 0;
+}
+
+/* 实例列表容器 */
+.agent-tree-env-body {
+  padding: 1px 0 2px;
+}
+
+/* 单个实例行 */
 .agent-tree-instance {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 12px 5px 24px;
-  font-size: 13px;
+  padding: 5px 12px 5px 28px;
+  font-size: 14px;
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: background 150ms;
+  transition: background 150ms, color 150ms;
   border-radius: 6px;
   margin: 1px 6px;
   white-space: nowrap;
@@ -216,6 +260,29 @@
 .agent-tree-instance.selected {
   background: var(--color-brand-subtle);
   color: var(--color-brand-light);
+}
+
+/* "新建实例" 按钮 */
+.agent-tree-new-instance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 28px;
+  margin: 1px 6px;
+  font-size: 13px;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  transition: background 150ms, color 150ms;
+  white-space: nowrap;
+  width: calc(100% - 12px);
+}
+
+.agent-tree-new-instance:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
 }
 
 /* ---------- 状态指示灯 ---------- */

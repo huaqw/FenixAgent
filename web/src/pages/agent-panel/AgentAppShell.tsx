@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AgentCreateDialog } from "./AgentCreateDialog";
 import { AgentSidebar } from "./AgentSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { ArtifactsPanel } from "./ArtifactsPanel";
@@ -18,6 +19,7 @@ export function AgentAppShell({ agentId, sessionId }: AgentAppShellProps) {
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(agentId);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId ?? null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem("agent-panel:sidebar-collapsed");
@@ -86,6 +88,7 @@ export function AgentAppShell({ agentId, sessionId }: AgentAppShellProps) {
         selectedInstanceId={selectedInstanceId}
         onSelectInstance={handleSelectInstance}
         onNavigate={handleNavigate}
+        onCreateAgent={() => setCreateDialogOpen(true)}
       />
       <div className="agent-chat-area">
         <ChatPanel agentId={selectedAgentId} sessionId={currentSessionId} />
@@ -105,6 +108,7 @@ export function AgentAppShell({ agentId, sessionId }: AgentAppShellProps) {
           <ChevronRight className="h-4 w-4" />
         </button>
       )}
+      <AgentCreateDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
     </div>
   );
 }

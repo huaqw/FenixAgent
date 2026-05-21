@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from "./routes/__root"
 import { Route as LoginRouteImport } from "./routes/login"
 import { Route as AppRouteImport } from "./routes/_app"
+import { Route as AgentIndexRouteImport } from "./routes/agent/index"
 import { Route as AppIndexRouteImport } from "./routes/_app/index"
 import { Route as AgentAgentIdRouteImport } from "./routes/agent/$agentId"
 import { Route as AppWorkflowRouteImport } from "./routes/_app/workflow"
@@ -35,6 +36,11 @@ const LoginRoute = LoginRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: "/_app",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentIndexRoute = AgentIndexRouteImport.update({
+  id: "/agent/",
+  path: "/agent/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   "/tasks": typeof AppTasksRoute
   "/workflow": typeof AppWorkflowRoute
   "/agent/$agentId": typeof AgentAgentIdRoute
+  "/agent/": typeof AgentIndexRoute
   "/workflow/$": typeof AppWorkflowSplatRoute
   "/agent/$agentId/$sessionId": typeof AgentAgentIdSessionIdRoute
 }
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   "/workflow": typeof AppWorkflowRoute
   "/agent/$agentId": typeof AgentAgentIdRoute
   "/": typeof AppIndexRoute
+  "/agent": typeof AgentIndexRoute
   "/workflow/$": typeof AppWorkflowSplatRoute
   "/agent/$agentId/$sessionId": typeof AgentAgentIdSessionIdRoute
 }
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   "/_app/workflow": typeof AppWorkflowRoute
   "/agent/$agentId": typeof AgentAgentIdRoute
   "/_app/": typeof AppIndexRoute
+  "/agent/": typeof AgentIndexRoute
   "/_app/workflow_/$": typeof AppWorkflowSplatRoute
   "/agent/$agentId_/$sessionId": typeof AgentAgentIdSessionIdRoute
 }
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | "/tasks"
     | "/workflow"
     | "/agent/$agentId"
+    | "/agent/"
     | "/workflow/$"
     | "/agent/$agentId/$sessionId"
   fileRoutesByTo: FileRoutesByTo
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | "/workflow"
     | "/agent/$agentId"
     | "/"
+    | "/agent"
     | "/workflow/$"
     | "/agent/$agentId/$sessionId"
   id:
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | "/_app/workflow"
     | "/agent/$agentId"
     | "/_app/"
+    | "/agent/"
     | "/_app/workflow_/$"
     | "/agent/$agentId_/$sessionId"
   fileRoutesById: FileRoutesById
@@ -242,6 +254,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   AgentAgentIdRoute: typeof AgentAgentIdRoute
+  AgentIndexRoute: typeof AgentIndexRoute
   AgentAgentIdSessionIdRoute: typeof AgentAgentIdSessionIdRoute
 }
 
@@ -259,6 +272,13 @@ declare module "@tanstack/react-router" {
       path: ""
       fullPath: "/"
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/agent/": {
+      id: "/agent/"
+      path: "/agent"
+      fullPath: "/agent/"
+      preLoaderRoute: typeof AgentIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/_app/": {
@@ -416,6 +436,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   AgentAgentIdRoute: AgentAgentIdRoute,
+  AgentIndexRoute: AgentIndexRoute,
   AgentAgentIdSessionIdRoute: AgentAgentIdSessionIdRoute,
 }
 export const routeTree = rootRouteImport
