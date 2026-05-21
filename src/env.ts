@@ -58,6 +58,9 @@ const envSchema = z.object({
   RCS_REDIS_URL: z.string().optional(),
   RCS_REDIS_PASSWORD: z.string().optional(),
   RCS_REDIS_CLUSTER: z.string().optional(),
+
+  // ── 可选：Workspace 路径 ──
+  WORKSPACE_ROOT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

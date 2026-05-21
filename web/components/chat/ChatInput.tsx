@@ -32,8 +32,8 @@ interface ChatInputProps {
   supportsImages?: boolean;
   /** Agent 提供的可用 slash 命令 */
   commands?: AvailableCommand[];
-  /** 当前会话 ID，用于触发 @ 文件选择 */
-  sessionId?: string;
+  /** 环境 ID，用于文件上传/浏览（workspace 按环境隔离） */
+  envId?: string;
   className?: string;
 }
 
@@ -45,7 +45,7 @@ export function ChatInput({
   placeholder = "给智能体发送消息…",
   supportsImages = false,
   commands,
-  sessionId,
+  envId,
   className,
 }: ChatInputProps) {
   const [text, setText] = useState("");
@@ -56,6 +56,9 @@ export function ChatInput({
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 文件上传和浏览使用 envId（environment ID），后端路由为 /web/environments/:envId/user/*
+  const fileWorkspaceId = envId;
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
@@ -119,7 +122,7 @@ export function ChatInput({
     }
 
     // 检测 @ 文件引用触发
-    if (sessionId && value.endsWith("@")) {
+    if (fileWorkspaceId && value.endsWith("@")) {
       const prevChar = value.length > 1 ? value[value.length - 2] : " ";
       if (prevChar === " " || value.length === 1) {
         setShowFilePicker(true);
@@ -145,7 +148,7 @@ export function ChatInput({
 
   // 选择文件（图片走 base64，其他文件上传到 user/ 文件夹）
   const handleFileSelect = useCallback(async () => {
-    if (!fileInputRef.current || !sessionId) return;
+    if (!fileInputRef.current || !fileWorkspaceId) return;
     const files = fileInputRef.current.files;
     if (!files || files.length === 0) return;
 
@@ -173,7 +176,7 @@ export function ChatInput({
         for (const file of otherFiles) {
           formData.append("files", file);
         }
-        await fetchUpload(`/web/sessions/${sessionId}/user/user`, formData);
+        await fetchUpload(`/web/environments/${fileWorkspaceId}/user/user`, formData);
         const newAttachments: FileAttachment[] = otherFiles.map((f) => ({
           name: f.name,
           path: `user/${f.name}`,
@@ -190,7 +193,7 @@ export function ChatInput({
 
     // 清空 input 以便重复选择
     fileInputRef.current.value = "";
-  }, [sessionId]);
+  }, [fileWorkspaceId]);
 
   const removeImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -234,10 +237,10 @@ export function ChatInput({
     <div className={cn("w-full max-w-3xl mx-auto px-4 sm:px-8 pb-4 pt-2", className)}>
       <div className="relative">
         {/* File Picker Dialog */}
-        {showFilePicker && sessionId && (
+        {showFilePicker && fileWorkspaceId && (
           <FilePickerDialog
             open={showFilePicker}
-            sessionId={sessionId}
+            envId={fileWorkspaceId}
             onClose={() => setShowFilePicker(false)}
             onSelect={handleFilePickerSelect}
           />
@@ -308,7 +311,7 @@ export function ChatInput({
           )}
 
           {/* @ 文件引用按钮 */}
-          {sessionId && (
+          {fileWorkspaceId && (
             <Button
               type="button"
               variant="ghost"

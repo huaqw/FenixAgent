@@ -881,7 +881,7 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
             placeholder={sessionReady ? "给智能体发送消息…" : "等待会话..."}
             supportsImages={supportsImages}
             commands={availableCommands.length > 0 ? availableCommands : undefined}
-            sessionId={rcsSessionId ?? activeSessionId}
+            envId={agentId}
           />
         </div>
         )}

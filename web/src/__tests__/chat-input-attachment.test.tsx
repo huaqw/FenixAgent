@@ -8,17 +8,17 @@ describe("ChatInput Attachment Integration", () => {
     expect(typeof mod.ChatInput).toBe("function");
   });
 
-  test("ChatInput renders without sessionId", async () => {
+  test("ChatInput renders without envId", async () => {
     const { ChatInput } = await import("../../components/chat/ChatInput");
     expect(() => {
       ReactDOMServer.renderToString(<ChatInput onSubmit={() => {}} />);
     }).not.toThrow();
   });
 
-  test("ChatInput renders with sessionId", async () => {
+  test("ChatInput renders with envId", async () => {
     const { ChatInput } = await import("../../components/chat/ChatInput");
     expect(() => {
-      ReactDOMServer.renderToString(<ChatInput onSubmit={() => {}} sessionId="s1" />);
+      ReactDOMServer.renderToString(<ChatInput onSubmit={() => {}} envId="env_1" />);
     }).not.toThrow();
   });
 

@@ -46,7 +46,6 @@ app.post(
       description?: string;
       agentConfigId?: string;
       autoStart?: boolean;
-      workspacePath: string;
     };
 
     let record;
@@ -55,7 +54,6 @@ app.post(
         name: b.name,
         description: b.description,
         agentConfigId: b.agentConfigId,
-        workspacePath: b.workspacePath,
         autoStart: b.autoStart,
         userId: user.id,
         organizationId: authCtx.organizationId,
@@ -102,7 +100,6 @@ app.put(
     const b = body as {
       name?: string;
       description?: string | null;
-      workspacePath?: string;
       agentConfigId?: string | null;
       autoStart?: boolean;
     };
@@ -112,7 +109,6 @@ app.put(
       updated = await updateWebEnvironment(params.id, authCtx.organizationId, {
         name: b.name,
         description: b.description,
-        workspacePath: b.workspacePath,
         agentConfigId: b.agentConfigId,
         autoStart: b.autoStart,
       });

@@ -119,10 +119,6 @@ export async function spawnInstanceFromEnvironment(
   if (!env) throw new NotFoundError("Environment not found");
   // 注意：团队归属由调用方（route 层 getOwnedEnvironment）验证，此处仅确认环境存在
 
-  const cwd = env.workspacePath ?? env.directory;
-  if (!cwd)
-    throw new AppError(`Workspace directory not set for environment: ${environmentId}`, "VALIDATION_ERROR", 400);
-
   // 解析 AgentConfig：有则加载完整配置，无则用默认 "general" agent
   let agentName = "general";
   let agentPrompt: string | null = null;
@@ -151,7 +147,8 @@ export async function spawnInstanceFromEnvironment(
 
   // 组装 AgentLaunchSpec
   const launchSpec = await buildLaunchSpec({
-    workspacePath: cwd,
+    organizationId: env.organizationId ?? userId,
+    userId: env.userId ?? userId,
     agentName,
     agentConfigId: env.agentConfigId ?? null,
     agentPrompt,

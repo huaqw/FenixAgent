@@ -9,7 +9,7 @@ import type { FileInfo } from "../types";
 
 interface FilePickerDialogProps {
   open: boolean;
-  sessionId: string;
+  envId: string;
   onClose: () => void;
   onSelect: (file: FileInfo) => void;
 }
@@ -20,7 +20,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FilePickerDialog({ open, sessionId, onClose, onSelect }: FilePickerDialogProps) {
+export function FilePickerDialog({ open, envId, onClose, onSelect }: FilePickerDialogProps) {
   const { t } = useTranslation("components");
   const [entries, setEntries] = useState<FileInfo[]>([]);
   const [currentDir, setCurrentDir] = useState<string>("");
@@ -36,7 +36,7 @@ export function FilePickerDialog({ open, sessionId, onClose, onSelect }: FilePic
       setError(null);
       try {
         const queryParams = dirPath ? { path: dirPath } : {};
-        const { data: result } = await client.web.sessions({ id: sessionId }).user.get(queryParams);
+        const { data: result } = await client.web.environments({ id: envId }).user.get(queryParams);
         setEntries((result as any)?.entries ?? []);
         setCurrentDir(dirPath);
       } catch (err) {
@@ -45,7 +45,7 @@ export function FilePickerDialog({ open, sessionId, onClose, onSelect }: FilePic
         setLoading(false);
       }
     },
-    [sessionId, t],
+    [envId, t],
   );
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export function FilePickerDialog({ open, sessionId, onClose, onSelect }: FilePic
         for (const file of Array.from(files)) {
           formData.append("files", file);
         }
-        await fetchUpload(`/web/sessions/${sessionId}/user/user`, formData);
+        await fetchUpload(`/web/environments/${envId}/user/user`, formData);
         await loadDirectory(currentDir);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("filePicker.uploadFailed"));
@@ -91,7 +91,7 @@ export function FilePickerDialog({ open, sessionId, onClose, onSelect }: FilePic
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [sessionId, currentDir, loadDirectory, t],
+    [envId, currentDir, loadDirectory, t],
   );
 
   const handleItemClick = useCallback(

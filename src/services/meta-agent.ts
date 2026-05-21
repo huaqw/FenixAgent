@@ -103,7 +103,6 @@ export async function ensureMetaEnvironment(ctx: AuthContext, request: Request):
     name: META_ENVIRONMENT_NAME,
     description: "Meta Agent — 工作流编排助手（自动创建）",
     agentConfigId,
-    workspacePath: process.cwd(),
     userId: ctx.userId,
     organizationId: ctx.organizationId,
   });

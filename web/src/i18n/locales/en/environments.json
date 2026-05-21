@@ -34,7 +34,7 @@
   },
   "empty": {
     "createFirst": "Create your first agent",
-    "createHint": "Configure a workspace and Agent type to start chatting",
+    "createHint": "Select an Agent type to start chatting",
     "noActive": "No active environments"
   },
   "card": {
@@ -58,7 +58,6 @@
     "createTitle": "Create Agent",
     "name": "Name",
     "description": "Description",
-    "workspacePath": "Workspace Path",
     "agentName": "Linked Agent",
     "selectAgent": "Select Agent (optional)",
     "autoStartLabel": "Auto-start when server launches",
@@ -68,8 +67,7 @@
     "create": "Create"
   },
   "validation": {
-    "nameKebab": "Name must be kebab-case (lowercase letters, digits, hyphens)",
-    "pathAbsolute": "Workspace path must be an absolute path"
+    "nameKebab": "Name must be kebab-case (lowercase letters, digits, hyphens)"
   },
   "secret": {
     "title": "Agent Secret",

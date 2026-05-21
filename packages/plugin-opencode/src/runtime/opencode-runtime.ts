@@ -9,6 +9,7 @@ import type {
 } from "@mothership/plugin-sdk";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import {
   prepareWorkspaceEnvironment,
 } from "./environment-preparer";
@@ -131,6 +132,11 @@ export function createOpencodeRuntime(
   const processManager = dependencies.processManager ?? new AcpLinkProcessManager();
   const prepareWorkspace = dependencies.prepareWorkspaceEnvironment ?? prepareWorkspaceEnvironment;
 
+  function resolveWorkspace(launchSpec: AgentLaunchSpec): string {
+    const root = process.env.WORKSPACE_ROOT ?? join(process.cwd(), "workspaces");
+    return join(root, launchSpec.organizationId, launchSpec.userId);
+  }
+
   return {
     getInstanceState(instanceId) {
       return states.get(instanceId);
@@ -138,24 +144,25 @@ export function createOpencodeRuntime(
 
     async prepareEnvironment(input) {
       const state = getOrCreateState(states, input.instanceId);
-      await mkdir(input.launchSpec.workspace, { recursive: true });
-      await accessWorkspace(input.launchSpec.workspace, constants.R_OK | constants.W_OK);
+      const workspacePath = resolveWorkspace(input.launchSpec);
+      await mkdir(workspacePath, { recursive: true });
+      await accessWorkspace(workspacePath, constants.R_OK | constants.W_OK);
 
       const installedSkills = await installSkillsImpl(
-        input.launchSpec.workspace,
+        workspacePath,
         input.launchSpec.skills,
         dependencies.skillInstallerDependencies,
       );
       const runtimeConfig = buildRuntimeConfig(input.launchSpec, installedSkills);
       await prepareWorkspace(
-        input.launchSpec.workspace,
+        workspacePath,
         runtimeConfig,
         input.launchSpec.env ? { ...input.launchSpec.env } : {},
         installedSkills,
       );
 
       state.launchSpec = input.launchSpec;
-      state.workspace = input.launchSpec.workspace;
+      state.workspace = workspacePath;
       state.env = input.launchSpec.env ? { ...input.launchSpec.env } : {};
       state.runtimeConfig = runtimeConfig;
       state.installedSkills = installedSkills;

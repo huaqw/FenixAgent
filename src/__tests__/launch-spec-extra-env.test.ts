@@ -5,7 +5,8 @@ describe("buildLaunchSpec extraEnv", () => {
   // extraEnv 应合并到 AgentLaunchSpec.env
   test("extraEnv 合并到返回的 AgentLaunchSpec.env", async () => {
     const input: BuildLaunchSpecInput = {
-      workspacePath: "/tmp/test",
+      organizationId: "org-test",
+      userId: "user-test",
       agentName: "test-agent",
       agentConfigId: null,
       agentPrompt: null,
@@ -28,7 +29,8 @@ describe("buildLaunchSpec extraEnv", () => {
   // 无 extraEnv 时 env 为 undefined
   test("无 extraEnv 时 AgentLaunchSpec.env 为 undefined", async () => {
     const input: BuildLaunchSpecInput = {
-      workspacePath: "/tmp/test",
+      organizationId: "org-test",
+      userId: "user-test",
       agentName: "test-agent",
       agentConfigId: null,
       agentPrompt: null,

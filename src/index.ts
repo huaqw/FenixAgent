@@ -46,6 +46,7 @@ import { startScheduler, stopScheduler } from "./services/scheduler";
 import { closeAllRelayConnections } from "./transport/relay";
 import { closeAllAcpConnections } from "./transport/acp-ws-handler";
 import { closeCache } from "./services/cache";
+import { resolveWorkspacePath } from "./services/workspace-resolver";
 
 await initDb();
 console.log("[RCS] Database initialized (PostgreSQL + better-auth)");
@@ -77,9 +78,10 @@ try {
   const envs = await environmentRepo.listAll();
   for (const env of envs) {
     if (!env.userId) continue;
+    if (!env.organizationId) continue;
     if (!env.autoStart) continue;
-    const cwd = env.workspacePath || env.directory;
-    if (!cwd || !existsSync(cwd)) {
+    const cwd = resolveWorkspacePath(env.organizationId, env.userId);
+    if (!existsSync(cwd)) {
       console.log(`[RCS] Skipping environment ${env.name}: workspace directory does not exist (${cwd})`);
       continue;
     }

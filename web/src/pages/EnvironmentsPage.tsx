@@ -37,9 +37,8 @@ export function EnvironmentsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation("environments");
   const navigateToSession = useCallback(
-    (sessionId: string, options?: { cwd?: string; agentId?: string }) => {
+    (sessionId: string, options?: { agentId?: string }) => {
       const search: Record<string, string> = {};
-      if (options?.cwd) search.cwd = options.cwd;
       if (options?.agentId) search.agentId = options.agentId;
       void navigate({ to: "/$sessionId", params: { sessionId }, search });
     },
@@ -54,7 +53,6 @@ export function EnvironmentsPage() {
   const [formSaving, setFormSaving] = useState(false);
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formWorkspacePath, setFormWorkspacePath] = useState("");
   const [formAgentConfigId, setFormAgentConfigId] = useState("");
   const [formAutoStart, setFormAutoStart] = useState(false);
   const [formError, setFormError] = useState("");
@@ -126,7 +124,6 @@ export function EnvironmentsPage() {
     setEditingEnv(null);
     setFormName("");
     setFormDescription("");
-    setFormWorkspacePath("");
     setFormAgentConfigId("");
     setFormAutoStart(false);
     setFormError("");
@@ -139,7 +136,6 @@ export function EnvironmentsPage() {
       setEditingEnv(env);
       setFormName(env.name);
       setFormDescription(env.description || "");
-      setFormWorkspacePath(env.workspace_path);
       setFormAgentConfigId(env.agent_config_id || "");
       setFormAutoStart(env.auto_start ?? false);
       setFormError("");
@@ -153,10 +149,6 @@ export function EnvironmentsPage() {
       setFormError(t("validation.nameKebab"));
       return;
     }
-    if (!formWorkspacePath.startsWith("/")) {
-      setFormError(t("validation.pathAbsolute"));
-      return;
-    }
     setFormError("");
 
     setFormSaving(true);
@@ -165,7 +157,6 @@ export function EnvironmentsPage() {
         const { error: err } = await client.web.environments({ id: editingEnv.id }).put({
           name: formName,
           description: formDescription || undefined,
-          workspacePath: formWorkspacePath,
           agentConfigId: formAgentConfigId || null,
           autoStart: formAutoStart,
         });
@@ -174,7 +165,6 @@ export function EnvironmentsPage() {
         const { data, error: err } = await client.web.environments.post({
           name: formName,
           description: formDescription || undefined,
-          workspacePath: formWorkspacePath,
           agentConfigId: formAgentConfigId || undefined,
           autoStart: formAutoStart,
         });
@@ -191,7 +181,7 @@ export function EnvironmentsPage() {
     } finally {
       setFormSaving(false);
     }
-  }, [editingEnv, formName, formDescription, formWorkspacePath, formAgentConfigId, formAutoStart, loadEnvs]);
+  }, [editingEnv, formName, formDescription, formAgentConfigId, formAutoStart, loadEnvs]);
 
   const handleEnterAgent = useCallback(
     async (env: Environment) => {
@@ -202,7 +192,6 @@ export function EnvironmentsPage() {
         const result = data as { session_id: string; environment_id: string } | null;
         await new Promise((r) => setTimeout(r, 500));
         navigateToSession(result?.session_id ?? "", {
-          cwd: env.workspace_path,
           agentId: result?.environment_id ?? env.id,
         });
       } catch (err) {
@@ -226,7 +215,6 @@ export function EnvironmentsPage() {
         const result = data as { session_id: string; environment_id: string } | null;
         await new Promise((r) => setTimeout(r, 500));
         navigateToSession(result?.session_id ?? "", {
-          cwd: env.workspace_path,
           agentId: result?.environment_id ?? env.id,
         });
       } catch (err) {
@@ -248,7 +236,6 @@ export function EnvironmentsPage() {
         const spawnResult = data as { session_id?: string; environment_id?: string } | null;
         await new Promise((r) => setTimeout(r, 500));
         navigateToSession(spawnResult?.session_id ?? "", {
-          cwd: env.workspace_path,
           agentId: spawnResult?.environment_id ?? env.id,
         });
         await loadEnvs();
@@ -593,20 +580,6 @@ export function EnvironmentsPage() {
 
                   {/* Info */}
                   <div className="mb-4 flex-1 space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs text-text-muted">
-                      <svg
-                        className="h-3 w-3 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                      </svg>
-                      <span className="truncate">{env.workspace_path}</span>
-                    </div>
                     {env.agent_name && (
                       <div className="flex items-center gap-1.5 text-xs text-text-muted">
                         <Bot className="h-3 w-3 shrink-0" />
@@ -716,7 +689,7 @@ export function EnvironmentsPage() {
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-text-bright">{env.name}</div>
                         <div className="truncate font-mono text-[11px] text-text-dim">
-                          {env.agent_name || env.workspace_path.split("/").pop() || "--"}
+                          {env.agent_name || "--"}
                         </div>
                       </div>
                     </div>
@@ -825,15 +798,6 @@ export function EnvironmentsPage() {
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder={t("form.description")}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="workspacePath">{t("form.workspacePath")}</Label>
-                <Input
-                  id="workspacePath"
-                  value={formWorkspacePath}
-                  onChange={(e) => setFormWorkspacePath(e.target.value)}
-                  placeholder="/home/user/project"
                 />
               </div>
               <div className="grid gap-2">

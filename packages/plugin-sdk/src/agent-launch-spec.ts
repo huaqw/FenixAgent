@@ -2,7 +2,7 @@
  * Agent 启动配置规范。
  *
  * Core 在启动前组装它，并在 `prepareEnvironment` 阶段传给 engine 插件。
- * 插件基于这些配置完成 workspace、环境变量和运行前资源准备。
+ * 插件基于这些配置完成环境变量和运行前资源准备。
  */
 
 /**
@@ -84,7 +84,8 @@ export type McpServerConfig =
  * Agent 启动配置规范。
  */
 export interface AgentLaunchSpec {
-  workspace: string;
+  organizationId: string;
+  userId: string;
   env?: Record<string, string>;
   agent: AgentConfig;
   model: ModelConfig;

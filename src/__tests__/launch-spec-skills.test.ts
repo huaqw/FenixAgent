@@ -57,7 +57,8 @@ describe("launch spec skills", () => {
 
   async function specFor(skills: unknown[]) {
     return buildLaunchSpec({
-      workspacePath: "/workspace",
+      organizationId: "org-test",
+      userId: "user-test",
       agentName: "build",
       fullConfig: baseConfig(skills) as any,
       environmentSecret: "secret",

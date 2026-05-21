@@ -1,34 +1,28 @@
-import { ConfigWriteError, ConflictError, NotFoundError, ValidationError } from "../errors";
+import { ConflictError, NotFoundError, ValidationError } from "../errors";
 import type { EnvironmentUpdateParams } from "../repositories";
 import { environmentRepo } from "../repositories";
 import * as configPg from "./config-pg";
 import type { CreateWebEnvironmentParams, UpdateWebEnvironmentParams } from "./environment-core";
 import {
   deleteEnvironment,
-  ensureWorkspaceDir,
   generateEnvSecret,
   getOwnedEnvironment,
   KEBAB_CASE_RE,
   sanitizeResponse,
-  validateWorkspacePath,
 } from "./environment-core";
 import { groupActiveInstancesByEnvironment } from "./instance";
+import { resolveWorkspacePath } from "./workspace-resolver";
 
 export type { CreateWebEnvironmentParams, UpdateWebEnvironmentParams };
 
-/** 创建 Web 控制面板 Environment — 包含完整的参数校验、Agent 配置解析、目录初始化 */
+/** 创建 Web 控制面板 Environment — workspace 路径由 orgId + userId 自动计算 */
 export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
   const { name, description, autoStart, userId, organizationId } = params;
-  let { workspacePath } = params;
 
   // 名称校验
   if (!name || !KEBAB_CASE_RE.test(name)) {
     throw new ValidationError("name 必须为 kebab-case 格式（小写字母、数字、连字符）");
   }
-
-  // 路径校验
-  const pathError = validateWorkspacePath(workspacePath);
-  if (pathError) throw new ValidationError(pathError);
 
   // Agent 配置校验：可选，提供时需验证存在性
   if (params.agentConfigId) {
@@ -36,18 +30,8 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
     if (!agent) throw new ValidationError(`AgentConfig '${params.agentConfigId}' 不存在`);
   }
 
-  // workspace 目录初始化
-  try {
-    workspacePath = ensureWorkspaceDir(workspacePath);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new ConfigWriteError(`无法创建目录: ${msg}`);
-  }
-
-  // 符号链接逃逸防御：ensureWorkspaceDir 通过 realpathSync 解析了符号链接，
-  // 需对真实路径重新校验（如 /tmp/link_to_etc → /etc 会被拦截）
-  const realPathError = validateWorkspacePath(workspacePath);
-  if (realPathError) throw new ValidationError(realPathError);
+  // workspace 路径由 orgId + userId 自动计算
+  const workspacePath = resolveWorkspacePath(organizationId ?? userId, userId);
 
   // 创建记录
   const secret = generateEnvSecret();
@@ -77,7 +61,7 @@ export async function createWebEnvironment(params: CreateWebEnvironmentParams) {
   return record;
 }
 
-/** 更新 Web 控制面板 Environment — 包含参数校验、Agent 配置解析 */
+/** 更新 Web 控制面板 Environment — 不再允许修改 workspacePath */
 export async function updateWebEnvironment(envId: string, organizationId: string, params: UpdateWebEnvironmentParams) {
   await getOwnedEnvironment(envId, organizationId);
   const patch: EnvironmentUpdateParams = {};
@@ -87,15 +71,6 @@ export async function updateWebEnvironment(envId: string, organizationId: string
       throw new ValidationError("name 必须为 kebab-case 格式");
     }
     patch.name = params.name;
-  }
-  if (params.workspacePath !== undefined) {
-    const pathError = validateWorkspacePath(params.workspacePath);
-    if (pathError) throw new ValidationError(pathError);
-    const realPath = ensureWorkspaceDir(params.workspacePath);
-    // 符号链接逃逸防御：重新校验 realpathSync 解析后的真实路径
-    const realPathError = validateWorkspacePath(realPath);
-    if (realPathError) throw new ValidationError(realPathError);
-    patch.workspacePath = realPath;
   }
   if (params.agentConfigId !== undefined) {
     if (params.agentConfigId) {

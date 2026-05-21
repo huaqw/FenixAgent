@@ -87,7 +87,7 @@ export interface CreateWebEnvironmentParams {
   name: string;
   description?: string;
   agentConfigId?: string;
-  workspacePath: string;
+  workspacePath?: string;
   autoStart?: boolean;
   userId: string;
   organizationId?: string;
@@ -97,7 +97,6 @@ export interface CreateWebEnvironmentParams {
 export interface UpdateWebEnvironmentParams {
   name?: string;
   description?: string | null;
-  workspacePath?: string;
   agentConfigId?: string | null;
   autoStart?: boolean;
 }
