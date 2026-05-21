@@ -5,10 +5,8 @@ import { model } from "../../db/schema";
 // ────────────────────────────────────────────
 // Model 操作
 //
-// 安全依赖：所有函数通过 providerId 操作 model 数据。调用方（通常是
-// routes/web/config/providers.ts）必须先通过 getProvider(ctx, name) 验证
-// provider 属于当前团队，再使用返回的 provider.id 调用这些函数。
-// providerId 在此层不做 organizationId 验证，因为它来自已验证的 provider。
+// 所有函数以 organizationId 为首参数，WHERE 条件包含 organization_id 隔离。
+// 调用方（通常是 routes/web/config/providers.ts）传入 authCtx.organizationId。
 // ────────────────────────────────────────────
 
 /** 构建 model 写入字段（addModel 的 values 和 set 共享） */
@@ -30,6 +28,7 @@ function buildModelValues(data: {
 }
 
 export async function addModel(
+  organizationId: string,
   providerId: string,
   data: {
     modelId: string;
@@ -43,7 +42,7 @@ export async function addModel(
   const fields = buildModelValues(data);
   await db
     .insert(model)
-    .values({ providerId, modelId: data.modelId, ...fields })
+    .values({ organizationId, providerId, modelId: data.modelId, ...fields })
     .onConflictDoUpdate({
       target: [model.providerId, model.modelId],
       set: fields,
@@ -51,6 +50,7 @@ export async function addModel(
 }
 
 export async function updateModel(
+  organizationId: string,
   providerId: string,
   modelId: string,
   data: {
@@ -71,15 +71,15 @@ export async function updateModel(
   const result = await db
     .update(model)
     .set(set)
-    .where(and(eq(model.providerId, providerId), eq(model.modelId, modelId)))
+    .where(and(eq(model.organizationId, organizationId), eq(model.providerId, providerId), eq(model.modelId, modelId)))
     .returning({ id: model.id });
   return result.length > 0;
 }
 
-export async function removeModel(providerId: string, modelId: string): Promise<boolean> {
+export async function removeModel(organizationId: string, providerId: string, modelId: string): Promise<boolean> {
   const result = await db
     .delete(model)
-    .where(and(eq(model.providerId, providerId), eq(model.modelId, modelId)))
+    .where(and(eq(model.organizationId, organizationId), eq(model.providerId, providerId), eq(model.modelId, modelId)))
     .returning({ id: model.id });
   return result.length > 0;
 }

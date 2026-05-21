@@ -99,9 +99,9 @@ async function handleSet(ctx: AuthContext, name: string, data: Record<string, un
       for (const [modelId, modelCfg] of Object.entries(incoming)) {
         const existingModel = providerRecord.models?.find((m) => m.modelId === modelId);
         if (existingModel) {
-          await configPg.updateModel(providerRecord.id, modelId, buildModelData(modelCfg));
+          await configPg.updateModel(ctx.organizationId, providerRecord.id, modelId, buildModelData(modelCfg));
         } else {
-          await configPg.addModel(providerRecord.id, { modelId, ...buildModelData(modelCfg) });
+          await configPg.addModel(ctx.organizationId, providerRecord.id, { modelId, ...buildModelData(modelCfg) });
         }
       }
     }
@@ -164,7 +164,7 @@ async function handleAddModel(ctx: AuthContext, providerName: string, data: Reco
   const existingModel = p.models?.find((m) => m.modelId === modelId);
   if (existingModel) return configError("VALIDATION_ERROR", `Model '${modelId}' already exists`);
 
-  await configPg.addModel(p.id, { modelId, ...buildModelData(data) });
+  await configPg.addModel(ctx.organizationId, p.id, { modelId, ...buildModelData(data) });
   invalidateAvailableCache();
   return configSuccess({ modelId });
 }
@@ -183,7 +183,7 @@ async function handleUpdateModel(
   const existingModel = p.models?.find((m) => m.modelId === modelId);
   if (!existingModel) return configError("NOT_FOUND", `Model '${modelId}' not found`);
 
-  await configPg.updateModel(p.id, modelId, buildModelData(data));
+  await configPg.updateModel(ctx.organizationId, p.id, modelId, buildModelData(data));
   invalidateAvailableCache();
   return configSuccess({ modelId });
 }
@@ -197,7 +197,7 @@ async function handleRemoveModel(ctx: AuthContext, providerName: string, modelId
   const existingModel = p.models?.find((m) => m.modelId === modelId);
   if (!existingModel) return configError("NOT_FOUND", `Model '${modelId}' not found`);
 
-  await configPg.removeModel(p.id, modelId);
+  await configPg.removeModel(ctx.organizationId, p.id, modelId);
   invalidateAvailableCache();
   return configSuccess(null);
 }

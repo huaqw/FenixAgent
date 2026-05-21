@@ -441,6 +441,7 @@ export const model = pgTable(
     providerId: uuid("provider_id")
       .notNull()
       .references(() => provider.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull(),
     modelId: varchar("model_id").notNull(),
     displayName: varchar("display_name"),
     modalities: jsonb("modalities"),
@@ -452,6 +453,7 @@ export const model = pgTable(
   },
   (table) => ({
     providerModelIdx: uniqueIndex("idx_model_provider_model").on(table.providerId, table.modelId),
+    orgModelIdx: uniqueIndex("idx_model_org_provider_model").on(table.organizationId, table.providerId, table.modelId),
   }),
 );
 

@@ -66,7 +66,7 @@ mock.module("../services/config-pg", () => ({
   deleteProvider: async (_ctx: any, name: string) => {
     return _providers.delete(name);
   },
-  addModel: async (providerId: string, data: any) => {
+  addModel: async (_orgId: string, providerId: string, data: any) => {
     for (const p of _providers.values()) {
       if (p.id === providerId) {
         p.models.set(data.modelId, data);
@@ -74,7 +74,7 @@ mock.module("../services/config-pg", () => ({
       }
     }
   },
-  updateModel: async (providerId: string, modelId: string, data: any) => {
+  updateModel: async (_orgId: string, providerId: string, modelId: string, data: any) => {
     for (const p of _providers.values()) {
       if (p.id === providerId) {
         const existing = p.models.get(modelId) ?? {};
@@ -83,7 +83,7 @@ mock.module("../services/config-pg", () => ({
       }
     }
   },
-  removeModel: async (providerId: string, modelId: string) => {
+  removeModel: async (_orgId: string, providerId: string, modelId: string) => {
     for (const p of _providers.values()) {
       if (p.id === providerId) {
         p.models.delete(modelId);
