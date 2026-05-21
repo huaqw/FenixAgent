@@ -60,6 +60,7 @@ async function handleList(ctx: AuthContext) {
       description: a.description ?? null,
       color: a.color ?? null,
       knowledgeBaseCount: (await listAgentKnowledgeBindingsById(a.id)).length,
+      skillIds: await configPg.listAgentSkillIds(a.id),
     })),
   );
   return configSuccess({ default_agent: defaultAgent, agents: list });
@@ -75,6 +76,8 @@ async function handleGet(ctx: AuthContext, name: string) {
   if (permission == null && tools && typeof tools === "object" && !Array.isArray(tools)) {
     permission = toolsToPermission(tools as Record<string, boolean>);
   }
+
+  const skillIds = await configPg.listAgentSkillIds(agent.id);
 
   return configSuccess({
     name,
@@ -92,6 +95,7 @@ async function handleGet(ctx: AuthContext, name: string) {
     color: agent.color ?? null,
     description: agent.description ?? null,
     knowledge: normalizeKnowledgeConfig(agent.knowledge ?? null),
+    skillIds,
   });
 }
 
@@ -133,6 +137,9 @@ async function handleSet(ctx: AuthContext, name: string, data: Record<string, un
       updatedAgent.id,
       filtered.knowledge as AgentKnowledgeConfig | null | undefined,
     );
+    if (data.skillIds !== undefined) {
+      await configPg.syncAgentSkills(updatedAgent.id, Array.isArray(data.skillIds) ? data.skillIds as string[] : []);
+    }
   }
   return configSuccess({ name, ...filtered });
 }
@@ -175,6 +182,9 @@ async function handleCreate(ctx: AuthContext, name: string, data: Record<string,
       createdAgent.id,
       filtered.knowledge as AgentKnowledgeConfig | null | undefined,
     );
+    if (data.skillIds !== undefined) {
+      await configPg.syncAgentSkills(createdAgent.id, Array.isArray(data.skillIds) ? data.skillIds as string[] : []);
+    }
   }
   return configSuccess({ name });
 }
