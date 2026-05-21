@@ -20,6 +20,7 @@
   "instanceN": "Instance #{{number}}",
   "stopInstanceFailed": "Failed to stop instance: {{message}}",
   "enterInstanceFailed": "Failed to enter instance: {{message}}",
+  "tabFiles": "Files",
   "tabPreview": "Preview",
   "tabContext": "Context",
   "closePanel": "Close panel",

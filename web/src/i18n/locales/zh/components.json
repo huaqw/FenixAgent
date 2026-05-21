@@ -126,5 +126,24 @@
   "artifact": {
     "contextPlaceholder": "上下文 (placeholder), entries: {{count}}",
     "previewPlaceholder": "预览 (placeholder), entries: {{count}}"
+  },
+  "fileTree": {
+    "refresh": "刷新",
+    "emptyState": "工作区暂无文件",
+    "contextMenu": {
+      "reference": "引用到聊天",
+      "rename": "重命名",
+      "delete": "删除",
+      "newFolder": "新建文件夹",
+      "newFolderName": "新文件夹名称"
+    },
+    "preview": {
+      "title": "预览",
+      "loading": "加载中...",
+      "notTextFile": "无法预览二进制文件",
+      "fetchFailed": "加载文件内容失败",
+      "noFileSelected": "选择文件以预览",
+      "modifiedAt": "修改时间"
+    }
   }
 }

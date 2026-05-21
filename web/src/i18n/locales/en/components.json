@@ -126,5 +126,24 @@
   "artifact": {
     "contextPlaceholder": "Context (placeholder), entries: {{count}}",
     "previewPlaceholder": "Preview (placeholder), entries: {{count}}"
+  },
+  "fileTree": {
+    "refresh": "Refresh",
+    "emptyState": "No files in workspace",
+    "contextMenu": {
+      "reference": "Reference in chat",
+      "rename": "Rename",
+      "delete": "Delete",
+      "newFolder": "New Folder",
+      "newFolderName": "New folder name"
+    },
+    "preview": {
+      "title": "Preview",
+      "loading": "Loading...",
+      "notTextFile": "Cannot preview binary file",
+      "fetchFailed": "Failed to load file content",
+      "noFileSelected": "Select a file to preview",
+      "modifiedAt": "Modified"
+    }
   }
 }
