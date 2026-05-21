@@ -142,7 +142,6 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
   }
 
   const skills = fullConfig.skills
-    .filter((s) => s.enabled)
     .flatMap((s) => {
       const archivePath = getSkillArchivePath(getGlobalSkillsDir(), s.name);
       if (!existsSync(archivePath)) {

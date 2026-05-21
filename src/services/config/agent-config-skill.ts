@@ -17,10 +17,11 @@ export async function syncAgentSkills(agentConfigId: string, skillIds: string[])
     .delete(agentConfigSkill)
     .where(eq(agentConfigSkill.agentConfigId, agentConfigId));
 
-  if (skillIds.length === 0) return;
+  const valid = skillIds.filter((id) => id && id.trim());
+  if (valid.length === 0) return;
 
   await db.insert(agentConfigSkill).values(
-    skillIds.map((skillId) => ({
+    valid.map((skillId) => ({
       agentConfigId,
       skillId,
     })),

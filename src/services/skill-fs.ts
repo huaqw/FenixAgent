@@ -15,6 +15,7 @@ import { dirname, join, relative } from "node:path";
 // ────────────────────────────────────────────
 
 export interface SkillInfo {
+  id?: string;
   name: string;
   enabled: boolean;
   description: string;

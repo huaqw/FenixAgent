@@ -123,6 +123,7 @@ function stripNameAndDescription(metadata: Record<string, string>): Record<strin
 export async function listSkills(ctx: AuthContext): Promise<SkillInfo[]> {
   const rows = await _deps.configPg.listSkills(ctx);
   return rows.map((r) => ({
+    id: r.id,
     name: r.name,
     enabled: true,
     description: r.description ?? "",

@@ -46,8 +46,8 @@ async function handleSet(
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
-  if (!body.data || !body.data.description || !body.data.content) {
-    return errorFn(400, configValidationError("Missing required fields: data.description, data.content"));
+  if (!body.data || !body.data.content) {
+    return errorFn(400, configValidationError("Missing required field: data.content"));
   }
   const result = await setSkill(ctx, body.name, body.data);
   return configSuccess({ name: result.name });
