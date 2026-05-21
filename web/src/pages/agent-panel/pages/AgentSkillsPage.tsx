@@ -80,8 +80,6 @@ export function AgentSkillsPage() {
   const [editingSkill, setEditingSkill] = useState<SkillInfo | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [selected, setSelected] = useState<SkillInfo[]>([]);
-  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>("text");
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -257,30 +255,6 @@ export function AgentSkillsPage() {
     }
   };
 
-  const confirmBatchDelete = async () => {
-    try {
-      await Promise.all(
-        selected.map((s) =>
-          client.web.config.skills
-            .post({ action: "delete", name: s.name })
-            .then((r: { error?: { message?: string } }) => {
-              if (r.error) throw new Error(r.error.message);
-            }),
-        ),
-      );
-      toast.success(t("toast.batchDeleted", { count: selected.length }));
-      setBatchConfirmOpen(false);
-      setSelected([]);
-      loadSkills();
-      dispatchConfigChange("skills");
-    } catch (e) {
-      console.error(t("toast.batchDeleteFailed"), e);
-      toast.error(
-        t("toast.batchDeleteFailedWith", { message: e instanceof Error ? e.message : t("toast.saveFailed") }),
-      );
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col flex-1 min-h-0">
@@ -314,28 +288,17 @@ export function AgentSkillsPage() {
         cardKey={(s) => s.id}
         searchPlaceholder={t("search")}
         searchFn={(s, q) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)}
-        selectable
-        selectedItems={selected}
-        onSelectionChange={setSelected}
         emptyMessage={t("empty")}
         gridCols="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-        batchActions={
-          <Button size="xs" variant="destructive" onClick={() => setBatchConfirmOpen(true)}>
-            {t("btn.batchDelete")}
-          </Button>
-        }
-        renderCard={(skill, isSelected, toggleSelect) => (
+        renderCard={(skill) => (
           <div className="group relative rounded-xl border border-border-light bg-surface-1 p-4 transition-all hover:border-border-active hover:shadow-md flex flex-col min-h-[140px]">
-            <div className="absolute top-3 right-3 flex items-center gap-2">
-              <input type="checkbox" checked={isSelected} onChange={toggleSelect} className="rounded border-border" />
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button size="xs" variant="outline" onClick={() => handleOpenEdit(skill)}>
-                  {t("btn.edit")}
-                </Button>
-                <Button size="xs" variant="destructive" onClick={() => handleDeleteClick(skill)}>
-                  {t("btn.delete")}
-                </Button>
-              </div>
+            <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button size="xs" variant="outline" onClick={() => handleOpenEdit(skill)}>
+                {t("btn.edit")}
+              </Button>
+              <Button size="xs" variant="destructive" onClick={() => handleDeleteClick(skill)}>
+                {t("btn.delete")}
+              </Button>
             </div>
             <div className="flex-1 min-w-0 pr-20">
               <div className="flex items-center gap-2 mb-2">
@@ -531,14 +494,6 @@ export function AgentSkillsPage() {
         description={t("confirm.deleteDescription", { name: deleteTarget ?? "" })}
         variant="destructive"
         onConfirm={confirmDelete}
-      />
-      <ConfirmDialog
-        open={batchConfirmOpen}
-        onOpenChange={setBatchConfirmOpen}
-        title={t("confirm.batchDeleteTitle")}
-        description={t("confirm.batchDeleteDescription", { count: selected.length })}
-        variant="destructive"
-        onConfirm={confirmBatchDelete}
       />
       <ConfirmDialog
         open={overwriteConfirmOpen}
