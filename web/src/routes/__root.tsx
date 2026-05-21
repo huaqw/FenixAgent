@@ -23,7 +23,7 @@ function RootComponent() {
       void navigate({ to: "/login" });
     }
     if (session && pathname === "/login") {
-      void navigate({ to: "/" });
+      void navigate({ to: "/agent" });
     }
   }, [session, isPending, pathname, navigate]);
 
@@ -69,7 +69,7 @@ function NotFoundPage() {
       <p className="text-sm text-text-muted">{t("not_found")}</p>
       <button
         type="button"
-        onClick={() => void navigate({ to: "/" })}
+        onClick={() => void navigate({ to: "/agent" })}
         className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
       >
         {t("back_home")}
