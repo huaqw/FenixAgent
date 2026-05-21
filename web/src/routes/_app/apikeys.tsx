@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 
 const ApiKeyManager = lazy(() => import("../../pages/ApiKeyManager").then((m) => ({ default: m.ApiKeyManager })));
@@ -8,10 +8,9 @@ export const Route = createFileRoute("/_app/apikeys")({
 });
 
 function ApiKeysRoute() {
-  const navigate = useNavigate();
   return (
     <Suspense>
-      <ApiKeyManager onBack={() => void navigate({ to: "/" })} />
+      <ApiKeyManager />
     </Suspense>
   );
 }

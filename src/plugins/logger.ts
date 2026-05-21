@@ -13,11 +13,14 @@ function nextRequestId(): string {
 export const loggerPlugin = new Elysia({ name: "logger" })
   .derive(({ request }) => {
     const requestId = nextRequestId();
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property for tracking
     (request as any).__requestId = requestId;
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property for timing
     (request as any).__startTime = performance.now();
     return { requestId };
   })
   .onBeforeHandle(({ request }) => {
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property
     const id = (request as any).__requestId as string;
     const url = new URL(request.url);
     if (url.pathname !== "/health") {
@@ -25,7 +28,9 @@ export const loggerPlugin = new Elysia({ name: "logger" })
     }
   })
   .onAfterHandle(({ request }) => {
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property
     const start = (request as any).__startTime as number | undefined;
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property
     const id = (request as any).__requestId as string;
     const duration = start != null ? (performance.now() - start).toFixed(2) : "-";
     const url = new URL(request.url);
@@ -34,7 +39,9 @@ export const loggerPlugin = new Elysia({ name: "logger" })
     }
   })
   .onError(({ request, error: err }) => {
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property
     const start = (request as any).__startTime as number | undefined;
+    // biome-ignore lint/suspicious/noExplicitAny: custom request property
     const id = (request as any).__requestId as string;
     const duration = start != null ? (performance.now() - start).toFixed(2) : "-";
     const url = new URL(request.url);

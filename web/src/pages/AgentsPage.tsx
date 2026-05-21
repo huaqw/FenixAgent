@@ -209,7 +209,11 @@ export function AgentsPage() {
       const data = unwrapConfigData(skillsData) ?? skillsData;
       setSkillOptions(
         Array.isArray(data?.skills)
-          ? data.skills.map((s: any) => ({ id: s.id, name: s.name, description: s.description ?? "" }))
+          ? data.skills.map((s: { id: string; name: string; description?: string }) => ({
+              id: s.id,
+              name: s.name,
+              description: s.description ?? "",
+            }))
           : [],
       );
     } catch {
@@ -366,7 +370,7 @@ export function AgentsPage() {
     try {
       const latestKnowledgeOptions = await client.web.knowledgeBases
         .get()
-        .then((r) => (Array.isArray(r.data) ? (r.data as unknown as KnowledgeBaseInfo[]) : []))
+        .then((r: { data: unknown }) => (Array.isArray(r.data) ? (r.data as unknown as KnowledgeBaseInfo[]) : []))
         .catch(() => knowledgeOptions);
       setKnowledgeOptions(latestKnowledgeOptions);
       const validKnowledgeBaseIds = filterKnowledgeBaseIds(formKnowledgeBaseIds, latestKnowledgeOptions);
@@ -447,9 +451,11 @@ export function AgentsPage() {
     try {
       await Promise.all(
         customAgents.map((a) =>
-          client.web.config.agents.post({ action: "delete", name: a.name }).then((r) => {
-            if (r.error) throw new Error(r.error.message ?? t("delete.error", { message: "" }));
-          }),
+          client.web.config.agents
+            .post({ action: "delete", name: a.name })
+            .then((r: { error?: { message?: string } }) => {
+              if (r.error) throw new Error(r.error.message ?? t("delete.error", { message: "" }));
+            }),
         ),
       );
       toast.success(t("batchDeleteCount", { count: customAgents.length }));

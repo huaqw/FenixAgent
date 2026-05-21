@@ -201,12 +201,14 @@ async function handleIdentify(wsId: string, msg: Record<string, unknown>): Promi
       `[ACP-WS] ${entry.boundEnvId ? "Bound agent identified" : "Agent identified"}: agentId=${result.envId} userId=${entry.userId}`,
     );
     sendToWs(entry.ws, { type: "identified", agent_id: result.envId });
-  } catch (err: any) {
+  } catch (err: unknown) {
     logError("[ACP-WS] Error in identify handler:", err);
+    const errorObj = err instanceof Error ? err : typeof err === "object" ? err : null;
+    const code = (errorObj as Record<string, unknown> | null)?.code as string | undefined;
     const message =
-      err.code === "NOT_FOUND"
+      code === "NOT_FOUND"
         ? "Agent not found"
-        : err.code === "FORBIDDEN"
+        : code === "FORBIDDEN"
           ? "Agent not owned by you"
           : "Identification failed";
     sendToWs(entry.ws, { type: "error", message });

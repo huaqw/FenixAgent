@@ -26,7 +26,7 @@ import {
   writeFileContent,
 } from "../../services/workspace-fs";
 
-const app = new Elysia({ name: "web-files", prefix: "/web/environments" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-files", prefix: "/environments" }).use(authGuardPlugin).model({
   "file-list-response": FileListResponseSchema,
   "file-content": FileContentSchema,
   "file-upload-response": FileUploadResponseSchema,
@@ -34,7 +34,7 @@ const app = new Elysia({ name: "web-files", prefix: "/web/environments" }).use(a
   "write-file-request": WriteFileRequestSchema,
 });
 
-async function requireEnv(envId: string, orgId: string, errorFn: (status: number, body: unknown) => any) {
+async function requireEnv(envId: string, orgId: string, errorFn: (status: number, body: unknown) => Response) {
   try {
     return await getOwnedEnvironment(envId, orgId);
   } catch (e) {
@@ -52,7 +52,7 @@ app.get(
     const authCtx = store.authContext!;
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
-    const queryPath = (query as any)?.path || "";
+    const queryPath = (query as Record<string, string | undefined>)?.path || "";
     const result = await resolveWorkspacePath(envId, queryPath);
     if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });
 
@@ -73,8 +73,9 @@ app.get(
     const authCtx = store.authContext!;
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
-    const filePath = normalizeUserRoutePath((params as any)["*"]);
-    const preview = (query as any)?.preview === "true";
+    // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
+    const filePath = normalizeUserRoutePath((params as any)["*"] as string);
+    const preview = (query as Record<string, string | undefined>)?.preview === "true";
 
     const result = await resolveWorkspacePath(envId, filePath);
     if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });
@@ -97,6 +98,7 @@ app.get(
       set.headers["Content-Type"] = getMimeType(ext);
       set.headers["Content-Security-Policy"] =
         "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' blob:; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; media-src * blob:; connect-src *";
+      // biome-ignore lint/suspicious/noExplicitAny: ReadableStream type mismatch with Response constructor
       return new Response(createFileStream(resolved) as any);
     }
 
@@ -110,6 +112,7 @@ app.get(
 
     set.headers["Content-Disposition"] = `attachment; filename="${fileName}"`;
     set.headers["Content-Type"] = "application/octet-stream";
+    // biome-ignore lint/suspicious/noExplicitAny: ReadableStream type mismatch with Response constructor
     return new Response(createFileStream(resolved) as any);
   },
   { sessionAuth: true },
@@ -122,7 +125,8 @@ app.post(
     const authCtx = store.authContext!;
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
-    const dirPath = normalizeUserRoutePath((params as any)["*"] || "");
+    // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
+    const dirPath = normalizeUserRoutePath(((params as any)["*"] as string) || "");
 
     if (!isUserPath(dirPath))
       return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
@@ -166,7 +170,8 @@ app.put(
     const authCtx = store.authContext!;
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
-    const filePath = normalizeUserRoutePath((params as any)["*"]);
+    // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
+    const filePath = normalizeUserRoutePath((params as any)["*"] as string);
 
     if (!isUserPath(filePath))
       return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
@@ -197,7 +202,8 @@ app.delete(
     const authCtx = store.authContext!;
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
-    const filePath = normalizeUserRoutePath((params as any)["*"]);
+    // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
+    const filePath = normalizeUserRoutePath((params as any)["*"] as string);
 
     if (!isUserPath(filePath))
       return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });

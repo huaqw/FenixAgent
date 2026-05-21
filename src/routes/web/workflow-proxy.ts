@@ -21,9 +21,14 @@ async function proxyToAcpxG(targetPath: string, request: Request): Promise<Respo
       statusText: res.statusText,
       headers: res.headers,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return new Response(
-      JSON.stringify({ error: { type: "bad_gateway", message: `acpx-g unreachable: ${err.message}` } }),
+      JSON.stringify({
+        error: {
+          type: "bad_gateway",
+          message: `acpx-g unreachable: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      }),
       { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }

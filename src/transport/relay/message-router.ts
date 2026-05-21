@@ -37,14 +37,14 @@ export function publishToEventBus(agentId: string, message: Record<string, unkno
 }
 
 /** Flush buffered outbound messages to a relay handle, filtering connect messages */
-export function flushOutboundBuffer(buffer: Record<string, unknown>[], handle: { send: (msg: any) => void }): void {
+export function flushOutboundBuffer(buffer: Record<string, unknown>[], handle: { send: (msg: unknown) => void }): void {
   if (buffer.length === 0) return;
   const buffered = buffer.splice(0);
   log(`[ACP-Relay] Flushing ${buffered.length} buffered outbound messages`);
   const filtered = filterConnectFromFlush(buffered);
   for (const msg of filtered) {
     try {
-      handle.send(msg as any);
+      handle.send(msg);
     } catch {
       break;
     }

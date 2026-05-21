@@ -11,6 +11,7 @@ import {
 } from "../../transport/ws-handler";
 import type { WsConnection } from "../../transport/ws-types";
 
+// biome-ignore lint/suspicious/noExplicitAny: Elysia WS object shape is not fully typed
 function adaptWs(ws: any): WsConnection {
   return {
     send: (data: string) => ws.send(data),

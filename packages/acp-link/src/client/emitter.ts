@@ -3,7 +3,8 @@
  */
 export type Handler<T = void> = T extends void ? () => void : (payload: T) => void;
 
-export class EventEmitter<Events extends Record<string, any>> {
+export class EventEmitter<Events extends Record<string, unknown>> {
+  // biome-ignore lint/suspicious/noExplicitAny: generic event handler storage requires erased types
   private handlers = new Map<string, Set<Handler<any>>>();
 
   on<Event extends keyof Events>(event: Event, handler: Handler<Events[Event]>): void {
@@ -26,7 +27,7 @@ export class EventEmitter<Events extends Record<string, any>> {
     const set = this.handlers.get(event as string);
     if (set) {
       for (const handler of set) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: handler invocation requires erased generic type
         (handler as any)(...args);
       }
     }

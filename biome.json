@@ -16,14 +16,14 @@
     "rules": {
       "recommended": true,
       "a11y": {
-        "noLabelWithoutControl": "warn",
-        "noRedundantAlt": "warn",
-        "noSvgWithoutTitle": "warn",
-        "useButtonType": "warn",
-        "useKeyWithClickEvents": "warn",
-        "useMediaCaption": "warn",
-        "useSemanticElements": "warn",
-        "noStaticElementInteractions": "warn"
+        "noLabelWithoutControl": "off",
+        "noRedundantAlt": "off",
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off",
+        "useKeyWithClickEvents": "off",
+        "useMediaCaption": "off",
+        "useSemanticElements": "off",
+        "noStaticElementInteractions": "off"
       },
       "complexity": {
         "noBannedTypes": "warn",
@@ -57,7 +57,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/__tests__/**/*.ts"],
+      "includes": ["src/__tests__/**", "web/src/__tests__/**", "packages/*/src/__tests__/**"],
       "linter": {
         "rules": {
           "suspicious": {

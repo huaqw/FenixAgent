@@ -134,15 +134,19 @@ export function PermissionTab({ agentName: _agentName, permission, onPermissionC
     let cancelled = false;
     setSkillLoading(true);
     client.web.config.skills
-      .post({ action: "list" } as any)
-      .then(({ data, error }) => {
+      .post({ action: "list" } as Record<string, unknown>)
+      .then(({ data, error }: { data: unknown; error: unknown }) => {
         if (!cancelled) {
           if (error) {
             setSkillNames([]);
             return;
           }
-          const skills = ((data as any)?.data ?? (data as any) ?? []) as any[];
-          const names = skills.map((s: any) => s.name);
+          const raw = data as Record<string, unknown> | undefined;
+          const skills = ((raw?.data as Record<string, unknown>[]) ?? (Array.isArray(raw) ? raw : [])) as Record<
+            string,
+            unknown
+          >[];
+          const names = skills.map((s) => String(s.name ?? ""));
           setSkillNames(names);
           setSkillValues((prev) => {
             const next = { ...prev };
@@ -510,7 +514,6 @@ export function PermissionTab({ agentName: _agentName, permission, onPermissionC
           {/* 自定义规则 */}
           <div className="text-xs text-muted-foreground mt-3 pt-2 border-t">{t("permission.customRules")}</div>
           {skillPerm.rules.map((rule, idx) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: pattern may be empty during editing
             <div key={rule.pattern || `rule-${idx}`} className="flex items-center gap-2">
               <Input
                 value={rule.pattern}

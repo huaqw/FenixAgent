@@ -5,6 +5,7 @@ import type {
   PromptCapabilities,
   SessionModelState,
   SessionModeState,
+  SessionUpdate,
 } from "../types.js";
 import { EventEmitter } from "./emitter.js";
 import type { ACPProtocol } from "./protocol.js";
@@ -18,6 +19,7 @@ export interface StateEvents {
   modelStateChange: SessionModelState | null;
   modeStateChange: SessionModeState | null;
   availableCommandsChange: AvailableCommand[];
+  [key: string]: unknown;
 }
 
 /**
@@ -156,8 +158,8 @@ export class ACPState extends EventEmitter<StateEvents> {
       this.setModeState(payload.modes ?? null);
     };
 
-    const onSessionUpdate = ({ update }: { sessionId: string; update: any }) => {
-      if (update?.sessionUpdate === "available_commands_update") {
+    const onSessionUpdate = ({ update }: { sessionId: string; update: SessionUpdate }) => {
+      if (update.sessionUpdate === "available_commands_update") {
         this._availableCommands = update.availableCommands;
         this.emit("availableCommandsChange", this._availableCommands);
       }

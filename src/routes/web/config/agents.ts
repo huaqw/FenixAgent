@@ -26,23 +26,24 @@ import {
 function _pgRowToAgentFields(
   row: typeof configPg extends { listAgentConfigs: (ctx: AuthContext) => Promise<(infer T)[]> } ? T : never,
 ) {
+  const r = row as Record<string, unknown>;
   // tools → permission 兼容转换：PG 中不再有 tools，但保留接口
-  const permission = (row as any).permission ?? null;
+  const permission = (r.permission ?? null) as unknown;
   return {
-    name: (row as any).name,
-    model: (row as any).model ?? null,
-    mode: (row as any).mode ?? null,
-    description: (row as any).description ?? null,
-    color: (row as any).color ?? null,
-    disable: (row as any).disable ?? false,
-    hidden: (row as any).hidden ?? false,
-    steps: (row as any).steps ?? null,
-    variant: (row as any).variant ?? null,
-    temperature: (row as any).temperature ?? null,
-    top_p: (row as any).topP ?? null,
-    prompt: (row as any).prompt ?? null,
+    name: r.name as string,
+    model: (r.model as string) ?? null,
+    mode: (r.mode as string) ?? null,
+    description: (r.description as string) ?? null,
+    color: (r.color as string) ?? null,
+    disable: (r.disable as boolean) ?? false,
+    hidden: (r.hidden as boolean) ?? false,
+    steps: (r.steps as number) ?? null,
+    variant: (r.variant as string) ?? null,
+    temperature: (r.temperature as number) ?? null,
+    top_p: (r.topP as number) ?? null,
+    prompt: (r.prompt as string) ?? null,
     permission,
-    knowledge: (row as any).knowledge ?? null,
+    knowledge: (r.knowledge as unknown) ?? null,
   };
 }
 
@@ -205,17 +206,18 @@ async function handleSetDefault(ctx: AuthContext, name: string) {
   return configSuccess({ default_agent: name });
 }
 
-import { ConfigBodySchema } from "../../../schemas/config.schema";
+import { type ConfigBody, ConfigBodySchema } from "../../../schemas/config.schema";
 
-const app = new Elysia({ name: "web-config-agents", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-config-agents" }).use(authGuardPlugin).model({
   "config-body": ConfigBodySchema,
 });
 
 app.post(
   "/config/agents",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
-    const b = (body as any) ?? {};
+    const b = (body as ConfigBody) ?? {};
     const { action, name, data } = {
       action: b.action ?? "",
       name: b.name,

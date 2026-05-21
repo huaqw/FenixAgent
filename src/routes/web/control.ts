@@ -7,7 +7,7 @@ import { eventService } from "../../services/event-service";
 import { getSession, resolveExistingSessionId, updateSessionStatus } from "../../services/session";
 import { publishSessionEvent } from "../../services/transport";
 
-const app = new Elysia({ name: "web-control", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-control" }).use(authGuardPlugin).model({
   "session-event-payload": SessionEventPayloadSchema,
 });
 

@@ -1,9 +1,15 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/index";
 
-export const client = treaty<App>(typeof globalThis.window !== "undefined" ? globalThis.window.location.origin : "", {
+const _client = treaty<App>(typeof globalThis.window !== "undefined" ? globalThis.window.location.origin : "", {
   fetch: { credentials: "include" },
 });
+
+// Eden Treaty 降级为 index signature 类型（当 Elysia app 组合的插件过多时 TS 无法解析具体路由键）。
+// 此处通过交叉类型补充 web 命名空间，消除 108 个 Property 'web' TS2339 错误。
+// 待 Eden Treaty 支持复杂插件组合的类型推断后可移除此断言。
+// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty 降级为 index signature，需要 any 补充 web 命名空间
+export const client = _client as typeof _client & { web: any };
 
 // --- SSE 辅助函数（Eden 不原生支持 SSE） ---
 

@@ -49,10 +49,11 @@ beforeEach(() => {
     headers: new Map([["content-type", "application/json"]]),
     json: async () => fetchMock.responseData,
     text: async () => body,
-  } as Response;
+  } as unknown as Response;
 };
 
-const client = await import("../api/client");
+const apiClient = await import("../api/client");
+const client = apiClient.client as any;
 
 // =============================================================================
 // Eden Treaty session API — 通过 client 代理调用测试
@@ -137,7 +138,7 @@ describe("file API functions (Eden Treaty)", () => {
     const file = new File(["content"], "test.txt");
     const formData = new FormData();
     formData.append("files", file);
-    await client.fetchUpload("/web/sessions/s1/user/docs/", formData);
+    await apiClient.fetchUpload("/web/sessions/s1/user/docs/", formData);
     expect(fetchMock.lastUrl).toBe("/web/sessions/s1/user/docs/");
     expect(fetchMock.lastOpts.method).toBe("POST");
     expect(fetchMock.lastOpts.body).toBeInstanceOf(FormData);
@@ -153,7 +154,7 @@ describe("error handling", () => {
   test("Eden Treaty returns data even on non-ok response", async () => {
     fetchMock.response = { ok: false, status: 401, statusText: "Unauthorized" };
     fetchMock.responseData = { error: { message: "Not authenticated" } };
-    const result = await client.client.web.sessions({ id: "sess-1" }).get();
+    const result = await (apiClient.client as any).web.sessions({ id: "sess-1" }).get();
     expect(result).toBeDefined();
   });
 
@@ -161,14 +162,14 @@ describe("error handling", () => {
   test("fetchUpload throws error on non-ok response", async () => {
     fetchMock.response = { ok: false, status: 401, statusText: "Unauthorized" };
     fetchMock.responseData = { error: { message: "Not authenticated" } };
-    await expect(client.fetchUpload("/web/test", new FormData())).rejects.toThrow("Not authenticated");
+    await expect(apiClient.fetchUpload("/web/test", new FormData())).rejects.toThrow("Not authenticated");
   });
 
   // 测试 fetchUpload 在缺少错误消息时使用 statusText
   test("fetchUpload throws with statusText when error message is missing", async () => {
     fetchMock.response = { ok: false, status: 500, statusText: "Internal Server Error" };
     fetchMock.responseData = {};
-    await expect(client.fetchUpload("/web/test", new FormData())).rejects.toThrow("Internal Server Error");
+    await expect(apiClient.fetchUpload("/web/test", new FormData())).rejects.toThrow("Internal Server Error");
   });
 });
 
@@ -179,12 +180,12 @@ describe("error handling", () => {
 describe("UUID helpers", () => {
   // 测试默认返回空字符串
   test("getUuid returns empty string by default", () => {
-    expect(client.getUuid()).toBe("");
+    expect(apiClient.getUuid()).toBe("");
   });
 
   // 测试设置和获取 UUID
   test("setUuid and getUuid roundtrip", () => {
-    client.setUuid("test-uuid-123");
-    expect(client.getUuid()).toBe("test-uuid-123");
+    apiClient.setUuid("test-uuid-123");
+    expect(apiClient.getUuid()).toBe("test-uuid-123");
   });
 });

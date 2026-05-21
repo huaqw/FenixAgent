@@ -187,12 +187,12 @@ class PgEnvironmentRepo implements IEnvironmentRepo {
     if (patch.gitRepoUrl !== undefined) set.gitRepoUrl = patch.gitRepoUrl;
     if (patch.autoStart !== undefined) set.autoStart = patch.autoStart;
     const result = await db.update(environment).set(set).where(eq(environment.id, id));
-    return (result as any).count > 0;
+    return (result as unknown as { count: number }).count > 0;
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await db.delete(environment).where(eq(environment.id, id));
-    return (result as any).count > 0;
+    return (result as unknown as { count: number }).count > 0;
   }
 
   async listActive(): Promise<EnvironmentRecord[]> {

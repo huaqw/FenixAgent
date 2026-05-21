@@ -7,6 +7,7 @@ export interface TransportEvents {
   message: string;
   reconnecting: { attempt: number; maxAttempts: number };
   reconnectFailed: undefined;
+  [key: string]: unknown;
 }
 
 /**

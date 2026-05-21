@@ -73,9 +73,11 @@ export function AgentCreateDialog({ open, onOpenChange, defaultName, onSuccess }
 
     client.web.config.models
       .post({ action: "get" })
-      .then(({ data: modelsData }) => {
+      .then(({ data: modelsData }: { data: unknown }) => {
         const data = unwrapConfigData(modelsData) ?? modelsData;
-        const models = Array.isArray(data?.available) ? data.available.map((m: { fullId: string }) => m.fullId) : [];
+        const models = Array.isArray((data as Record<string, unknown>)?.available)
+          ? ((data as Record<string, unknown>).available as Array<{ fullId: string }>).map((m) => m.fullId)
+          : [];
         setModelOptions(models);
         setFormModel(models[0] || "");
       })
@@ -83,18 +85,24 @@ export function AgentCreateDialog({ open, onOpenChange, defaultName, onSuccess }
 
     client.web.knowledgeBases
       .get()
-      .then(({ data: kbData }) => {
+      .then(({ data: kbData }: { data: unknown }) => {
         setKnowledgeOptions(kbData as unknown as KnowledgeBaseInfo[]);
       })
       .catch(() => {});
 
     client.web.config.skills
       .post({ action: "list" })
-      .then(({ data: skillsData }) => {
+      .then(({ data: skillsData }: { data: unknown }) => {
         const data = unwrapConfigData(skillsData) ?? skillsData;
         setSkillOptions(
-          Array.isArray(data?.skills)
-            ? data.skills.map((s: any) => ({ id: s.id, name: s.name, description: s.description ?? "" }))
+          Array.isArray((data as Record<string, unknown>)?.skills)
+            ? (
+                (data as Record<string, unknown>).skills as Array<{ id: string; name: string; description?: string }>
+              ).map((s) => ({
+                id: s.id,
+                name: s.name,
+                description: s.description ?? "",
+              }))
             : [],
         );
       })

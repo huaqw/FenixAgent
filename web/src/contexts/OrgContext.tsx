@@ -46,7 +46,7 @@ function installFetchInterceptor() {
   if (fetchInterceptorInstalled) return;
   fetchInterceptorInstalled = true;
   const origFetch = window.fetch;
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const activeOrgId = localStorage.getItem(STORAGE_KEY);
     if (activeOrgId) {
       const headers = new Headers(init?.headers);
@@ -54,7 +54,7 @@ function installFetchInterceptor() {
       init = { ...init, headers };
     }
     return origFetch(input, init);
-  };
+  }) as typeof fetch;
 }
 
 export function OrgProvider({ children }: { children: ReactNode }) {

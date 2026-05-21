@@ -2,7 +2,7 @@ import Elysia from "elysia";
 import { auth } from "../../auth/better-auth";
 import { authGuardPlugin } from "../../plugins/auth";
 
-const app = new Elysia({ name: "web-organizations", prefix: "/web" }).use(authGuardPlugin);
+const app = new Elysia({ name: "web-organizations" }).use(authGuardPlugin);
 
 // 窄化 better-auth API 类型，仅暴露本文件使用的方法
 interface OrgApi {
@@ -43,7 +43,17 @@ function extractMembers(
   res: unknown,
 ): { id: string; userId: string; role: string; user?: { id: string; name: string; email: string } }[] {
   if (Array.isArray(res)) return res;
-  if (res && typeof res === "object" && "members" in res) return (res as { members: unknown[] }).members as any[];
+  if (res && typeof res === "object" && "members" in res)
+    return (
+      res as {
+        members: Array<{
+          id: string;
+          userId: string;
+          role: string;
+          user?: { id: string; name: string; email: string };
+        }>;
+      }
+    ).members;
   return [];
 }
 
@@ -53,6 +63,7 @@ function extractMembers(
 
 app.post(
   "/organizations",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + dynamic action body
   async ({ store, body, error, request }: any) => {
     const b = body ?? {};
 
@@ -98,8 +109,8 @@ app.post(
             headers: request.headers,
           });
           return { success: true, data: org };
-        } catch (err: any) {
-          const msg = err.message || "";
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "";
           if (msg.includes("unique") || msg.includes("duplicate")) {
             return error(409, { success: false, error: { code: "ALREADY_EXISTS", message: "slug 已被使用" } });
           }
@@ -201,6 +212,7 @@ app.post(
 
 app.post(
   "/apiKeys",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + dynamic action body
   async ({ store: _store, body, error, request }: any) => {
     const b = body ?? {};
 

@@ -52,7 +52,7 @@ export function ApiKeyManager() {
         setError(err.message ?? t("toast.createFailed"));
         return;
       }
-      setCreatedKey((data as { full_key?: string } | null)?.full_key);
+      setCreatedKey((data as { full_key?: string } | null)?.full_key ?? null);
       setNewLabel("");
       await loadKeys();
     } catch (err) {

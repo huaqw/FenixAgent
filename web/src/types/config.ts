@@ -189,6 +189,7 @@ export interface AgentInfo {
   description: string | null;
   color: string | null;
   knowledgeBaseCount: number;
+  enabled?: boolean;
 }
 
 export interface AgentDetail {

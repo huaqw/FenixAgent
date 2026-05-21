@@ -7,6 +7,7 @@ import {
   normalizeSkillUploadResult,
   validateSkillForm,
 } from "../pages/SkillsPage";
+import type { SkillUploadConflictStrategy } from "../types/config";
 
 // i18n mock: returns the key for English locale
 const t = (key: string, params?: Record<string, unknown>) => {
@@ -66,7 +67,7 @@ describe("getUploadConflictData", () => {
       code: "SKILL_CONFLICT",
       data: {
         conflicts: [{ name: "existing", enabled: true, path: "/tmp/existing/SKILL.md" }],
-        allowedStrategies: ["ignore", "overwrite"],
+        allowedStrategies: ["ignore", "overwrite"] as SkillUploadConflictStrategy[],
       },
     });
     expect(getUploadConflictData(error)).toEqual(error.data);

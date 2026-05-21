@@ -231,8 +231,7 @@ export function EventStream({
               ? (msg as { requestId: string }).requestId
               : "traceId" in msg
                 ? (msg as { traceId: string }).traceId
-                : // biome-ignore lint/suspicious/noArrayIndexKey: fallback for messages without unique id
-                  i;
+                : i;
           return (
             <MessageRow
               key={msgKey}

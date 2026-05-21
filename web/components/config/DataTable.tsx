@@ -7,6 +7,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type OnChangeFn,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -42,7 +43,7 @@ export interface DataTableProps<T> {
   emptyMessage?: string;
   pageSize?: number;
   expandedState?: ExpandedState;
-  onExpandedChange?: (expanded: ExpandedState) => void;
+  onExpandedChange?: OnChangeFn<ExpandedState>;
 }
 
 export function filterData<T>(data: T[], columns: Column<T>[], search: string): T[] {
@@ -180,7 +181,7 @@ export function DataTable<T>({
     return buildInitialExpandedState(data, rowKey);
   });
   const expanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
-  const setExpanded = onExpandedChange ?? setInternalExpanded;
+  const setExpanded: OnChangeFn<ExpandedState> = onExpandedChange ?? setInternalExpanded;
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -189,7 +190,8 @@ export function DataTable<T>({
       const next: ExpandedState = {};
       data.forEach((row, index) => {
         const rowId = rowKey ? rowKey(row) : String(index);
-        next[rowId] = prev[rowId] !== undefined ? prev[rowId] : true;
+        next[rowId] =
+          (prev as Record<string, boolean>)[rowId] !== undefined ? (prev as Record<string, boolean>)[rowId] : true;
       });
       return next;
     });

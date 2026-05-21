@@ -1,11 +1,11 @@
-import type { FileTreeContextMenuItem, FileTreeContextMenuOpenContext } from "@pierre/trees";
+import type { ContextMenuItem, ContextMenuOpenContext } from "@pierre/trees";
 import { FolderPlus, MessageSquareQuote, Pencil, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 interface FileTreeContextMenuProps {
-  item: FileTreeContextMenuItem;
-  context: FileTreeContextMenuOpenContext;
+  item: ContextMenuItem;
+  context: ContextMenuOpenContext;
   onRename: (path: string) => void;
   onDelete: (path: string) => void;
   onNewFolder: (parentPath: string) => void;

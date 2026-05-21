@@ -19,6 +19,7 @@ describe("Dashboard Environment Management - Exports", () => {
       status: "idle",
       machine_name: null,
       branch: null,
+      auto_start: false,
       last_poll_at: null,
       created_at: 0,
       updated_at: 0,
@@ -51,7 +52,7 @@ describe("Dashboard Environment Management - Exports", () => {
   // 测试 Eden Treaty client 正确导出
   test("Eden Treaty client is exported", () => {
     expect(client).toBeDefined();
-    expect(client.web).toBeDefined();
+    expect((client as any).web).toBeDefined();
   });
 
   // 测试 Dashboard 组件是函数

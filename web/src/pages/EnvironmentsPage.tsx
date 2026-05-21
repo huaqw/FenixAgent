@@ -37,10 +37,12 @@ export function EnvironmentsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation("environments");
   const navigateToSession = useCallback(
-    (sessionId: string, options?: { agentId?: string }) => {
-      const search: Record<string, string> = {};
-      if (options?.agentId) search.agentId = options.agentId;
-      void navigate({ to: "/$sessionId", params: { sessionId }, search });
+    (sessionId: string, options?: { cwd?: string; agentId?: string }) => {
+      void navigate({
+        to: "/$sessionId",
+        params: { sessionId },
+        search: { cwd: options?.cwd, agentId: options?.agentId },
+      });
     },
     [navigate],
   );

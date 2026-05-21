@@ -33,7 +33,7 @@ export async function loadKnowledgeBaseDetailData(knowledgeBaseId: string) {
   if (resourcesRes.error) throw new Error(resourcesRes.error.message ?? "Failed to load resources");
   const detail = (detailRes.data ?? {}) as Record<string, unknown>;
   const resources = Array.isArray(resourcesRes.data) ? (resourcesRes.data as unknown as KnowledgeResourceInfo[]) : [];
-  return { detail, resources };
+  return { detail: detail as unknown as KnowledgeBaseDetail, resources };
 }
 
 export async function uploadKnowledgeBaseFiles(
@@ -103,7 +103,7 @@ export function KnowledgeBasesPage() {
       setDetailLoading(true);
       try {
         const data = await loadKnowledgeBaseDetailData(knowledgeBaseId);
-        setSelectedDetail(data.detail);
+        setSelectedDetail(data.detail as unknown as KnowledgeBaseDetail);
         setResources(data.resources);
       } catch (error) {
         console.error(t("loadDetailFailed"), error);

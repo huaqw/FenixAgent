@@ -39,7 +39,7 @@ export function NewSessionDialog({ open, environments, onClose, onCreated }: New
       const body: Record<string, string> = {};
       if (values.title.trim()) body.title = values.title.trim();
       if (values.envId) body.environment_id = values.envId;
-      const { data: session, error: sessionErr } = await client.web.sessions.post(body as any);
+      const { data: session, error: sessionErr } = await client.web.sessions.post(body as Record<string, string>);
       if (sessionErr) throw new Error(sessionErr.message ?? t("newSession.createFailed"));
       onCreated(session);
     } catch (err) {

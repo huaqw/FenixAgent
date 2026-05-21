@@ -13,7 +13,7 @@ beforeEach(() => {
         headers: { "Content-Type": "application/json" },
       }),
     ),
-  ) as typeof fetch;
+  ) as unknown as typeof fetch;
 });
 
 describe("config Eden Treaty client", () => {
@@ -24,7 +24,7 @@ describe("config Eden Treaty client", () => {
       data: { providers: [{ name: "openai", configured: true, keyHint: "sk-...abc", baseURL: "" }] },
     };
     const { client } = await import("../api/client");
-    const { data, error } = await client.web.config.providers.post({ action: "list" } as any);
+    const { data, error } = await (client as any).web.config.providers.post({ action: "list" } as any);
     expect(error).toBeNull();
     const result = (data as any)?.data ?? data;
     expect(result.providers).toHaveLength(1);
@@ -35,8 +35,12 @@ describe("config Eden Treaty client", () => {
   test("set provider sends correct payload", async () => {
     fetchMock.body = { success: true, data: { name: "openai", keyHint: "sk-...abc" } };
     const { client } = await import("../api/client");
-    await client.web.config.providers.post({ action: "set", name: "openai", data: { apiKey: "sk-test" } } as any);
-    const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
+    await (client as any).web.config.providers.post({
+      action: "set",
+      name: "openai",
+      data: { apiKey: "sk-test" },
+    } as any);
+    const call = (globalThis.fetch as unknown as ReturnType<typeof mock>).mock.calls[0];
     const body = JSON.parse(call[1].body);
     expect(body.action).toBe("set");
     expect(body.name).toBe("openai");
@@ -47,7 +51,7 @@ describe("config Eden Treaty client", () => {
   test("test provider returns models", async () => {
     fetchMock.body = { success: true, data: { models: ["gpt-4", "gpt-3.5"] } };
     const { client } = await import("../api/client");
-    const { data, error } = await client.web.config.providers.post({ action: "test", name: "openai" } as any);
+    const { data, error } = await (client as any).web.config.providers.post({ action: "test", name: "openai" } as any);
     expect(error).toBeNull();
     const result = (data as any)?.data ?? data;
     expect(result.models).toEqual(["gpt-4", "gpt-3.5"]);
@@ -57,7 +61,7 @@ describe("config Eden Treaty client", () => {
   test("get models returns ModelConfig", async () => {
     fetchMock.body = { success: true, data: { current: { model: "gpt-4", small_model: null }, available: [] } };
     const { client } = await import("../api/client");
-    const { data, error } = await client.web.config.models.post({ action: "get" } as any);
+    const { data, error } = await (client as any).web.config.models.post({ action: "get" } as any);
     expect(error).toBeNull();
     const result = (data as any)?.data ?? data;
     expect(result.current.model).toBe("gpt-4");
@@ -67,8 +71,12 @@ describe("config Eden Treaty client", () => {
   test("create agent sends create action", async () => {
     fetchMock.body = { success: true, data: { name: "my-agent" } };
     const { client } = await import("../api/client");
-    await client.web.config.agents.post({ action: "create", name: "my-agent", data: { model: "gpt-4" } } as any);
-    const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
+    await (client as any).web.config.agents.post({
+      action: "create",
+      name: "my-agent",
+      data: { model: "gpt-4" },
+    } as any);
+    const call = (globalThis.fetch as unknown as ReturnType<typeof mock>).mock.calls[0];
     const body = JSON.parse(call[1].body);
     expect(body.action).toBe("create");
   });
@@ -77,8 +85,8 @@ describe("config Eden Treaty client", () => {
   test("delete skill sends delete action", async () => {
     fetchMock.body = { success: true, data: null };
     const { client } = await import("../api/client");
-    await client.web.config.skills.post({ action: "delete", name: "my-skill" } as any);
-    const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
+    await (client as any).web.config.skills.post({ action: "delete", name: "my-skill" } as any);
+    const call = (globalThis.fetch as unknown as ReturnType<typeof mock>).mock.calls[0];
     const body = JSON.parse(call[1].body);
     expect(body.action).toBe("delete");
   });
@@ -88,7 +96,7 @@ describe("config Eden Treaty client", () => {
     fetchMock.status = 404;
     fetchMock.body = { error: { code: "NOT_FOUND", message: "Not found" } };
     const { client } = await import("../api/client");
-    const { error } = await client.web.config.providers.post({ action: "get", name: "xxx" } as any);
+    const { error } = await (client as any).web.config.providers.post({ action: "get", name: "xxx" } as any);
     expect(error).not.toBeNull();
   });
 
@@ -99,7 +107,7 @@ describe("config Eden Treaty client", () => {
     const formData = new FormData();
     formData.append("manifest", "[]");
     await fetchUpload("/web/config/skills/upload", formData);
-    const call = (globalThis.fetch as ReturnType<typeof mock>).mock.calls[0];
+    const call = (globalThis.fetch as unknown as ReturnType<typeof mock>).mock.calls[0];
     expect(call[0]).toBe("/web/config/skills/upload");
     expect(call[1].method).toBe("POST");
     expect(call[1].body).toBe(formData);

@@ -5,6 +5,7 @@ import {
   summarizeKnowledgeDetail,
   uploadKnowledgeBaseFiles,
 } from "../pages/KnowledgeBasesPage";
+import type { KnowledgeBaseDetail } from "../types/knowledge";
 
 // Mock localStorage
 beforeEach(() => {
@@ -45,7 +46,7 @@ describe("KnowledgeBasesPage helpers", () => {
       Promise.resolve(
         new Response(JSON.stringify(mockData), { status: 200, headers: { "Content-Type": "application/json" } }),
       ),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     try {
       const result = await loadKnowledgeBasesData();
@@ -96,13 +97,13 @@ describe("KnowledgeBasesPage helpers", () => {
       return Promise.resolve(
         new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }),
       );
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     try {
       const data = await loadKnowledgeBaseDetailData("kb_1");
       expect(data.detail.lastError).toBe("索引失败");
       expect(data.resources[0].sourceName).toBe("spec.md");
-      expect(summarizeKnowledgeDetail(data.detail, data.resources)).toEqual({
+      expect(summarizeKnowledgeDetail(data.detail as unknown as KnowledgeBaseDetail, data.resources)).toEqual({
         lastError: "索引失败",
         resourcesCount: 1,
         resourceNames: ["spec.md"],
@@ -148,7 +149,7 @@ describe("KnowledgeBasesPage helpers", () => {
       Promise.resolve(
         new Response(JSON.stringify(mockResponse), { status: 200, headers: { "Content-Type": "application/json" } }),
       ),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     try {
       const files = [

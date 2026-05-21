@@ -1,6 +1,8 @@
 import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
+import type { CreateTaskRequest, UpdateTaskRequest } from "../../schemas/task.schema";
 import { CreateTaskRequestSchema, TaskInfoSchema, UpdateTaskRequestSchema } from "../../schemas/task.schema";
+import type { CreateTaskInput } from "../../services/task";
 import {
   clearExecutionLogs,
   createTask,
@@ -13,7 +15,7 @@ import {
   updateTask,
 } from "../../services/task";
 
-const app = new Elysia({ name: "web-tasks", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-tasks" }).use(authGuardPlugin).model({
   "task-info": TaskInfoSchema,
   "task-info-list": TaskInfoSchema.array(),
   "create-task-request": CreateTaskRequestSchema,
@@ -23,6 +25,7 @@ const app = new Elysia({ name: "web-tasks", prefix: "/web" }).use(authGuardPlugi
 /** GET /tasks — List current team's scheduled tasks */
 app.get(
   "/tasks",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, request: _request }: any) => {
     const authCtx = store.authContext!;
     const result = await listTasks(authCtx.organizationId);
@@ -34,10 +37,11 @@ app.get(
 /** POST /tasks — Create a new scheduled task */
 app.post(
   "/tasks",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error, request: _request }: any) => {
     const authCtx = store.authContext!;
-    const payload = body as Record<string, unknown>;
-    const result = await createTask(authCtx.organizationId, payload as any, authCtx.userId);
+    const payload = body as CreateTaskRequest;
+    const result = await createTask(authCtx.organizationId, payload as unknown as CreateTaskInput, authCtx.userId);
 
     if (!result.success) {
       const err = result.error!;
@@ -53,12 +57,14 @@ app.post(
 /** 安全执行任务操作，捕获无效 UUID 等 SQL 错误 */
 async function safeTaskOp<T>(
   fn: () => Promise<T>,
-  errorFn: (status: number, body: unknown) => any,
+  errorFn: (status: number, body: unknown) => Response,
 ): Promise<T | Response> {
   try {
     return await fn();
-  } catch (err: any) {
-    const msg = err.cause?.message || err.message || "";
+  } catch (err: unknown) {
+    const msg =
+      (err instanceof Error && err.cause instanceof Error ? err.cause.message : "") ||
+      (err instanceof Error ? err.message : "");
     if (msg.includes("invalid input syntax"))
       return errorFn(404, { error: { type: "not_found", message: "任务不存在" } });
     throw err;
@@ -68,6 +74,7 @@ async function safeTaskOp<T>(
 /** GET /tasks/:id — Get task detail */
 app.get(
   "/tasks/:id",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;
@@ -85,12 +92,13 @@ app.get(
 /** PUT /tasks/:id — Update task configuration */
 app.put(
   "/tasks/:id",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, params, body, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;
-    const payload = body as Record<string, unknown>;
+    const payload = body as UpdateTaskRequest;
     return safeTaskOp(async () => {
-      const result = await updateTask(authCtx.organizationId, taskId, payload);
+      const result = await updateTask(authCtx.organizationId, taskId, payload as unknown as Record<string, unknown>);
       if (!result.success) {
         const err = result.error!;
         if (err.code === "NOT_FOUND") {
@@ -107,6 +115,7 @@ app.put(
 /** DELETE /tasks/:id — Delete a task */
 app.delete(
   "/tasks/:id",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;
@@ -119,8 +128,10 @@ app.delete(
       }
 
       return result;
-    } catch (err: any) {
-      const msg = err.cause?.message || err.message || "";
+    } catch (err: unknown) {
+      const msg =
+        (err instanceof Error && err.cause instanceof Error ? err.cause.message : "") ||
+        (err instanceof Error ? err.message : "");
       if (msg.includes("invalid input syntax"))
         return error(404, { error: { type: "not_found", message: "任务不存在" } });
       throw err;
@@ -132,6 +143,7 @@ app.delete(
 /** POST /tasks/:id/toggle — Toggle task enabled/disabled */
 app.post(
   "/tasks/:id/toggle",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;
@@ -147,6 +159,7 @@ app.post(
 /** POST /tasks/:id/trigger — Manually trigger a task execution */
 app.post(
   "/tasks/:id/trigger",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;
@@ -162,15 +175,17 @@ app.post(
 /** GET /tasks/:id/logs — Get execution logs (paginated) */
 app.get(
   "/tasks/:id/logs",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, query, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;
+    const q = query as Record<string, string | undefined>;
     return safeTaskOp(async () => {
       const taskResult = await getTask(authCtx.organizationId, taskId);
       if (!taskResult.success) return error(404, { error: { type: "not_found", message: "任务不存在" } });
 
-      const page = Math.max(1, Number((query as any)?.page) || 1);
-      const pageSize = Math.min(100, Math.max(1, Number((query as any)?.pageSize) || 20));
+      const page = Math.max(1, Number(q.page) || 1);
+      const pageSize = Math.min(100, Math.max(1, Number(q.pageSize) || 20));
       return await listExecutionLogs(taskId, page, pageSize);
     }, error);
   },
@@ -180,6 +195,7 @@ app.get(
 /** DELETE /tasks/:id/logs — Clear all execution logs for a task */
 app.delete(
   "/tasks/:id/logs",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error, request: _request }: any) => {
     const authCtx = store.authContext!;
     const taskId = params.id;

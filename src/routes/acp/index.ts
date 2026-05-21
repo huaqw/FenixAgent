@@ -13,6 +13,7 @@ import type { WsConnection } from "../../transport/ws-types";
 const MAX_WS_MESSAGE_SIZE = 10 * 1024 * 1024;
 
 /** Adapt Elysia WS to WsConnection interface */
+// biome-ignore lint/suspicious/noExplicitAny: Elysia WS type not directly compatible with WsConnection
 function adaptWs(ws: any): WsConnection {
   return {
     send: (data: string) => ws.send(data),
@@ -49,9 +50,10 @@ async function resolveTokenAuth(token: string | undefined): Promise<{ userId: st
 
   // 1. better-auth API Key verification
   try {
+    // biome-ignore lint/suspicious/noExplicitAny: better-auth API type mismatch
     const result = await (auth.api as any).verifyApiKey({ body: { key: token } });
     if (result.valid && result.key) {
-      const apiKeyMeta = result.key as any;
+      const apiKeyMeta = result.key as { userId: string };
       const userRow = await lookupUserById(apiKeyMeta.userId);
       if (userRow) {
         return { userId: userRow.id };
@@ -105,6 +107,7 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
       }
 
       const wsId = `acp_ws_${uuid().replace(/-/g, "")}`;
+      // biome-ignore lint/suspicious/noExplicitAny: Elysia WS data extension pattern
       (ws.data as any).__acpWsId = wsId;
       log(`[ACP-WS] Upgrade accepted: wsId=${wsId} userId=${authResult.userId}`);
       handleAcpWsOpen(conn, wsId, authResult.userId, authResult.envId);
@@ -117,12 +120,14 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
         adaptWs(ws).close(1009, "message too large");
         return;
       }
+      // biome-ignore lint/suspicious/noExplicitAny: Elysia WS data extension pattern
       const wsId = (ws.data as any).__acpWsId as string | undefined;
       if (wsId) {
         handleAcpWsMessage(adaptWs(ws), wsId, data as string | Record<string, unknown>);
       }
     },
     close(ws, code, reason) {
+      // biome-ignore lint/suspicious/noExplicitAny: Elysia WS data extension pattern
       const wsId = (ws.data as any).__acpWsId as string | undefined;
       if (wsId) {
         handleAcpWsClose(adaptWs(ws), wsId, code, reason);
@@ -162,6 +167,7 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
       }
 
       const relayWsId = `relay_${uuid().replace(/-/g, "")}`;
+      // biome-ignore lint/suspicious/noExplicitAny: Elysia WS data extension pattern
       (ws.data as any).__relayWsId = relayWsId;
 
       log(`[ACP-Relay] Upgrade accepted: relayWsId=${relayWsId} agentId=${agentId}`);
@@ -175,6 +181,7 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
         adaptWs(ws).close(1009, "message too large");
         return;
       }
+      // biome-ignore lint/suspicious/noExplicitAny: Elysia WS data extension pattern
       const relayWsId = (ws.data as any).__relayWsId as string | undefined;
       if (relayWsId) {
         const payload =
@@ -185,6 +192,7 @@ const app = new Elysia({ name: "acp", prefix: "/acp" })
       }
     },
     close(ws, code, reason) {
+      // biome-ignore lint/suspicious/noExplicitAny: Elysia WS data extension pattern
       const relayWsId = (ws.data as any).__relayWsId as string | undefined;
       if (relayWsId) {
         handleRelayClose(adaptWs(ws), relayWsId, code, reason);

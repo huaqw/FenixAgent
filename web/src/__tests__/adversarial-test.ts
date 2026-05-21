@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { type Column, filterData, paginateData, sortData } from "../components/config/DataTable";
-import { intRangeSchema, nameSchema, optionalFloatSchema, validateWithSchema } from "../src/lib/form-utils";
+import { type Column, filterData, paginateData, sortData } from "../../components/config/DataTable";
+import { intRangeSchema, nameSchema, optionalFloatSchema, validateWithSchema } from "../lib/form-utils";
 
 // === DataTable edge cases ===
 

@@ -17,14 +17,18 @@ export function createSSEWriter(request: Request): SSEWriter {
       });
 
       // Store encoder and controller for later use
+      // biome-ignore lint/suspicious/noExplicitAny: custom request property for SSE state
       (request as any)._sseEncoder = encoder;
+      // biome-ignore lint/suspicious/noExplicitAny: custom request property for SSE state
       (request as any)._sseController = controller;
     },
   });
 
   return {
     send(event: SessionEvent) {
+      // biome-ignore lint/suspicious/noExplicitAny: custom request property for SSE state
       const encoder = (request as any)._sseEncoder as TextEncoder;
+      // biome-ignore lint/suspicious/noExplicitAny: custom request property for SSE state
       const controller = (request as any)._sseController as ReadableStreamDefaultController;
       if (!encoder || !controller) return;
       const data = JSON.stringify({
@@ -37,6 +41,7 @@ export function createSSEWriter(request: Request): SSEWriter {
       controller.enqueue(encoder.encode(msg));
     },
     close() {
+      // biome-ignore lint/suspicious/noExplicitAny: custom request property for SSE state
       const controller = (request as any)._sseController as ReadableStreamDefaultController;
       controller?.close();
     },

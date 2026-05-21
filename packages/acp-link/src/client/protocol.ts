@@ -25,7 +25,9 @@ export interface ProtocolEvents {
   permission_request: PermissionRequestPayload;
   browser_tool_call: { callId: string; params: BrowserToolParams };
   model_changed: { modelId: string };
+  mode_changed: { modeId: string };
   pong: undefined;
+  [key: string]: unknown;
 }
 
 /**
@@ -38,7 +40,7 @@ export interface ProtocolEvents {
  */
 export class ACPProtocol extends EventEmitter<ProtocolEvents> {
   handleMessage(raw: string): void {
-    let parsed: any;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
@@ -47,7 +49,7 @@ export class ACPProtocol extends EventEmitter<ProtocolEvents> {
     }
 
     // 过滤非业务消息
-    if (parsed?.type === "keep_alive") return;
+    if ((parsed as Record<string, unknown>)?.type === "keep_alive") return;
 
     const response = parsed as ProxyResponse;
 
@@ -98,7 +100,7 @@ export class ACPProtocol extends EventEmitter<ProtocolEvents> {
         this.emit("pong");
         break;
       default:
-        console.warn("[ACPProtocol] Unknown message type:", (response as any).type);
+        console.warn("[ACPProtocol] Unknown message type:", (response as Record<string, unknown>).type);
     }
   }
 }

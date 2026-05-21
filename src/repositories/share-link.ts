@@ -105,7 +105,7 @@ class PgShareLinkRepo implements IShareLinkRepo {
     const result = await db
       .delete(shareLink)
       .where(and(eq(shareLink.organizationId, organizationId), eq(shareLink.id, id)));
-    return (result as any).count > 0;
+    return (result as unknown as { count: number }).count > 0;
   }
 
   async updateAccess(organizationId: string, id: string): Promise<void> {

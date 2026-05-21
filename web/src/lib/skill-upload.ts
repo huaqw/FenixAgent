@@ -6,7 +6,7 @@ import type {
 } from "../types/config";
 
 function normalizeRelativePath(path: string): string {
-  return path.replaceAll("\\", "/").replace(/^\/+/, "");
+  return path.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
 function buildUploadSummaries(files: File[], skillSegmentIndex: number): UploadSkillSummary[] {

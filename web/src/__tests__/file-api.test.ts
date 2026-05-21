@@ -12,23 +12,26 @@ const originalFetch = globalThis.fetch;
 describe("File API Functions (Eden Treaty)", () => {
   beforeEach(() => {
     mockFetchCalls = [];
-    globalThis.fetch = async (input: any, init?: any) => {
-      const url = typeof input === "string" ? input : input.toString();
-      mockFetchCalls.push({
-        url,
-        method: init?.method || "GET",
-        headers: init?.headers,
-        body: init?.body,
-      });
-      return {
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        headers: new Map([["content-type", "application/json"]]),
-        json: async () => ({ success: true }),
-        text: async () => JSON.stringify({ success: true }),
-      } as any;
-    };
+    globalThis.fetch = Object.assign(
+      async (input: any, init?: any) => {
+        const url = typeof input === "string" ? input : input.toString();
+        mockFetchCalls.push({
+          url,
+          method: init?.method || "GET",
+          headers: init?.headers,
+          body: init?.body,
+        });
+        return {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          headers: new Map([["content-type", "application/json"]]),
+          json: async () => ({ success: true }),
+          text: async () => JSON.stringify({ success: true }),
+        } as any;
+      },
+      { preconnect: () => {} },
+    ) as typeof fetch;
   });
 
   afterAll(() => {
@@ -37,7 +40,7 @@ describe("File API Functions (Eden Treaty)", () => {
 
   // 测试列出文件不带目录参数
   test("listFiles — no path param", async () => {
-    await client.web.sessions({ id: "s1" }).user.get();
+    await (client as any).web.sessions({ id: "s1" }).user.get();
     expect(mockFetchCalls.length).toBe(1);
     expect(mockFetchCalls[0].url).toContain("/web/sessions/s1/user");
     expect(mockFetchCalls[0].method).toBe("GET");
@@ -45,7 +48,7 @@ describe("File API Functions (Eden Treaty)", () => {
 
   // 测试列出文件带目录参数
   test("listFiles — with path query param", async () => {
-    await client.web.sessions({ id: "s1" }).user.get({ path: "docs/" });
+    await (client as any).web.sessions({ id: "s1" }).user.get({ path: "docs/" });
     expect(mockFetchCalls.length).toBe(1);
     expect(mockFetchCalls[0].url).toContain("/web/sessions/s1/user");
     // Eden Treaty passes query params via fetch options

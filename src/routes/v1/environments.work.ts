@@ -1,5 +1,5 @@
 import Elysia from "elysia";
-import { authGuardPlugin } from "../../plugins/auth";
+import { type AuthContext, authGuardPlugin } from "../../plugins/auth";
 import { requireOrgScope } from "../../plugins/require-team-scope";
 import { environmentRepo } from "../../repositories";
 import { updatePollTime } from "../../services/environment";
@@ -9,7 +9,7 @@ const app = new Elysia({ name: "v1-environments-work", prefix: "/v1/environments
 
 /** 校验目标 environment 属于当前认证 team */
 async function requireEnvOwnership(
-  authContext: any,
+  authContext: AuthContext | null,
   envId: string,
   error: (code: number, body: unknown) => Response,
 ): Promise<Response | undefined> {

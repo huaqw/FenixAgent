@@ -21,7 +21,7 @@ import {
   uploadKnowledgeResource,
 } from "../../services/knowledge-upload";
 
-const app = new Elysia({ name: "web-knowledge-bases", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-knowledge-bases" }).use(authGuardPlugin).model({
   "knowledge-base-info": KnowledgeBaseInfoSchema,
   "knowledge-base-list": KnowledgeBaseInfoSchema.array(),
   "knowledge-resource-item": KnowledgeResourceItemSchema,
@@ -33,6 +33,7 @@ const app = new Elysia({ name: "web-knowledge-bases", prefix: "/web" }).use(auth
 
 app.get(
   "/knowledgeBases",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store }: any) => {
     const authCtx = store.authContext!;
     return await listKnowledgeBasesByTeamId(authCtx.organizationId);
@@ -42,6 +43,7 @@ app.get(
 
 app.post(
   "/knowledgeBases",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
     const payload = body as { name: string; slug: string; description?: string };
@@ -64,6 +66,7 @@ app.post(
 
 app.get(
   "/knowledgeBases/:id",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error }: any) => {
     const authCtx = store.authContext!;
     const id = params.id;
@@ -78,6 +81,7 @@ app.get(
 
 app.patch(
   "/knowledgeBases/:id",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, params, body, error }: any) => {
     const authCtx = store.authContext!;
     const id = params.id;
@@ -98,6 +102,7 @@ app.patch(
 
 app.delete(
   "/knowledgeBases/:id",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error }: any) => {
     const authCtx = store.authContext!;
     const id = params.id;
@@ -127,7 +132,7 @@ app.post(
     try {
       const form = await request.formData();
       const files = Array.from(form.getAll("files")).filter(
-        (entry: any): entry is globalThis.File => entry instanceof globalThis.File,
+        (entry: unknown): entry is globalThis.File => entry instanceof globalThis.File,
       );
       const items = await Promise.all(
         files.map((file) => uploadKnowledgeResource(authCtx.organizationId, id, file as unknown as File)),
@@ -157,6 +162,7 @@ app.post(
 
 app.post(
   "/knowledgeBases/:id/resources/url",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, params, body, error }: any) => {
     const authCtx = store.authContext!;
     const id = params.id;
@@ -183,6 +189,7 @@ app.post(
 
 app.get(
   "/knowledgeBases/:id/resources",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error }: any) => {
     const authCtx = store.authContext!;
     const id = params.id;
@@ -197,6 +204,7 @@ app.get(
 
 app.delete(
   "/knowledgeBases/:id/resources/:resourceId",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, params, error }: any) => {
     const authCtx = store.authContext!;
     const id = params.id;

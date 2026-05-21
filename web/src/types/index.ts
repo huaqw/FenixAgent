@@ -17,6 +17,9 @@ export interface Environment {
   instance_id?: string | null;
   instances?: EnvironmentInstance[];
   instances_count?: number;
+  worker_type?: string;
+  channel_group_id?: string;
+  directory?: string;
 }
 
 export interface EnvironmentInstance {

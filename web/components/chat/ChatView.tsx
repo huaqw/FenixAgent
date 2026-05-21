@@ -50,8 +50,9 @@ export function ChatView({
           <>
             {grouped.map((item, i) => {
               if (item.type === "single") {
+                const entryId = item.entry.type === "tool_call" ? item.entry.toolCall.id : item.entry.id;
                 return (
-                  <div key={item.entry.id} className={cn(entrySpacing(entries, i))}>
+                  <div key={entryId} className={cn(entrySpacing(entries, i))}>
                     <EntryRenderer
                       entry={item.entry}
                       isLoading={isLoading}

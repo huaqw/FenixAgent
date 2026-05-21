@@ -22,11 +22,11 @@ import {
   updateWorkflowMeta,
 } from "../../repositories/workflow-def";
 
-const app = new Elysia({ name: "web-workflow-defs", prefix: "/web" }).use(authGuardPlugin);
+const app = new Elysia({ name: "web-workflow-defs" }).use(authGuardPlugin);
 
 app.post(
   "/workflow-defs",
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
 

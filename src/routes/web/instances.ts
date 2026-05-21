@@ -5,7 +5,7 @@ import { getOwnedEnvironment } from "../../services/environment-core";
 import type { SpawnedInstance } from "../../services/instance";
 import { listInstances, spawnInstanceFromEnvironment, stopInstance } from "../../services/instance";
 
-const app = new Elysia({ name: "web-instances", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-instances" }).use(authGuardPlugin).model({
   "instance-info": InstanceInfoSchema,
   "instance-info-list": InstanceInfoSchema.array(),
   "spawn-instance-request": SpawnInstanceFromEnvironmentRequestSchema,
@@ -27,6 +27,7 @@ function toResponse(inst: SpawnedInstance) {
 
 app.post(
   "/instances/from-environment",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const user = store.user!;
     const authCtx = store.authContext!;
@@ -39,18 +40,19 @@ app.post(
     try {
       const inst = await spawnInstanceFromEnvironment(user.id, b.environmentId);
       return toResponse(inst);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const code = err instanceof Error && "code" in err ? String((err as { code: unknown }).code) : "";
       const status =
-        err.code === "NOT_FOUND"
+        code === "NOT_FOUND"
           ? 404
-          : err.code === "FORBIDDEN"
+          : code === "FORBIDDEN"
             ? 403
-            : err.code === "VALIDATION_ERROR"
+            : code === "VALIDATION_ERROR"
               ? 400
-              : err.code === "MAX_SESSIONS_REACHED"
+              : code === "MAX_SESSIONS_REACHED"
                 ? 409
                 : 500;
-      return error(status, { error: { type: err.code ?? "spawn_failed", message: err.message } });
+      return error(status, { error: { type: code || "spawn_failed", message: (err as Error).message } });
     }
   },
   { sessionAuth: true, body: "spawn-instance-request" },
@@ -58,6 +60,7 @@ app.post(
 
 app.get(
   "/instances",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, request: _request }: any) => {
     const authCtx = store.authContext!;
     const insts = listInstances(authCtx.organizationId);

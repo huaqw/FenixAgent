@@ -37,7 +37,7 @@ export function FilePickerDialog({ open, envId, onClose, onSelect }: FilePickerD
       try {
         const queryParams = dirPath ? { path: dirPath } : {};
         const { data: result } = await client.web.environments({ id: envId }).user.get(queryParams);
-        setEntries((result as any)?.entries ?? []);
+        setEntries(((result as Record<string, unknown>)?.entries as FileInfo[]) ?? []);
         setCurrentDir(dirPath);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("filePicker.loadFailed"));

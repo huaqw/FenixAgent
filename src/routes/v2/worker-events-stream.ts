@@ -19,6 +19,7 @@ app.get(
 
     // Support Last-Event-ID / from_sequence_num for reconnection
     const lastEventId = request.headers.get("Last-Event-ID");
+    // biome-ignore lint/suspicious/noExplicitAny: query params are dynamic in Elysia
     const fromSeq = (query as any)?.from_sequence_num;
     const fromSeqNum = fromSeq ? parseInt(fromSeq, 10) : lastEventId ? parseInt(lastEventId, 10) : 0;
 

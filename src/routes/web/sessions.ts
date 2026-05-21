@@ -5,7 +5,7 @@ import { sessionRepo } from "../../repositories/session";
 import { SessionHistorySchema } from "../../schemas/session.schema";
 import { eventService } from "../../services/event-service";
 
-const app = new Elysia({ name: "web-sessions", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-sessions" }).use(authGuardPlugin).model({
   "session-history": SessionHistorySchema,
 });
 

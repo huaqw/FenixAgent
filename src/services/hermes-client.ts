@@ -191,9 +191,9 @@ export class HermesClient {
         this.pongTimeout = null;
       }
     } else if (msg.type === "platform_status") {
-      const event = msg as any;
-      const platform = event.platform as string | undefined;
-      const state = event.state as string | undefined;
+      const event = msg as { platform?: string; state?: string };
+      const platform = event.platform;
+      const state = event.state;
       if (platform && state === "connected") {
         // Auto-subscribe to newly connected platforms
         if (!this.status.platforms.includes(platform)) {
@@ -208,7 +208,7 @@ export class HermesClient {
     } else if (msg.type === "error") {
       logError("[Hermes] Error from gateway:", msg);
     } else if (msg.type === "result") {
-      const result = msg as any;
+      const result = msg as { success?: boolean; error?: string; id?: string };
       if (!result.success) {
         logError(`[Hermes] Send failed: ${result.error || "unknown"} (id=${result.id})`);
       }

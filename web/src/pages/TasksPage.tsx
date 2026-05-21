@@ -194,7 +194,7 @@ export function TasksPage() {
           return;
         }
         const result = data as { items?: unknown[]; total?: number } | null;
-        setLogs(result?.items ?? []);
+        setLogs((result?.items ?? []) as ExecutionLogInfo[]);
         setLogsTotal(result?.total ?? 0);
         setLogsPage(page);
       } catch (error) {
@@ -356,7 +356,7 @@ export function TasksPage() {
         return;
       }
       const result = data as { entries?: unknown[] } | null;
-      setWorkspaceEntries(result?.entries ?? []);
+      setWorkspaceEntries((result?.entries ?? []) as FileInfo[]);
       setWorkspaceTitle(relativePath);
     } catch (error) {
       console.error(t("toast.viewDirFailed", { error: "" }), error);

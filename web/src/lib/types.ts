@@ -15,6 +15,7 @@ export interface ToolCallData {
   content?: ToolCallContent[];
   rawInput?: Record<string, unknown>;
   rawOutput?: Record<string, unknown>;
+  description?: string;
   // 权限请求（仅当 status === "waiting_for_confirmation"）
   permissionRequest?: {
     requestId: string;

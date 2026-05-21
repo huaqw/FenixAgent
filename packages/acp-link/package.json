@@ -13,6 +13,10 @@
     "./client": {
       "import": "./src/client/index.ts",
       "types": "./src/client/index.ts"
+    },
+    "./types": {
+      "import": "./src/types.ts",
+      "types": "./src/types.ts"
     }
   },
   "scripts": {

@@ -382,15 +382,15 @@ export const MessageResponse = memo(
               iframe: ["src", "width", "height", "title", "sandbox", "loading"],
             }}
             components={{
-              img: ({ src, alt, ...rest }: Record<string, unknown>) => (
+              img: (({ src, alt, ...rest }: Record<string, unknown>) => (
                 <img
                   src={src as string}
                   alt={(alt as string) || ""}
                   style={{ maxWidth: "100%", maxHeight: "50vh", objectFit: "contain" }}
                   {...Object.fromEntries(Object.entries(rest).filter(([k]) => !["children", "node"].includes(k)))}
                 />
-              ),
-              iframe: (props: Record<string, unknown>) => <IframePreview {...props} />,
+              )) as unknown as undefined,
+              iframe: ((props: Record<string, unknown>) => <IframePreview {...props} />) as unknown as undefined,
             }}
             urlTransform={urlTransform}
             className={cn(

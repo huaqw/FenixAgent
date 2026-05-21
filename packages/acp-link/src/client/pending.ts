@@ -4,12 +4,15 @@
  * 同一 requestType 同时只能有一个 pending（隐式关联）。
  * 支持超时、重连后续传、永久断开时 reject all。
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: generic pending request/response requires erased types
 interface PendingEntry<T = any> {
   requestType: string;
   responseType: string;
+  // biome-ignore lint/suspicious/noExplicitAny: send function accepts any request shape
   sendFn: (request: any) => void;
+  // biome-ignore lint/suspicious/noExplicitAny: request shape is determined by caller
   request: any;
+  // biome-ignore lint/suspicious/noExplicitAny: resolve value type varies by request
   resolve: (value: any) => void;
   reject: (err: Error) => void;
   timer: ReturnType<typeof setTimeout>;
@@ -17,6 +20,7 @@ interface PendingEntry<T = any> {
 }
 
 export class ACPPending {
+  // biome-ignore lint/suspicious/noExplicitAny: pending map stores heterogeneously typed entries
   private pending = new Map<string, PendingEntry<any>>();
 
   /**
@@ -24,8 +28,10 @@ export class ACPPending {
    * 如果同 requestType 已有 pending，返回已有 promise（去重）。
    */
   sendAndWait<TResponse>(
+    // biome-ignore lint/suspicious/noExplicitAny: send function accepts any request shape
     sendFn: (request: any) => void,
     requestType: string,
+    // biome-ignore lint/suspicious/noExplicitAny: request shape is determined by caller
     request: any,
     responseType: string,
     timeout: number,
@@ -36,6 +42,7 @@ export class ACPPending {
       return existing.promise as Promise<TResponse>;
     }
 
+    // biome-ignore lint/suspicious/noExplicitAny: resolve callback must accept generic response type
     let resolveFn!: (value: any) => void;
     let rejectFn!: (err: Error) => void;
     const promise = new Promise<TResponse>((resolve, reject) => {
@@ -71,6 +78,7 @@ export class ACPPending {
    * 尝试用响应匹配 pending 请求。
    * 返回 true 表示匹配成功（已 resolve）。
    */
+  // biome-ignore lint/suspicious/noExplicitAny: response payload type varies by request
   tryResolve(responseType: string, payload: any): boolean {
     for (const [key, entry] of this.pending) {
       if (entry.responseType === responseType) {

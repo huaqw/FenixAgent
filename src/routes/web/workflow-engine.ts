@@ -14,11 +14,12 @@ import { authGuardPlugin } from "../../plugins/auth";
 import { getTeamEngine } from "../../services/workflow";
 import { createPgStorageAdapter } from "../../services/workflow/pg-storage-adapter";
 
-const app = new Elysia({ name: "web-workflow-engine", prefix: "/web" }).use(authGuardPlugin);
+const app = new Elysia({ name: "web-workflow-engine" }).use(authGuardPlugin);
 
 // POST /web/workflow-engine — action 分发
 app.post(
   "/workflow-engine",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
     const payload = body as Record<string, unknown>;

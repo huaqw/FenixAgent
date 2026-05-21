@@ -101,8 +101,10 @@ describe("buildMcpSummary", () => {
 describe("buildMcpPayload", () => {
   test("local 完整", () => {
     const result = buildMcpPayload("local", "npx srv", "", [{ key: "K", value: "V" }], [], "", "", "", "", "5000");
-    expect(result.type).toBe("local");
-    expect(result.command).toEqual(["npx", "srv"]);
+    expect("type" in result && result.type).toBe("local");
+    if ("type" in result && result.type === "local") {
+      expect(result.command).toEqual(["npx", "srv"]);
+    }
     if ("environment" in result) {
       expect(result.environment).toEqual({ K: "V" });
     } else {
@@ -128,7 +130,7 @@ describe("buildMcpPayload", () => {
       "https://cb",
       "",
     );
-    expect(result.type).toBe("remote");
+    expect("type" in result && result.type).toBe("remote");
     if ("url" in result) {
       expect(result.url).toBe("https://x.com");
     }
@@ -148,6 +150,6 @@ describe("buildMcpPayload", () => {
     if ("environment" in result) {
       throw new Error("Expected no environment field for empty key");
     }
-    expect(result.type).toBe("local");
+    expect("type" in result && result.type).toBe("local");
   });
 });

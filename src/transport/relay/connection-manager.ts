@@ -89,7 +89,7 @@ export function sendToRelayWs(ws: WsConnection, msg: object): void {
   try {
     const payload = JSON.stringify(msg);
     ws.send(payload);
-    log(`[ACP-Relay] Sent to frontend: type=${(msg as any).type} bytes=${payload.length}`);
+    log(`[ACP-Relay] Sent to frontend: type=${(msg as Record<string, unknown>).type} bytes=${payload.length}`);
   } catch (err) {
     logError("[ACP-Relay] send error:", err);
   }

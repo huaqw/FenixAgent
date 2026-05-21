@@ -22,23 +22,7 @@ import v2CodeSessions from "./routes/v2/code-sessions";
 import v2Worker from "./routes/v2/worker";
 import v2WorkerEvents from "./routes/v2/worker-events";
 import v2WorkerEventsStream from "./routes/v2/worker-events-stream";
-import webAuth from "./routes/web/auth";
-import webChannels from "./routes/web/channels";
-import webConfig from "./routes/web/config";
-import webControl from "./routes/web/control";
-import webEnvironments from "./routes/web/environments";
-import webFiles from "./routes/web/files";
-import webInstances from "./routes/web/instances";
-import webKnowledgeBases from "./routes/web/knowledge-bases";
-import webMetaAgent from "./routes/web/meta-agent";
-import webOrganizations from "./routes/web/organizations";
-import webS3Files from "./routes/web/s3-files";
-import webSessions from "./routes/web/sessions";
-import webSkills from "./routes/web/skills";
-import webTasks from "./routes/web/tasks";
-import webUserFile from "./routes/web/user-file";
-import webWorkflowDefs from "./routes/web/workflow-defs";
-import webWorkflowEngine from "./routes/web/workflow-engine";
+import webApp from "./routes/web";
 import { workflowStaticApp } from "./routes/web/workflow-proxy";
 import { closeCache } from "./services/cache";
 import { getCoreRuntime } from "./services/core-bootstrap";
@@ -61,6 +45,7 @@ console.log("[RCS] Core runtime initialized (opencode engine + local node)");
 await startScheduler();
 
 // Initialize Hermes client if configured
+// biome-ignore lint/suspicious/noExplicitAny: config channels shape is dynamic
 const hermesUrl = process.env.HERMES_URL ?? (config as any).channels?.hermesUrl;
 if (hermesUrl) {
   initHermesClient(hermesUrl);
@@ -91,8 +76,10 @@ try {
     try {
       await spawnInstanceFromEnvironment(env.userId, env.id);
       console.log(`[RCS] Auto-started instance for environment: ${env.name} (${env.id})`);
-    } catch (err: any) {
-      console.error(`[RCS] Failed to auto-start instance for ${env.name}: ${err.message}`);
+    } catch (err: unknown) {
+      console.error(
+        `[RCS] Failed to auto-start instance for ${env.name}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 })();
@@ -167,28 +154,9 @@ const app = new Elysia()
   .use(v2WorkerEvents)
   .use(v2WorkerEventsStream)
   // Web control panel routes
-  .use(webSessions)
-  .use(webEnvironments)
-  .use(webOrganizations)
-  .use(webConfig)
-  .use(webSkills)
-  .use(webInstances)
-  .use(webTasks)
-  .use(webChannels)
-  .use(webKnowledgeBases)
-  .use(webFiles)
-  .use(webUserFile)
-  .use(webS3Files)
-  .use(webControl)
-  .use(webAuth)
-  // Workflow proxy
+  .use(webApp)
+  // Workflow proxy (not under /web prefix)
   .use(workflowStaticApp)
-  // Workflow engine API
-  .use(webWorkflowEngine)
-  // Workflow definition API
-  .use(webWorkflowDefs)
-  // Meta Agent API
-  .use(webMetaAgent)
   // MCP routes
   .use(knowledgeMcpRoutes)
   // ACP protocol routes

@@ -21,7 +21,7 @@ import {
   resolveWorkspacePath,
 } from "../../services/workspace-fs";
 
-const app = new Elysia({ name: "web-user-file", prefix: "/web/environments" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-user-file", prefix: "/environments" }).use(authGuardPlugin).model({
   "tree-response": TreeResponseSchema,
   "rename-request": RenameRequestSchema,
   "rename-response": RenameResponseSchema,
@@ -31,7 +31,7 @@ const app = new Elysia({ name: "web-user-file", prefix: "/web/environments" }).u
   "batch-delete-response": BatchDeleteResponseSchema,
 });
 
-async function requireEnv(envId: string, orgId: string, errorFn: (status: number, body: unknown) => any) {
+async function requireEnv(envId: string, orgId: string, errorFn: (status: number, body: unknown) => Response) {
   try {
     return await getOwnedEnvironment(envId, orgId);
   } catch (e) {
@@ -48,6 +48,7 @@ app.get(
   async ({ store, params, error }) => {
     const authCtx = store.authContext!;
     const env = await requireEnv(params.id, authCtx.organizationId, error);
+    if (env instanceof Response) return env;
     const paths = await listPathsRecursive(env.workspacePath);
     return { paths };
   },

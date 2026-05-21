@@ -462,7 +462,7 @@ function SessionDetailInner({ sessionId, initialCwd }: { sessionId: string; init
               onInterrupt={handleInterrupt}
               disabled={closed || !!error || !session}
               placeholder={error ? t("sessionLoadFailed") : closed ? t("sessionClosed") : t("inputMessage")}
-              sessionId={sessionId}
+              envId={sessionId}
             />
           </div>
 

@@ -168,8 +168,9 @@ export async function exists(bucket: string, key: string): Promise<boolean> {
       }),
     );
     return true;
-  } catch (err: any) {
-    if (err?.$metadata?.httpStatusCode === 404 || err?.name === "NotFound") return false;
+  } catch (err: unknown) {
+    const s3Err = err as { $metadata?: { httpStatusCode?: number }; name?: string };
+    if (s3Err?.$metadata?.httpStatusCode === 404 || s3Err?.name === "NotFound") return false;
     console.error("[S3] exists() error:", err);
     throw err;
   }

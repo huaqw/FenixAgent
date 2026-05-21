@@ -57,9 +57,9 @@ export function ACPMain({
     apiClient.web
       .environments({ id: agentId })
       .get()
-      .then(({ data, error }) => {
-        if (error) throw new Error(error.message ?? "加载环境失败");
-        const env = data as { workspace_path: string };
+      .then((res: { data: unknown; error: { message?: string } | null }) => {
+        if (res.error) throw new Error(res.error.message ?? "加载环境失败");
+        const env = res.data as { workspace_path: string };
         setCwd(env.workspace_path.replace(/\/+$/, ""));
         setCwdReady(true);
       })

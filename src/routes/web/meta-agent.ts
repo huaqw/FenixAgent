@@ -8,10 +8,11 @@ import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
 import { ensureMetaEnvironment } from "../../services/meta-agent";
 
-const app = new Elysia({ name: "web-meta-agent", prefix: "/web" }).use(authGuardPlugin);
+const app = new Elysia({ name: "web-meta-agent" }).use(authGuardPlugin);
 
 app.post(
   "/meta-agent/ensure",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, request, error }: any) => {
     const authCtx = store.authContext!;
     if (!authCtx) {

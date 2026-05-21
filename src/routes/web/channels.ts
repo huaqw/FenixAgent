@@ -11,7 +11,7 @@ import { createBinding, deleteBinding, listBindings, updateBinding } from "../..
 import { getChannelProvider, listChannelProviders } from "../../services/channel-provider";
 import { getHermesClient } from "../../services/hermes-client";
 
-const app = new Elysia({ name: "web-channels", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-channels" }).use(authGuardPlugin).model({
   "channel-provider-list": ChannelProviderDescriptorSchema.array(),
   "hermes-status": HermesStatusSchema,
   "channel-binding": ChannelBindingSchema,

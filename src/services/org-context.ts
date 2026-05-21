@@ -45,13 +45,16 @@ export async function loadOrgContext(user: { id: string }, request: Request): Pr
 
   try {
     const { auth } = await import("../auth/better-auth");
+    // biome-ignore lint/suspicious/noExplicitAny: better-auth API return types don't match exactly
     const api = auth.api as any;
     if (activeOrgId) {
       const memberRes = await api.listMembers({
         query: { organizationId: activeOrgId },
         headers: request.headers,
       });
+      // biome-ignore lint/suspicious/noExplicitAny: better-auth listMembers returns inconsistent shape
       const memberList: any[] = Array.isArray(memberRes) ? memberRes : ((memberRes as any)?.members ?? []);
+      // biome-ignore lint/suspicious/noExplicitAny: better-auth member objects are untyped
       const me = memberList.find((m: any) => m.userId === user.id);
       if (me) {
         const result: AuthContext = {
@@ -66,6 +69,7 @@ export async function loadOrgContext(user: { id: string }, request: Request): Pr
 
     // fallback: 列出用户的组织，取第一个
     const orgs = await api.listOrganizations({ headers: request.headers });
+    // biome-ignore lint/suspicious/noExplicitAny: better-auth listOrganizations return type is untyped
     const orgList: any[] = Array.isArray(orgs) ? orgs : [];
     if (orgList.length > 0) {
       const org = orgList[0];
@@ -73,7 +77,9 @@ export async function loadOrgContext(user: { id: string }, request: Request): Pr
         query: { organizationId: org.id },
         headers: request.headers,
       });
+      // biome-ignore lint/suspicious/noExplicitAny: better-auth listMembers returns inconsistent shape
       const memberList: any[] = Array.isArray(memberRes) ? ((memberRes as any)?.members ?? []) : [];
+      // biome-ignore lint/suspicious/noExplicitAny: better-auth member objects are untyped
       const me = memberList.find((m: any) => m.userId === user.id);
       if (me) {
         const result: AuthContext = {
@@ -87,8 +93,8 @@ export async function loadOrgContext(user: { id: string }, request: Request): Pr
     }
 
     // 无组织 → 返回 null（由上层处理首次组织创建）
-  } catch (e: any) {
-    console.error("[org-context] Failed to load:", e.message);
+  } catch (e: unknown) {
+    console.error("[org-context] Failed to load:", e instanceof Error ? e.message : String(e));
   }
   return null;
 }

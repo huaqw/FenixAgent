@@ -13,7 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { client } from "../api/client";
 import { unwrapConfigData } from "../api/config-response";
-import type { McpLocalConfig, McpRemoteConfig, McpServerConfig, McpServerInfo, McpToolInfo } from "../types/config";
+import type {
+  McpInspectResult,
+  McpLocalConfig,
+  McpRemoteConfig,
+  McpServerConfig,
+  McpServerInfo,
+  McpToolInfo,
+} from "../types/config";
 
 /** 键值对列表项类型 */
 export type KeyValueEntry = { key: string; value: string };
@@ -294,13 +301,13 @@ export function McpPage() {
       });
       if (detailErr) throw new Error(detailErr.message ?? t("toast.loadDetailFailed"));
       const detail = unwrapConfigData(detailData) ?? detailData;
-      const config = detail.config;
+      const config = detail.config as McpServerConfig;
       if ("type" in config && config.type === "local") {
         setFormType("local");
         setFormCommand(commandToString(config.command));
         setFormEnvironment(
           config.environment
-            ? Object.entries(config.environment).map(([key, value]) => ({ key, value }))
+            ? Object.entries(config.environment).map(([key, value]) => ({ key, value: String(value) }))
             : [{ key: "", value: "" }],
         );
         setFormHeaders([{ key: "", value: "" }]);
@@ -316,7 +323,7 @@ export function McpPage() {
         setFormUrl(config.url);
         setFormHeaders(
           config.headers
-            ? Object.entries(config.headers).map(([key, value]) => ({ key, value }))
+            ? Object.entries(config.headers).map(([key, value]) => ({ key, value: String(value) }))
             : [{ key: "", value: "" }],
         );
         setFormEnvironment([{ key: "", value: "" }]);
@@ -425,9 +432,11 @@ export function McpPage() {
       if (batchAction === "delete") {
         await Promise.all(
           selected.map((s) =>
-            client.web.config.mcp.post({ action: "delete", name: s.name }).then((r) => {
-              if (r.error) throw new Error(r.error.message ?? t("toast.deleteFailed"));
-            }),
+            client.web.config.mcp
+              .post({ action: "delete", name: s.name })
+              .then((r: { error?: { message?: string } }) => {
+                if (r.error) throw new Error(r.error.message ?? t("toast.deleteFailed"));
+              }),
           ),
         );
         toast.success(t("toast.batchDeleted", { count: selected.length }));
@@ -436,9 +445,11 @@ export function McpPage() {
           selected
             .filter((s) => !s.enabled)
             .map((s) =>
-              client.web.config.mcp.post({ action: "enable", name: s.name }).then((r) => {
-                if (r.error) throw new Error(r.error.message ?? t("toast.enableFailed"));
-              }),
+              client.web.config.mcp
+                .post({ action: "enable", name: s.name })
+                .then((r: { error?: { message?: string } }) => {
+                  if (r.error) throw new Error(r.error.message ?? t("toast.enableFailed"));
+                }),
             ),
         );
         toast.success(t("toast.batchEnabled", { count: selected.length }));
@@ -447,9 +458,11 @@ export function McpPage() {
           selected
             .filter((s) => s.enabled)
             .map((s) =>
-              client.web.config.mcp.post({ action: "disable", name: s.name }).then((r) => {
-                if (r.error) throw new Error(r.error.message ?? t("toast.disableFailed"));
-              }),
+              client.web.config.mcp
+                .post({ action: "disable", name: s.name })
+                .then((r: { error?: { message?: string } }) => {
+                  if (r.error) throw new Error(r.error.message ?? t("toast.disableFailed"));
+                }),
             ),
         );
         toast.success(t("toast.batchDisabled", { count: selected.length }));
@@ -471,7 +484,7 @@ export function McpPage() {
         name: server.name,
       });
       if (inspectErr) throw new Error(inspectErr.message ?? t("toast.inspectFailed"));
-      const result = unwrapConfigData(inspectData);
+      const result = unwrapConfigData<McpInspectResult>(inspectData);
       if (!result) {
         const errResp = inspectData as { error?: { code?: string; message?: string } } | null;
         throw new Error(errResp?.error?.message ?? t("toast.inspectFailed"));
@@ -489,11 +502,11 @@ export function McpPage() {
       // 缓存 tools
       setToolsCache((prev) => ({
         ...prev,
-        [server.name]: result.tools.map((t) => ({
-          id: `${server.name}:${t.name}`,
-          toolName: t.name,
-          description: t.description ?? null,
-          inputSchema: t.inputSchema ? JSON.stringify(t.inputSchema) : null,
+        [server.name]: result.tools.map((toolItem) => ({
+          id: `${server.name}:${toolItem.name}`,
+          toolName: toolItem.name,
+          description: toolItem.description ?? null,
+          inputSchema: toolItem.inputSchema ? JSON.stringify(toolItem.inputSchema) : null,
           inspectedAt: Date.now(),
         })),
       }));
@@ -733,7 +746,6 @@ export function McpPage() {
                 </div>
                 <div className="space-y-2">
                   {formEnvironment.map((entry, idx) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: key-value pairs may be empty during editing
                     <div key={entry.key || `env-${idx}`} className="flex gap-2 items-center">
                       <Input
                         placeholder="KEY"
@@ -806,7 +818,6 @@ export function McpPage() {
                 </div>
                 <div className="space-y-2">
                   {formHeaders.map((entry, idx) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: key-value pairs may be empty during editing
                     <div key={entry.key || `header-${idx}`} className="flex gap-2 items-center">
                       <Input
                         placeholder="Header Name"

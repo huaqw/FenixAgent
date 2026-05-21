@@ -167,7 +167,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         const agents = json?.data?.agents;
         if (Array.isArray(agents)) {
           setAgentList(
-            agents.map((a: any) => ({
+            agents.map((a: { name: string; model?: string; description?: string }) => ({
               name: a.name,
               model: a.model ?? null,
               description: a.description ?? null,
@@ -211,7 +211,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
           setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
         }
         if (wf.name) setMeta((m) => ({ ...m, name: wf.name }));
-        if (wf.description) setMeta((m) => ({ ...m, description: wf.description }));
+        if (wf.description) setMeta((m) => ({ ...m, description: String(wf.description ?? "") }));
       } catch (err) {
         console.error("Failed to load workflow:", err);
       }
@@ -239,7 +239,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         if (abort) return;
         if (snap) {
           setRunSnapshot(snap);
-          updateNodesFromSnapshot(snap);
+          updateNodesFromSnapshotRef.current(snap);
         }
         if (Array.isArray(evts)) setRunEvents(dedupEvents(evts));
       } catch (err) {
@@ -249,8 +249,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     return () => {
       abort = true;
     };
-    // biome-ignore lint/correctness/noInvalidUseBeforeDeclaration: updateNodesFromSnapshot defined below via useCallback
-  }, [runId, updateNodesFromSnapshot, t]);
+  }, [runId, t]);
 
   // ── Selection ──
   const onSelectionChange: OnSelectionChangeFunc = useCallback(
@@ -283,8 +282,8 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
   );
 
   // ── Drag-to-create ──
-  const onConnectStart = useCallback(({ nodeId }: { nodeId: string | null }) => {
-    pendingConnectSource.current = nodeId;
+  const onConnectStart = useCallback((_event: MouseEvent | TouchEvent) => {
+    pendingConnectSource.current = null;
     didConnect.current = false;
   }, []);
 
@@ -563,6 +562,10 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     },
     [setNodes],
   );
+
+  // Keep a stable ref to updateNodesFromSnapshot for use in useEffect deps
+  const updateNodesFromSnapshotRef = useRef(updateNodesFromSnapshot);
+  updateNodesFromSnapshotRef.current = updateNodesFromSnapshot;
 
   // ── Refresh draft from server ──
   const handleRefreshDraft = useCallback(async () => {
@@ -885,7 +888,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
           onNodesDelete={handleNodesDelete}
           onSelectionChange={onSelectionChange}
           onConnect={readOnly ? undefined : onConnect}
-          onConnectStart={readOnly ? undefined : onConnectStart}
+          onConnectStart={readOnly ? undefined : (onConnectStart as unknown as typeof undefined)}
           onConnectEnd={readOnly ? undefined : onConnectEnd}
           onDragOver={onDragOver}
           onDrop={onDrop}
@@ -1415,19 +1418,19 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
                             </option>
                           ))}
                         </select>
-                        {sd?.agent &&
+                        {sd?.agent != null &&
                           (() => {
-                            const found = agentList.find((a) => a.name === sd.agent);
+                            const found = agentList.find((a) => a.name === String(sd.agent));
                             if (!found) return null;
                             return (
                               <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>
                                 {found.model && (
                                   <span>
-                                    {t("editor.agent_model")}: {found.model}
+                                    {t("editor.agent_model")}: {String(found.model)}
                                   </span>
                                 )}
                                 {found.model && found.description && <span> · </span>}
-                                {found.description && <span>{found.description}</span>}
+                                {found.description && <span>{String(found.description)}</span>}
                               </div>
                             );
                           })()}
@@ -1484,7 +1487,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
                                 step="0.1"
                                 min="0"
                                 max="2"
-                                value={sd?.temperature ?? ""}
+                                value={sd?.temperature != null ? String(sd.temperature) : ""}
                                 onChange={(e) =>
                                   updateNodeData({
                                     temperature: e.target.value ? Number(e.target.value) : undefined,
@@ -1500,7 +1503,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
                                 type="number"
                                 min="1"
                                 max="200"
-                                value={sd?.steps ?? ""}
+                                value={sd?.steps != null ? String(sd.steps) : ""}
                                 onChange={(e) =>
                                   updateNodeData({
                                     steps: e.target.value ? Number(e.target.value) : undefined,
@@ -1873,9 +1876,9 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
                       <div style={{ fontWeight: 500, marginBottom: 2 }}>
                         {t("editor.approval_node", { nodeId: a.nodeId })}
                       </div>
-                      {a.displayData && typeof a.displayData === "object" && (
+                      {a.displayData != null && typeof a.displayData === "object" && (
                         <div style={{ color: "#92400e", marginBottom: 3 }}>
-                          {(a.displayData as Record<string, string>).message ?? ""}
+                          {String(((a.displayData as Record<string, unknown>).message as string) ?? "")}
                         </div>
                       )}
                       <button
@@ -2209,6 +2212,7 @@ function VersionPanel({
   const [viewingVersion, setViewingVersion] = useState<number | null>(null);
   const [viewingYaml, setViewingYaml] = useState<string | null>(null);
   const [publishingLocal, setPublishingLocal] = useState(false);
+  const { t } = useTranslation("workflows");
 
   const loadData = useCallback(async () => {
     if (!workflowId) return;
@@ -2254,7 +2258,7 @@ function VersionPanel({
         alert(`${t("versions.operation_failed")}: ${(err as Error).message}`);
       }
     },
-    [workflowId, loadData],
+    [workflowId, loadData, t],
   );
 
   const handleRestoreToDraft = useCallback(
@@ -2268,7 +2272,7 @@ function VersionPanel({
         alert(`${t("versions.restore_failed")}: ${(err as Error).message}`);
       }
     },
-    [workflowId],
+    [workflowId, t],
   );
 
   const handleViewYaml = useCallback(

@@ -270,12 +270,13 @@ async function handleListTools(ctx: AuthContext, name: string) {
 }
 
 // --- 路由注册 ---
-const app = new Elysia({ name: "web-config-mcp", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-config-mcp" }).use(authGuardPlugin).model({
   "config-body": ConfigBodySchema,
 });
 
 app.post(
   "/config/mcp",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
     const b = body as ConfigBody;

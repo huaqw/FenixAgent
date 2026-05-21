@@ -190,7 +190,7 @@ export class RCSChatAdapter {
   /** 加载历史事件并转为 ThreadEntry */
   async loadHistory(): Promise<void> {
     const { data: historyData } = await client.web.sessions({ id: this.sessionId }).history.get();
-    const events = (historyData as any)?.events;
+    const events = (historyData as Record<string, unknown>)?.events as SessionEvent[] | undefined;
     if (!events || events.length === 0) return;
 
     this.toolCallAliases.clear();
@@ -223,7 +223,7 @@ export class RCSChatAdapter {
         const text = extractEventText(payload);
         const toolParts: ThreadEntry[] = [];
 
-        const msg = payload.message as Record<string, unknown> | undefined;
+        const msg = (payload as Record<string, unknown>).message as Record<string, unknown> | undefined;
         if (msg && typeof msg === "object" && Array.isArray(msg.content)) {
           for (const block of msg.content as Array<Record<string, unknown>>) {
             if (block.type === "tool_use") {
@@ -559,7 +559,7 @@ export class RCSChatAdapter {
       uuid: uuidv4(),
       content: text,
       message: { content: text },
-    } as any);
+    } as Record<string, unknown>);
   }
 
   /** 响应权限请求 */
@@ -569,7 +569,7 @@ export class RCSChatAdapter {
       approved,
       request_id: requestId,
       ...extra,
-    } as any);
+    } as Record<string, unknown>);
 
     // Update tool call status
     this.setEntries((prev) =>
@@ -604,6 +604,6 @@ export class RCSChatAdapter {
 
     await client.web.sessions({ id: this.sessionId }).control.post({
       type: "interrupt",
-    } as any);
+    } as Record<string, unknown>);
   }
 }

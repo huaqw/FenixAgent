@@ -785,7 +785,7 @@ export const PromptInputTextarea = ({
     // Remove last attachment when Backspace is pressed and textarea is empty
     if (e.key === "Backspace" && e.currentTarget.value === "" && attachments.files.length > 0) {
       e.preventDefault();
-      const lastAttachment = attachments.files.at(-1);
+      const lastAttachment = attachments.files[attachments.files.length - 1];
       if (lastAttachment) {
         attachments.remove(lastAttachment.id);
       }
@@ -938,9 +938,13 @@ interface SpeechRecognition extends EventTarget {
   lang: string;
   start(): void;
   stop(): void;
+  // biome-ignore lint/suspicious/noExplicitAny: Web Speech API callback signatures require void return
   onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  // biome-ignore lint/suspicious/noExplicitAny: Web Speech API callback signatures require void return
   onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  // biome-ignore lint/suspicious/noExplicitAny: Web Speech API callback signatures require void return
   onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  // biome-ignore lint/suspicious/noExplicitAny: Web Speech API callback signatures require void return
   onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
 }
 

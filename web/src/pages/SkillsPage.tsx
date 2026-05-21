@@ -35,7 +35,11 @@ export function validateSkillForm(name: string, content: string, t: (key: string
   return null;
 }
 
-export function getUploadResultMessage(imported: number, skipped: number, t: (key: string) => string): string {
+export function getUploadResultMessage(
+  imported: number,
+  skipped: number,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   if (skipped > 0) {
     return t("toast.importResultWithSkipped", { imported, skipped });
   }
@@ -67,7 +71,10 @@ export function getUploadConflictData(error: unknown): SkillUploadConflictRespon
   return data;
 }
 
-export function getUploadItemSummaries(items: UploadSkillSummary[], t: (key: string) => string): string[] {
+export function getUploadItemSummaries(
+  items: UploadSkillSummary[],
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string[] {
   return items.map((item) =>
     item.hasSkillMd
       ? t("upload.itemSummary", { name: item.skillName, count: item.fileCount })
@@ -307,9 +314,11 @@ export function SkillsPage() {
     try {
       await Promise.all(
         selected.map((s) =>
-          client.web.config.skills.post({ action: "delete", name: s.name }).then((r) => {
-            if (r.error) throw new Error(r.error.message ?? t("toast.deleteFailed"));
-          }),
+          client.web.config.skills
+            .post({ action: "delete", name: s.name })
+            .then((r: { error?: { message?: string } }) => {
+              if (r.error) throw new Error(r.error.message ?? t("toast.deleteFailed"));
+            }),
         ),
       );
       toast.success(t("toast.batchDeleted", { count: selected.length }));

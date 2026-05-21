@@ -8,7 +8,7 @@ import { invalidateAvailableCache } from "./models";
 
 type ProviderBody = { action: string; name?: string; modelId?: string; data?: Record<string, unknown> };
 
-const app = new Elysia({ name: "web-config-providers", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-config-providers" }).use(authGuardPlugin).model({
   "config-body": ConfigBodySchema,
 });
 
@@ -204,6 +204,7 @@ async function handleRemoveModel(ctx: AuthContext, providerName: string, modelId
 
 app.post(
   "/config/providers",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
     const b = body as ConfigBody;

@@ -8,7 +8,7 @@ import { getGlobalSkillsDir } from "../../services/skill";
 import { verifySkillDownloadToken } from "../../services/skill-download-token";
 import { assertValidSkillName, getSkillArchivePath } from "../../services/skill-fs";
 
-const app = new Elysia({ name: "web-skills", prefix: "/web/skills" });
+const app = new Elysia({ name: "web-skills", prefix: "/skills" });
 
 function jsonError(status: number, type: string, message: string): Response {
   return Response.json({ error: { type, message } }, { status });

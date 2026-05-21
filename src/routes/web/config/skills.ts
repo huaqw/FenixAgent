@@ -1,6 +1,6 @@
 import Elysia from "elysia";
 import { type AuthContext, authGuardPlugin } from "../../../plugins/auth";
-import { ConfigBodySchema } from "../../../schemas/config.schema";
+import { type ConfigBody, ConfigBodySchema } from "../../../schemas/config.schema";
 import { configError, configNotFound, configSuccess, configValidationError } from "../../../services/config-utils";
 import {
   deleteSkill,
@@ -11,7 +11,7 @@ import {
   setSkill,
 } from "../../../services/skill";
 
-const app = new Elysia({ name: "web-config-skills", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-config-skills" }).use(authGuardPlugin).model({
   "config-body": ConfigBodySchema,
 });
 
@@ -20,7 +20,11 @@ async function handleList(ctx: AuthContext) {
   return configSuccess({ skills });
 }
 
-async function handleGet(ctx: AuthContext, body: { name?: string }, errorFn: (status: number, body: unknown) => any) {
+async function handleGet(
+  ctx: AuthContext,
+  body: { name?: string },
+  errorFn: (status: number, body: unknown) => unknown,
+) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
   }
@@ -37,7 +41,7 @@ async function handleSet(
     name?: string;
     data?: { description: string; content: string; metadata?: Record<string, string> };
   },
-  errorFn: (status: number, body: unknown) => any,
+  errorFn: (status: number, body: unknown) => unknown,
 ) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
@@ -52,7 +56,7 @@ async function handleSet(
 async function handleDelete(
   ctx: AuthContext,
   body: { name?: string },
-  errorFn: (status: number, body: unknown) => any,
+  errorFn: (status: number, body: unknown) => unknown,
 ) {
   if (!body.name) {
     return errorFn(400, configValidationError("Missing 'name' field"));
@@ -69,7 +73,7 @@ interface UploadManifestEntry {
   relativePath: string;
 }
 
-async function handleUpload(ctx: AuthContext, request: Request, errorFn: (status: number, body: unknown) => any) {
+async function handleUpload(ctx: AuthContext, request: Request, errorFn: (status: number, body: unknown) => unknown) {
   let formData: globalThis.FormData | null;
   try {
     formData = (await request.formData()) as globalThis.FormData;
@@ -141,9 +145,10 @@ async function handleUpload(ctx: AuthContext, request: Request, errorFn: (status
 
 app.post(
   "/config/skills",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
-    const b = (body as any) ?? {};
+    const b = (body as ConfigBody) ?? {};
     const payload = {
       action: b.action ?? "",
       name: b.name,
@@ -171,6 +176,7 @@ app.post(
 
 app.post(
   "/config/skills/upload",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth
   async ({ store, request, error }: any) => {
     const authCtx = store.authContext!;
     return await handleUpload(authCtx, request, (status, data) => error(status, data));

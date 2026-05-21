@@ -69,7 +69,7 @@ describe("MCP 类型定义", () => {
   test("McpServerDetail 编辑项构造", () => {
     const detail: McpServerDetail = { name: "test", config: { type: "local", command: ["npx"] } };
     expect(detail.name).toBe("test");
-    expect(detail.config.type).toBe("local");
+    expect("type" in detail.config && detail.config.type).toBe("local");
   });
 
   test("OpenCodeConfig 包含 mcp 字段", () => {

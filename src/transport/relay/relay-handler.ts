@@ -1,3 +1,4 @@
+import type { EngineRelayMessage } from "@mothership/plugin-sdk";
 import { log, error as logError } from "../../logger";
 import { getCoreRuntime } from "../../services/core-bootstrap";
 import { findInstanceBySessionId, findRunningInstanceByEnvironment } from "../../services/instance";
@@ -92,19 +93,23 @@ function openInstanceRelay(
       entry.relayHandle = handle;
 
       // Flush buffered outbound messages
-      flushOutboundBuffer(entry.outboundBuffer, handle);
+      flushOutboundBuffer(entry.outboundBuffer, { send: (msg: unknown) => handle.send(msg as EngineRelayMessage) });
 
       // Subscribe to inbound messages from engine
-      if ("onMessage" in handle && typeof (handle as any).onMessage === "function") {
-        const opencodeHandle = handle as { onMessage: (listener: (msg: any) => void) => () => void };
+      if ("onMessage" in handle && typeof (handle as { onMessage?: unknown }).onMessage === "function") {
+        const opencodeHandle = handle as {
+          onMessage: (listener: (msg: Record<string, unknown>) => void) => () => void;
+        };
         entry.relayUnsub = opencodeHandle.onMessage((message) => {
-          log(`[ACP-Relay] Forwarding to frontend: type=${(message as any).type} readyState=${ws.readyState}`);
+          log(
+            `[ACP-Relay] Forwarding to frontend: type=${(message as Record<string, unknown>).type} readyState=${ws.readyState}`,
+          );
           publishToEventBus(agentId, message);
           if (ws.readyState === 1) {
             sendToRelayWs(ws, message);
           } else {
             log(
-              `[ACP-Relay] Frontend WS not open (state=${ws.readyState}), dropping message type=${(message as any).type}`,
+              `[ACP-Relay] Frontend WS not open (state=${ws.readyState}), dropping message type=${(message as Record<string, unknown>).type}`,
             );
           }
         });
@@ -141,7 +146,7 @@ function openEventBusRelay(ws: WsConnection, relayWsId: string, agentId: string,
 
   const { getAcpEventBus } = require("../event-bus");
   const bus = getAcpEventBus(agentId);
-  const unsub = bus.subscribe((event: any) => {
+  const unsub = bus.subscribe((event: Record<string, unknown>) => {
     if (ws.readyState !== 1) return;
     if (event.direction !== "inbound") return;
     if (event.type === "agent_disconnect") {
@@ -204,6 +209,7 @@ export async function handleRelayMessage(
     }
     log(`[ACP-Relay] Forwarding outbound to acp-server: type=${parsed.type}`);
     try {
+      // biome-ignore lint/suspicious/noExplicitAny: relay handle send accepts dynamic message types
       await entry.relayHandle.send(parsed as any);
     } catch {
       // relay closed — ignore
@@ -221,6 +227,7 @@ export async function handleRelayMessage(
   // EventBus mode: forward all ACP messages transparently, only drop keep_alive
   if (parsed.type === "keep_alive") return;
 
+  // biome-ignore lint/suspicious/noExplicitAny: sendToAgentWs accepts dynamic message types
   const sent = sendToAgentWs(entry.agentId, parsed as any);
   if (!sent) {
     sendToRelayWs(ws, { type: "error", message: "Agent connection lost" });

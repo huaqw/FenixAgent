@@ -263,7 +263,7 @@ export function WorkflowRuns({ onSelectRun }: WorkflowRunsProps) {
           {filtered.map((r) => (
             <div
               key={r.run_id}
-              onClick={() => onSelectRun(r.run_id)}
+              onClick={() => onSelectRun?.(r.run_id)}
               style={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1fr 80px 120px 80px 80px",

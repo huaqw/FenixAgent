@@ -93,6 +93,7 @@ describe("PermissionConfig types", () => {
       hidden: true,
       color: "#FF5500",
       description: "测试Agent",
+      knowledge: null,
     };
     expect(detail.variant).toBe("thinking");
     expect(detail.temperature).toBe(0.7);
@@ -120,6 +121,7 @@ describe("PermissionConfig types", () => {
       hidden: false,
       color: null,
       description: null,
+      knowledge: null,
     };
     expect(detail.variant).toBeNull();
     expect(detail.temperature).toBeNull();
@@ -138,6 +140,7 @@ describe("PermissionConfig types", () => {
       mode: "primary",
       description: "构建Agent",
       color: "primary",
+      knowledgeBaseCount: 0,
     };
     expect(info.description).toBe("构建Agent");
     expect(info.color).toBe("primary");
@@ -151,6 +154,7 @@ describe("PermissionConfig types", () => {
       mode: null,
       description: null,
       color: null,
+      knowledgeBaseCount: 0,
     };
     expect(info.description).toBeNull();
     expect(info.color).toBeNull();

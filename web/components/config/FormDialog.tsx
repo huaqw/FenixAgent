@@ -36,7 +36,7 @@ export function FormDialog({
   formConfig,
 }: FormDialogProps) {
   const methods = useForm<Record<string, unknown>>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: shadcn/react-hook-form zodResolver requires ZodTypeAny
     resolver: formConfig?.schema ? zodResolver(formConfig.schema as any) : undefined,
     defaultValues: formConfig?.defaultValues,
   });

@@ -5,7 +5,7 @@ import { environmentRepo, sessionRepo } from "../../repositories";
 import type { S3DeleteBody, S3PresignPutBody } from "../../schemas/s3-file.schema";
 import * as s3 from "../../services/s3-storage";
 
-const app = new Elysia({ name: "web-s3-files", prefix: "/web/s3" }).use(authGuardPlugin).onBeforeHandle(({ error }) => {
+const app = new Elysia({ name: "web-s3-files", prefix: "/s3" }).use(authGuardPlugin).onBeforeHandle(({ error }) => {
   if (!config.s3.enabled) {
     return error(503, { error: { type: "service_unavailable", message: "S3 storage is not enabled" } });
   }

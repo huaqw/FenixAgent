@@ -72,6 +72,7 @@ export const authPlugin = new Elysia({ name: "auth", prefix: "/api/auth" })
     const decryptRoutes = ["/sign-in/email", "/sign-up/email"];
     if (request.method === "POST" && decryptRoutes.some((r) => url.pathname.endsWith(r))) {
       try {
+        // biome-ignore lint/suspicious/noExplicitAny: request body parsed dynamically
         const body: any = await request.clone().json();
         if (body?.password && typeof body.password === "string" && body.password.startsWith("AESGCM:")) {
           body.password = decryptPassword(body.password);
@@ -114,7 +115,7 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
       return { error: { type: error.code, message: error.message } };
     }
     // DrizzleQueryError wrapping PostgreSQL errors
-    const msg = error instanceof Error ? (error.cause as any)?.message || error.message : "";
+    const msg = error instanceof Error ? (error.cause as { message?: string })?.message || error.message : "";
     // PostgreSQL invalid UUID format → treat as not found
     if (msg.includes("invalid input syntax for type uuid")) {
       set.status = 404;
@@ -125,6 +126,7 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
     sessionAuth(enabled: boolean) {
       if (!enabled) return {};
       return {
+        // biome-ignore lint/suspicious/noExplicitAny: Elysia macro context type not fully expressible
         beforeHandle: async ({ store, request, error }: any) => {
           // 测试注入：直接设置 user 和 authContext，跳过 real auth
           if (_testAuth) {
@@ -155,6 +157,7 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
     apiKeyAuth(enabled: boolean) {
       if (!enabled) return {};
       return {
+        // biome-ignore lint/suspicious/noExplicitAny: Elysia macro context type not fully expressible
         beforeHandle: async ({ store, request, error }: any) => {
           const token = extractToken(request);
           if (!token) {
@@ -178,8 +181,10 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
           }
 
           // 1. better-auth API Key 验证
+          // biome-ignore lint/suspicious/noExplicitAny: better-auth verifyApiKey return type is untyped
           const result: any = await auth.api.verifyApiKey({ body: { key: token } });
           if (result.valid && result.key) {
+            // biome-ignore lint/suspicious/noExplicitAny: better-auth API key metadata shape is untyped
             const apiKeyMeta = result.key as any;
             const userId = apiKeyMeta.userId;
             const user = await lookupUserById(userId);
@@ -205,6 +210,7 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
     uuidAuth(enabled: boolean) {
       if (!enabled) return {};
       return {
+        // biome-ignore lint/suspicious/noExplicitAny: Elysia macro context type not fully expressible
         beforeHandle: ({ store, request, error }: any) => {
           const url = new URL(request.url);
           const uuid = url.searchParams.get("uuid");
@@ -218,6 +224,7 @@ export const authGuardPlugin = new Elysia({ name: "auth-guard" })
     sessionIngressAuth(enabled: boolean) {
       if (!enabled) return {};
       return {
+        // biome-ignore lint/suspicious/noExplicitAny: Elysia macro context type not fully expressible
         beforeHandle: async ({ store: _store, request, error }: any) => {
           const token = extractToken(request);
 

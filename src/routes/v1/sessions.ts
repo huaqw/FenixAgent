@@ -1,6 +1,6 @@
 import Elysia from "elysia";
 import { error as logError } from "../../logger";
-import { authGuardPlugin } from "../../plugins/auth";
+import { type AuthContext, authGuardPlugin } from "../../plugins/auth";
 import { requireOrgScope } from "../../plugins/require-team-scope";
 import { environmentRepo, sessionRepo } from "../../repositories";
 import {
@@ -26,7 +26,7 @@ const app = new Elysia({ name: "v1-sessions", prefix: "/v1/sessions" }).use(auth
  * 返回 undefined 表示通过，否则返回错误响应。
  */
 async function requireSessionScope(
-  authContext: any,
+  authContext: AuthContext | null,
   sessionId: string,
   _error: (code: number, body: unknown) => Response,
 ): Promise<Response | undefined> {
@@ -49,6 +49,7 @@ app.post(
       return error(403, { error: { type: "forbidden", message: "No organization context" } });
     }
     const b = body as CreateSessionRequest;
+    // biome-ignore lint/suspicious/noExplicitAny: store may contain optional username field
     const username = (store as any).username as string | undefined;
     const session = await createSession({ ...b, username, userId: authContext.userId });
 

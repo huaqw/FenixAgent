@@ -1,10 +1,10 @@
 import Elysia from "elysia";
 import { type AuthContext, authGuardPlugin } from "../../../plugins/auth";
-import { ConfigBodySchema } from "../../../schemas/config.schema";
+import { type ConfigBody, ConfigBodySchema } from "../../../schemas/config.schema";
 import * as configPg from "../../../services/config-pg";
 import { configError, configSuccess } from "../../../services/config-utils";
 
-const app = new Elysia({ name: "web-config-models", prefix: "/web" }).use(authGuardPlugin).model({
+const app = new Elysia({ name: "web-config-models" }).use(authGuardPlugin).model({
   "config-body": ConfigBodySchema,
 });
 
@@ -108,9 +108,10 @@ async function handleRefresh(ctx: AuthContext) {
 
 app.post(
   "/config/models",
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia type inference limitation with sessionAuth + body model
   async ({ store, body, error }: any) => {
     const authCtx = store.authContext!;
-    const b = (body as any) ?? {};
+    const b = (body as ConfigBody) ?? {};
     const payload = {
       action: b.action ?? "",
       data: b.data as { model?: string; small_model?: string; permission?: unknown } | undefined,

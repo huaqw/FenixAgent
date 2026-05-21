@@ -239,7 +239,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
 
         <Link
-          to="/agent/"
+          to="/agent"
           title={collapsed ? t("agentPanel") : undefined}
           className={[
             "relative flex items-center w-full",

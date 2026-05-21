@@ -2,7 +2,7 @@ import Elysia from "elysia";
 import { authGuardPlugin, errorResponse } from "../../plugins/auth";
 import { bindSessionOwner, resolveExistingSessionId } from "../../services/session";
 
-const app = new Elysia({ name: "web-auth", prefix: "/web" }).use(authGuardPlugin).decorate({ error: errorResponse });
+const app = new Elysia({ name: "web-auth" }).use(authGuardPlugin).decorate({ error: errorResponse });
 
 /** POST /web/bind — Bind a session to a user (requires session auth) */
 app.post(
@@ -15,7 +15,7 @@ app.post(
 
     const b = body as { sessionId?: string; uuid?: string };
     const sessionId = b.sessionId;
-    const uuid = (query as any)?.uuid || b.uuid;
+    const uuid = (query as Record<string, string | undefined>)?.uuid || b.uuid;
 
     if (!sessionId || !uuid) {
       return error(400, { error: "sessionId and uuid are required" });

@@ -81,10 +81,12 @@ export function ChannelsPage() {
         return;
       }
       setEnvironments(
-        (Array.isArray(data) ? (data as unknown as EnvironmentSummary[]) : []).map((e: any) => ({
-          id: e.id,
-          name: e.name,
-        })),
+        (Array.isArray(data) ? (data as unknown as EnvironmentSummary[]) : []).map(
+          (e: { id: string; name: string }) => ({
+            id: e.id,
+            name: e.name,
+          }),
+        ),
       );
     } catch {}
   }, []);

@@ -31,6 +31,7 @@ export interface EnsureMetaResult {
 /** 从环境列表中查找名为 meta-agent 的环境 */
 export async function findMetaEnvironment(ctx: AuthContext): Promise<{ id: string; name: string } | null> {
   const envs = await listEnvironmentsWithInstances(ctx.organizationId);
+  // biome-ignore lint/suspicious/noExplicitAny: environment list items have dynamic shape
   const meta = envs.find((e: any) => e.name === META_ENVIRONMENT_NAME);
   return meta ? { id: meta.id, name: meta.name } : null;
 }
@@ -63,6 +64,7 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
 
 /** 为 meta agent 创建 API key（1 小时过期） */
 async function createMetaApiKey(ctx: AuthContext, headers: Headers): Promise<string> {
+  // biome-ignore lint/suspicious/noExplicitAny: better-auth createApiKey return type is untyped
   const result: any = await (auth.api as any).createApiKey({
     body: {
       name: META_KEY_LABEL,

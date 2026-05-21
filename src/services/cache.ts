@@ -94,6 +94,7 @@ export function getCache(namespace: string, defaultTtlMs?: number): Keyv {
 
   if (_redis) {
     // 每个 namespace 创建独立的 KeyvRedis 包装器（内部共享同一个 Redis 连接）
+    // biome-ignore lint/suspicious/noExplicitAny: KeyvRedis accepts Redis | Cluster but type mismatch
     const store = new KeyvRedis(_redis as any);
     kv = new Keyv({ store, namespace, ttl: defaultTtlMs });
   } else {

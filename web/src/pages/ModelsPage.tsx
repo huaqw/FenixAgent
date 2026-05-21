@@ -279,7 +279,7 @@ function ModelSubrow({
                     ) : null}
                     {cost.input || cost.output ? (
                       <span className="text-amber-600 dark:text-amber-400">
-                        ${cost.input || 0}/${cost.output || 0}
+                        {Number(cost.input) || 0}/{Number(cost.output) || 0}
                       </span>
                     ) : null}
                     {!limit.context && !limit.output && <span>{t("modelSubrow.noLimitInfo")}</span>}
@@ -715,9 +715,11 @@ export function ModelsPage() {
     try {
       await Promise.all(
         selected.map((p) =>
-          client.web.config.providers.post({ action: "delete", name: p.id }).then((r) => {
-            if (r.error) throw new Error(r.error.message ?? t("deleteProvider.error", { message: "" }));
-          }),
+          client.web.config.providers
+            .post({ action: "delete", name: p.id })
+            .then((r: { error?: { message?: string } }) => {
+              if (r.error) throw new Error(r.error.message ?? t("deleteProvider.error", { message: "" }));
+            }),
         ),
       );
       toast.success(t("batchDeleteCount", { count: selected.length }));
