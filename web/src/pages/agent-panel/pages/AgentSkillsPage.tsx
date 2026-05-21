@@ -301,9 +301,9 @@ export function AgentSkillsPage() {
               </Button>
             </div>
             <div className="flex-1 min-w-0 pr-20">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-subtle text-brand">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-brand-subtle text-brand shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -311,9 +311,9 @@ export function AgentSkillsPage() {
                     />
                   </svg>
                 </div>
+                <span className="font-mono text-sm font-semibold text-text-bright truncate">{skill.name}</span>
               </div>
-              <span className="font-mono text-sm font-semibold text-text-bright block truncate">{skill.name}</span>
-              <p className="text-xs text-text-secondary line-clamp-3 mt-1.5 leading-relaxed">
+              <p className="text-xs text-text-secondary line-clamp-3 mt-2 leading-relaxed">
                 {skill.description || "—"}
               </p>
             </div>
