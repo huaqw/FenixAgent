@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
+import { db } from "../db";
+import { agentSession } from "../db/schema";
 
 /** Session 持久化记录 */
 export interface SessionRecord {
@@ -22,11 +25,14 @@ export interface SessionCreateParams {
   userId?: string | null;
 }
 
-/** Session 仓储接口 — 纯内存 Map */
+/** Session 仓储接口 — PostgreSQL 持久化 */
 export interface ISessionRepo {
   create(params: SessionCreateParams): Promise<SessionRecord>;
   getById(id: string): Promise<SessionRecord | undefined>;
-  update(id: string, patch: Partial<Pick<SessionRecord, "title" | "status" | "updatedAt">>): Promise<boolean>;
+  update(
+    id: string,
+    patch: Partial<Pick<SessionRecord, "title" | "status" | "updatedAt">>,
+  ): Promise<boolean>;
   delete(id: string): Promise<boolean>;
   listAll(): Promise<SessionRecord[]>;
   listByEnvironment(envId: string): Promise<SessionRecord[]>;
@@ -35,14 +41,37 @@ export interface ISessionRepo {
   reset(): void;
 }
 
-class SessionRepo implements ISessionRepo {
-  private sessions = new Map<string, SessionRecord>();
+function rowToRecord(row: typeof agentSession.$inferSelect): SessionRecord {
+  return {
+    id: row.id,
+    environmentId: row.environmentId ?? null,
+    title: row.title ?? null,
+    status: row.status,
+    source: row.source,
+    username: null,
+    userId: row.userId ?? null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+class PgSessionRepo implements ISessionRepo {
   private sessionOwners = new Map<string, Set<string>>();
 
   async create(params: SessionCreateParams): Promise<SessionRecord> {
     const id = `${params.idPrefix || "session_"}${uuid().replace(/-/g, "")}`;
     const now = new Date();
-    const record: SessionRecord = {
+    await db.insert(agentSession).values({
+      id,
+      environmentId: params.environmentId ?? null,
+      title: params.title ?? null,
+      status: "idle",
+      source: params.source ?? "acp",
+      userId: params.userId ?? null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return {
       id,
       environmentId: params.environmentId ?? null,
       title: params.title ?? null,
@@ -53,35 +82,42 @@ class SessionRepo implements ISessionRepo {
       createdAt: now,
       updatedAt: now,
     };
-    this.sessions.set(id, record);
-    return record;
   }
 
   async getById(id: string): Promise<SessionRecord | undefined> {
-    return this.sessions.get(id);
+    const rows = await db.select().from(agentSession).where(eq(agentSession.id, id)).limit(1);
+    return rows[0] ? rowToRecord(rows[0]) : undefined;
   }
 
-  async update(id: string, patch: Partial<Pick<SessionRecord, "title" | "status" | "updatedAt">>): Promise<boolean> {
-    const rec = this.sessions.get(id);
-    if (!rec) return false;
-    Object.assign(rec, patch, { updatedAt: new Date() });
-    return true;
+  async update(
+    id: string,
+    patch: Partial<Pick<SessionRecord, "title" | "status" | "updatedAt">>,
+  ): Promise<boolean> {
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.title !== undefined) set.title = patch.title;
+    if (patch.status !== undefined) set.status = patch.status;
+    const result = await db.update(agentSession).set(set).where(eq(agentSession.id, id));
+    return (result as unknown as { count: number }).count > 0;
   }
 
   async delete(id: string): Promise<boolean> {
-    return this.sessions.delete(id);
+    const result = await db.delete(agentSession).where(eq(agentSession.id, id));
+    return (result as unknown as { count: number }).count > 0;
   }
 
   async listAll(): Promise<SessionRecord[]> {
-    return [...this.sessions.values()];
+    const rows = await db.select().from(agentSession);
+    return rows.map(rowToRecord);
   }
 
   async listByEnvironment(envId: string): Promise<SessionRecord[]> {
-    return [...this.sessions.values()].filter((s) => s.environmentId === envId);
+    const rows = await db.select().from(agentSession).where(eq(agentSession.environmentId, envId));
+    return rows.map(rowToRecord);
   }
 
   async listByUserId(userId: string): Promise<SessionRecord[]> {
-    return [...this.sessions.values()].filter((s) => s.userId === userId);
+    const rows = await db.select().from(agentSession).where(eq(agentSession.userId, userId));
+    return rows.map(rowToRecord);
   }
 
   async bindOwner(sessionId: string, uuid: string): Promise<void> {
@@ -92,9 +128,8 @@ class SessionRepo implements ISessionRepo {
   }
 
   reset(): void {
-    this.sessions.clear();
     this.sessionOwners.clear();
   }
 }
 
-export const sessionRepo: ISessionRepo = new SessionRepo();
+export const sessionRepo: ISessionRepo = new PgSessionRepo();
