@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import Elysia from "elysia";
 import { auth } from "../../auth/better-auth";
 import { db } from "../../db";
-import { member } from "../../db/schema";
+import { member, user } from "../../db/schema";
 import { authGuardPlugin } from "../../plugins/auth";
 
 const app = new Elysia({ name: "web-organizations" }).use(authGuardPlugin);
@@ -22,11 +22,11 @@ interface OrgApi {
   }) => Promise<unknown>;
   deleteOrganization: (opts: { body: { organizationId: string }; headers: Headers }) => Promise<void>;
   setActiveOrganization: (opts: { body: { organizationId: string }; headers: Headers }) => Promise<void>;
-  createInvitation: (opts: {
-    body: { email: string; role: string; organizationId: string };
+  removeMember: (opts: { body: { organizationId: string; userId: string }; headers: Headers }) => Promise<void>;
+  addMember: (opts: {
+    body: { userId: string; role: string; organizationId: string };
     headers: Headers;
   }) => Promise<unknown>;
-  removeMember: (opts: { body: { organizationId: string; userId: string }; headers: Headers }) => Promise<void>;
   updateMemberRole: (opts: {
     body: { organizationId: string; userId: string; role: string };
     headers: Headers;
@@ -184,11 +184,16 @@ app.post(
             success: false,
             error: { code: "VALIDATION_ERROR", message: "organizationId, email, role required" },
           });
-        const invitation = await api.createInvitation({
-          body: { email: b.email, role: b.role, organizationId: b.organizationId },
+        // 通过邮箱查找用户（better-auth addMember 需要 userId）
+        const [foundUser] = await db.select({ id: user.id }).from(user).where(eq(user.email, b.email)).limit(1);
+        if (!foundUser)
+          return error(404, { success: false, error: { code: "USER_NOT_FOUND", message: "该邮箱用户不存在" } });
+        // 使用 better-auth 原生 addMember API（自带权限校验和重复检查）
+        const result = await api.addMember({
+          body: { userId: foundUser.id, role: b.role, organizationId: b.organizationId },
           headers: request.headers,
         });
-        return { success: true, data: invitation };
+        return { success: true, data: result };
       }
       case "remove-member": {
         if (!b.organizationId || !b.userId)

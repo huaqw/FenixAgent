@@ -14,6 +14,14 @@ COPY components.json drizzle.config.ts ./
 RUN bun run build:web
 RUN bun build src/index.ts --outfile=dist/server.js --target=bun --sourcemap=external
 
+############### migration image ###############
+
+FROM deps AS migrate
+COPY drizzle.config.ts ./
+COPY src/db/schema.ts ./src/db/schema.ts
+COPY drizzle ./drizzle
+CMD ["bunx", "drizzle-kit", "migrate"]
+
 ############### production image ###############
 
 FROM oven/bun:1 AS runtime
@@ -51,14 +59,12 @@ RUN printf '#!/bin/sh\nargs="";\nfor a in "$@"; do\n  case "$a" in\n    -y|--yes
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/web/dist ./web/dist
-COPY drizzle.config.ts ./
-COPY src/db/schema.ts ./src/db/schema.ts
-COPY drizzle ./drizzle
 
-RUN mkdir -p /app/data /root/.config/opencode /root/.agents/skills /root/.local/share/opencode /workspaces /app/workflow
-COPY .agents/skills/ /root/.agents/skills/
+RUN mkdir -p /root/.config/opencode /root/.local/share/opencode /app/data /app/workflow /app/workspaces 
+RUN mkdir -p /app/data/skills
+COPY ./skills/ /app/data/skills/
 
-VOLUME ["/app/data", "/root/.config/opencode", "/root/.agents/skills", "/root/.local/share/opencode", "/workspaces"]
+VOLUME ["/root/.config/opencode", "/root/.local/share/opencode", "/app/data", "/app/workflow", "/app/workspaces"]
 
 EXPOSE 3000
 

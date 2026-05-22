@@ -16,7 +16,7 @@
   "create": "Create",
   "creating": "Creating...",
   "members": "Members ({{count}})",
-  "inviteMember": "Invite Member",
+  "inviteMember": "Add Member",
   "noMembers": "No members yet",
   "table": {
     "user": "User",
@@ -38,12 +38,12 @@
     "descriptionPlaceholder": "Optional"
   },
   "inviteDialog": {
-    "title": "Invite Member",
+    "title": "Add Member",
     "email": "Email",
     "emailPlaceholder": "Enter email address",
     "role": "Role",
-    "invite": "Invite",
-    "inviting": "Inviting..."
+    "invite": "Add",
+    "inviting": "Adding..."
   },
   "deleteDialog": {
     "title": "Confirm Delete Organization",
@@ -60,8 +60,8 @@
     "createFailed": "Failed to create organization",
     "updateSuccess": "Organization info updated",
     "updateFailed": "Update failed",
-    "inviteSent": "Invitation sent",
-    "inviteFailed": "Failed to invite member",
+    "inviteSent": "Member added",
+    "inviteFailed": "Failed to add member",
     "removeSuccess": "Member removed",
     "removeFailed": "Failed to remove member",
     "roleUpdated": "Role updated",

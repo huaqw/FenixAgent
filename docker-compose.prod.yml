@@ -2,6 +2,19 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 services:
+    rcs-migrate:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: migrate
+        container_name: mothership-migrate
+        depends_on:
+            postgres:
+                condition: service_healthy
+        environment:
+            DATABASE_URL: postgres://rcs:rcs@postgres:5432/rcs
+        command: ["bun", "--bun", "node_modules/.bin/drizzle-kit", "migrate"]
+
     rcs:
         build:
             context: .
@@ -11,6 +24,8 @@ services:
         depends_on:
             postgres:
                 condition: service_healthy
+            rcs-migrate:
+                condition: service_completed_successfully
         ports:
             - "3001:3000"
         environment:
@@ -26,10 +41,9 @@ services:
             OPENCODE_DISABLE_AUTOUPDATE: "1"
             OPENCODE_DISABLE_TELEMETRY: "1"
         volumes:
-            - ~/.config/opencode/opencode.json:/root/.config/opencode/opencode.json
-            - ~/.agents/skills:/root/.agents/skills
+            - rcs-opencode-config:/root/.config/opencode
             - rcs-opencode-data:/root/.local/share/opencode
-            - rcs-workspaces:/workspaces
+            - ./data:/app/data
             - ./workflow:/app/workflow
             - ./workspaces:/app/workspaces
         healthcheck:
@@ -46,5 +60,5 @@ services:
             start_period: 20s
 
 volumes:
+    rcs-opencode-config:
     rcs-opencode-data:
-    rcs-workspaces:

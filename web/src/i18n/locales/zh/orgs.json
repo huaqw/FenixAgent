@@ -16,7 +16,7 @@
   "create": "创建",
   "creating": "创建中...",
   "members": "成员 ({{count}})",
-  "inviteMember": "邀请成员",
+  "inviteMember": "添加成员",
   "noMembers": "暂无成员",
   "table": {
     "user": "用户",
@@ -38,12 +38,12 @@
     "descriptionPlaceholder": "可选"
   },
   "inviteDialog": {
-    "title": "邀请成员",
+    "title": "添加成员",
     "email": "邮箱",
     "emailPlaceholder": "输入邮箱地址",
     "role": "角色",
-    "invite": "邀请",
-    "inviting": "邀请中..."
+    "invite": "添加",
+    "inviting": "添加中..."
   },
   "deleteDialog": {
     "title": "确认删除组织",
@@ -60,8 +60,8 @@
     "createFailed": "创建组织失败",
     "updateSuccess": "组织信息已更新",
     "updateFailed": "更新失败",
-    "inviteSent": "邀请已发送",
-    "inviteFailed": "邀请成员失败",
+    "inviteSent": "成员已添加",
+    "inviteFailed": "添加成员失败",
     "removeSuccess": "成员已移除",
     "removeFailed": "移除成员失败",
     "roleUpdated": "角色已更新",

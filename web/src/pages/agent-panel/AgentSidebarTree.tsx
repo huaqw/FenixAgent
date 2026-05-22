@@ -1,10 +1,27 @@
 import { Bot, ChevronDown, ChevronRight, Loader2, Plus, Settings } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { envApi, instanceApi } from "@/src/api/sdk";
+import { agentApi, envApi, instanceApi } from "@/src/api/sdk";
+import { useOrg } from "../../contexts/OrgContext";
 import { NS } from "../../i18n";
+import { useConfigChangeListener } from "../../lib/config-events";
 import type { Environment, EnvironmentInstance } from "../../types/index";
+
+interface AgentConfigItem {
+  id: string;
+  name: string;
+  builtIn: boolean;
+  model: string | null;
+  description: string | null;
+  color: string | null;
+}
+
+interface AgentTreeNode {
+  agent: AgentConfigItem;
+  environment: Environment | null;
+  instances: EnvironmentInstance[];
+}
 
 interface AgentSidebarTreeProps {
   selectedInstanceId: string | null;
@@ -20,32 +37,64 @@ export function AgentSidebarTree({
   onEditAgent,
 }: AgentSidebarTreeProps) {
   const { t } = useTranslation(NS.AGENT_PANEL);
-  const [envs, setEnvs] = useState<Environment[]>([]);
-  const [instancesMap, setInstancesMap] = useState<Record<string, EnvironmentInstance[]>>({});
-  const [collapsedEnvs, setCollapsedEnvs] = useState<Record<string, boolean>>({});
+  const { org } = useOrg();
+  const orgId = org?.id;
+  const [treeNodes, setTreeNodes] = useState<AgentTreeNode[]>([]);
+  const [collapsedAgents, setCollapsedAgents] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [enteringAgentId, setEnteringAgentId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const { data } = await envApi.list();
-      const list = Array.isArray(data) ? (data as Environment[]) : [];
-      setEnvs(list);
+      const [{ data: agentsData }, { data: envsData }] = await Promise.all([
+        agentApi.list(),
+        envApi.list(),
+      ]);
 
-      const activeEnvs = list.filter((e: Environment) => (e.instances_count ?? 0) > 0);
+      const agents = Array.isArray(agentsData) ? (agentsData as AgentConfigItem[]) : [];
+      const envs = Array.isArray(envsData) ? (envsData as Environment[]) : [];
+
+      // 过滤内置智能体
+      const userAgents = agents.filter((a) => !a.builtIn);
+
+      // 建立 agentConfigId → environment 映射
+      const envByConfigId = new Map<string, Environment>();
+      for (const env of envs) {
+        if (env.agent_config_id) {
+          envByConfigId.set(env.agent_config_id, env);
+        }
+      }
+
+      // 构建 tree nodes
+      const nodes: AgentTreeNode[] = userAgents.map((agent) => ({
+        agent,
+        environment: envByConfigId.get(agent.id) ?? null,
+        instances: [],
+      }));
+
+      // 加载有活跃实例的 environment 的 instances
+      const activeEnvs = envs.filter((e) => (e.instances_count ?? 0) > 0);
       if (activeEnvs.length > 0) {
         const results = await Promise.allSettled(
-          activeEnvs.map((env: Environment) => envApi.listInstances({ id: env.id })),
+          activeEnvs.map((env) => envApi.listInstances({ id: env.id })),
         );
-        const newMap: Record<string, EnvironmentInstance[]> = {};
-        activeEnvs.forEach((env: Environment, i: number) => {
+        const instMap: Record<string, EnvironmentInstance[]> = {};
+        activeEnvs.forEach((env, i) => {
           const r = results[i];
           if (r.status === "fulfilled") {
             const instData = r.value.data as { instances?: EnvironmentInstance[] } | null;
-            newMap[env.id] = instData?.instances ?? [];
+            instMap[env.id] = instData?.instances ?? [];
           }
         });
-        setInstancesMap((prev) => ({ ...prev, ...newMap }));
+
+        for (const node of nodes) {
+          if (node.environment) {
+            node.instances = instMap[node.environment.id] ?? [];
+          }
+        }
       }
+
+      setTreeNodes(nodes);
     } catch (err) {
       console.error("Failed to load agent tree:", err);
     } finally {
@@ -54,17 +103,20 @@ export function AgentSidebarTree({
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     loadData();
     const interval = setInterval(loadData, 15_000);
     return () => clearInterval(interval);
-  }, [loadData]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: orgId triggers reload on org switch
+  }, [loadData, orgId]);
 
-  const tree = useMemo(() => {
-    return envs.map((env) => ({
-      env,
-      instances: instancesMap[env.id] ?? [],
-    }));
-  }, [envs, instancesMap]);
+  // 监听配置变更事件，agents 变更时立即刷新
+  useConfigChangeListener(
+    (module) => {
+      if (module === "agents") loadData();
+    },
+    [loadData],
+  );
 
   const getInstanceStatus = (instance: EnvironmentInstance) => {
     if (instance.status === "running") return "running";
@@ -90,15 +142,39 @@ export function AgentSidebarTree({
     [loadData, t],
   );
 
-  const handleEnterInstance = useCallback(
-    async (env: Environment, instanceNumber?: number) => {
+  // 进入智能体：如果没有 environment 则自动创建
+  const handleEnterAgent = useCallback(
+    async (node: AgentTreeNode, instanceNumber?: number) => {
+      const { agent, environment } = node;
+      setEnteringAgentId(agent.id);
       try {
+        let envId = environment?.id;
+
+        // 没有 environment，自动创建
+        if (!envId) {
+          const { data: newEnv } = await envApi.create({
+            name: agent.name,
+            agentConfigId: agent.id,
+            autoStart: true,
+          });
+          envId = (newEnv as unknown as Environment | null)?.id;
+          if (!envId) {
+            toast.error(t("enterInstanceFailed", { message: "Failed to create environment" }));
+            return;
+          }
+          // 刷新数据以关联新建的 environment
+          await loadData();
+        }
+
+        // 进入 environment
         const body = instanceNumber !== undefined ? { instance_number: instanceNumber } : {};
-        const { data: result } = await envApi.enter({ id: env.id }, body);
-        const enterResult = result as { session_id?: string; instance_id?: string; environment_id?: string } | null;
+        const { data: result } = await envApi.enter({ id: envId }, body);
+        const enterResult = result as
+          | { session_id?: string; instance_id?: string; environment_id?: string }
+          | null;
         onSelectInstance(
           enterResult?.instance_id ?? "",
-          enterResult?.environment_id ?? env.id,
+          enterResult?.environment_id ?? envId,
           enterResult?.session_id ?? null,
         );
       } catch (err) {
@@ -108,9 +184,11 @@ export function AgentSidebarTree({
             message: (err as Error).message,
           }),
         );
+      } finally {
+        setEnteringAgentId(null);
       }
     },
-    [onSelectInstance, t],
+    [onSelectInstance, t, loadData],
   );
 
   if (loading) {
@@ -121,11 +199,21 @@ export function AgentSidebarTree({
     );
   }
 
-  if (tree.length === 0) {
+  if (treeNodes.length === 0) {
     return (
       <div className="px-4 py-4 text-center">
         <Bot className="h-8 w-8 mx-auto mb-2 text-text-muted opacity-30" />
-        <p className="text-xs text-text-muted">{t("noAgents")}</p>
+        <p className="text-xs text-text-muted mb-3">{t("noAgents")}</p>
+        {onCreateAgent && (
+          <button
+            type="button"
+            onClick={onCreateAgent}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t("createAgent")}
+          </button>
+        )}
       </div>
     );
   }
@@ -145,16 +233,18 @@ export function AgentSidebarTree({
           </button>
         )}
       </div>
-      {tree.map(({ env, instances }, idx) => {
-        const collapsed = !!collapsedEnvs[env.id];
+      {treeNodes.map((node, idx) => {
+        const { agent, instances } = node;
+        const collapsed = !!collapsedAgents[agent.id];
+        const isEntering = enteringAgentId === agent.id;
         return (
-          <div key={env.id} className={idx > 0 ? "mt-1.5" : ""}>
+          <div key={agent.id} className={idx > 0 ? "mt-1.5" : ""}>
             <button
               type="button"
               onClick={() =>
-                setCollapsedEnvs((prev) => ({
+                setCollapsedAgents((prev) => ({
                   ...prev,
-                  [env.id]: !prev[env.id],
+                  [agent.id]: !prev[agent.id],
                 }))
               }
               className="agent-tree-env-header"
@@ -164,8 +254,12 @@ export function AgentSidebarTree({
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
               )}
-              <Bot className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{env.name}</span>
+              {isEntering ? (
+                <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />
+              ) : (
+                <Bot className="w-4 h-4 flex-shrink-0" />
+              )}
+              <span className="truncate">{agent.name}</span>
               {instances.length > 0 && <span className="agent-tree-instance-count">{instances.length}</span>}
 
               <span
@@ -173,12 +267,12 @@ export function AgentSidebarTree({
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEditAgent?.(env.agent_name!);
+                  onEditAgent?.(agent.name);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.stopPropagation();
-                    onEditAgent?.(env.agent_name!);
+                    onEditAgent?.(agent.name);
                   }
                 }}
                 title={t("agentConfig")}
@@ -191,7 +285,8 @@ export function AgentSidebarTree({
               <div className="agent-tree-env-body">
                 <button
                   type="button"
-                  onClick={() => handleEnterInstance(env)}
+                  disabled={isEntering}
+                  onClick={() => handleEnterAgent(node)}
                   title={t("newInstance")}
                   className="agent-tree-new-instance"
                 >
@@ -203,7 +298,7 @@ export function AgentSidebarTree({
                       <div
                         key={inst.id}
                         className={`agent-tree-instance ${selectedInstanceId === inst.id ? "selected" : ""}`}
-                        onClick={() => handleEnterInstance(env, inst.instance_number)}
+                        onClick={() => handleEnterAgent(node, inst.instance_number)}
                       >
                         <span className={`status-dot ${getInstanceStatus(inst)}`} />
                         <span className="truncate">
