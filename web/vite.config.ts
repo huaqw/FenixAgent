@@ -20,6 +20,7 @@ export default defineConfig({
       "@/src": path.resolve(__dirname, "src"),
       "@/components": path.resolve(__dirname, "components"),
       "@server": path.resolve(__dirname, "../src"),
+      "@mothership/sdk": path.resolve(__dirname, "../packages/sdk/src/index.ts"),
     },
   },
   build: {
