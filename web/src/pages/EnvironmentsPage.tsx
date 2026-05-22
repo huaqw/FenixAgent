@@ -2,10 +2,12 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   Bot,
+  Check,
   ChevronDown,
   LayoutGrid,
   List,
   Loader2,
+  Lock,
   Pencil,
   Plus,
   Power,
@@ -504,18 +506,7 @@ export function EnvironmentsPage() {
                         onClick={() => handleViewSecret(env.id)}
                         title={t("actions.viewSecret")}
                       >
-                        <svg
-                          className="h-3.5 w-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
+                        <Lock className="h-3.5 w-3.5" />
                       </Button>
                       {env.instance_id && online && (
                         <Button
@@ -807,19 +798,7 @@ export function EnvironmentsPage() {
                 <span
                   className={`inline-flex h-4 w-4 items-center justify-center rounded border ${formAutoStart ? "bg-brand border-brand" : "border-border bg-transparent"}`}
                 >
-                  {formAutoStart && (
-                    <svg
-                      className="h-3 w-3 text-white"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
+                  {formAutoStart && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                 </span>
                 <span className="text-sm text-text-primary cursor-pointer">{t("form.autoStartLabel")}</span>
               </button>
