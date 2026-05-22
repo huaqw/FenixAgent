@@ -91,8 +91,8 @@ interface AssistantBubbleProps {
 export function AssistantBubble({ entry, isStreaming, envId }: AssistantBubbleProps) {
   return (
     <div className="flex gap-4 items-start message-bubble-enter">
-      {/* Agent avatar */}
-      <div className="w-8 h-8 rounded-lg bg-brand/8 flex items-center justify-center flex-shrink-0 mt-0.5">
+      {/* Agent avatar — 窄屏隐藏 */}
+      <div className="hidden md:flex w-8 h-8 rounded-lg bg-brand/8 items-center justify-center flex-shrink-0 mt-0.5">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="6" r="2.5" fill="var(--color-brand)" />
           <circle cx="6" cy="16" r="2.5" fill="var(--color-brand)" opacity=".85" />

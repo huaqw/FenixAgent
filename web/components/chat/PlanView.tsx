@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import type { PlanEntry, PlanEntryPriority, PlanEntryStatus } from "../../src/acp/types";
 import type { PlanDisplayEntry } from "../../src/lib/types";
@@ -32,15 +32,10 @@ export function PlanDisplay({ entry }: PlanDisplayProps) {
           className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-surface-1/50 transition-colors"
           onClick={() => setCollapsed(!collapsed)}
         >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
+          <ChevronRight
+            size={12}
             className={cn("transition-transform text-text-muted flex-shrink-0", collapsed && "rotate-90")}
-          >
-            <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
-          </svg>
+          />
 
           <span className="text-xs font-display font-medium text-text-secondary">执行计划</span>
 

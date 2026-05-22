@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ToolCallData, ToolCallEntry } from "../../src/lib/types";
 import { cn } from "../../src/lib/utils";
@@ -179,14 +180,10 @@ function ToolCallRow({ tool, onPermissionRespond }: ToolCallRowProps) {
 
         {/* 展开指示 — chevron */}
         {(hasOutput || tool.status === "running") && (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
+          <ChevronRight
+            size={10}
             className={cn("tool-call-chevron flex-shrink-0 text-text-dim", showDetail && "tool-call-chevron-open")}
-          >
-            <path d="M3 2L7 5L3 8" stroke="currentColor" strokeWidth="1.2" fill="none" />
-          </svg>
+          />
         )}
       </div>
 

@@ -147,7 +147,8 @@ bun test web/src/__tests__/config-mcp-page.test.ts  # 前端单个文件
 
 - 组件基础：Radix UI（通过 shadcn/ui 包装，`web/components/ui/`）
 - 组件生成：通过 shadcn CLI（`bunx shadcn add <component>`），配置见根目录 `components.json`。禁止手写 Radix 原生组件，优先用 shadcn/ui 包装
-- 风格：new-york，图标：lucide-react
+- 风格：new-york
+- 图标：**lucide-react 是唯一的图标来源**，禁止内联 `<svg>` 手写图标。所有图标必须从 `lucide-react` 导入具名组件（如 `import { ChevronRight } from "lucide-react"`）。需要自定义大小/颜色时通过 `className` 和 `size` prop 控制，不要为此写内联 SVG。lucide 没有的图标应提交 PR 或用简单 CSS 代替，不要内联 SVG
 - 样式：Tailwind CSS v4 + `tw-animate-css` + `tailwind-merge` + `class-variance-authority`
 - Toast：sonner
 - 动画：motion
@@ -186,18 +187,49 @@ bun test web/src/__tests__/config-mcp-page.test.ts  # 前端单个文件
 
 ### 前端 i18n 国际化
 
-react-i18next + i18next，英文默认，中英双语。命名空间见 `web/src/i18n/locales/en/`。
+react-i18next + i18next，英文默认，中英双语。
+
+**适用范围**：所有 `web/` 下的 TSX 文件均须遵守，无例外。包括 `web/components/`、`web/src/pages/`、`web/src/components/` 下的所有组件（含 `chat/`、`ai-elements/`、`agent-panel/` 等子目录）。不遵守 i18n 的组件不应该被合入。
+
+**命名空间**：见 `web/src/i18n/index.ts` 的 `NS` 常量。现有命名空间：common / login / sidebar / dashboard / agents / models / skills / mcp / tasks / workflows / sessions / environments / orgs / apikey / channels / knowledge / agentPanel / components。
 
 - 语言检测：localStorage `rcs-lang` → `navigator.language`
 - 翻译文件：`web/src/i18n/locales/{en,zh}/<namespace>.json`
+- 命名空间选择：用 `NS` 常量（`useTranslation(NS.AGENT_PANEL)`），不要用字符串字面量（`useTranslation("agentPanel")`）
+- 公共组件（`web/components/` 下被多处引用的组件）使用 `"components"` 命名空间；页面专属内容使用对应页面命名空间
 
-新增页面 i18n 步骤：
+**新增命名空间步骤**（仅新建页面/模块时需要）：
 
 1. 创建 `en/<namespace>.json` 和 `zh/<namespace>.json`
-2. 在 `web/src/i18n/index.ts` 中添加 import、`NS` 常量、resources 注册、ns 数组
-3. 组件中 `const { t } = useTranslation("<namespace>")`
+2. 在 `web/src/i18n/index.ts` 中添加 import、`NS` 常量、en/zh resources 注册、ns 数组
+3. 组件中 `const { t } = useTranslation(NS.<NAMESPACE>)`
 
-禁止：硬编码中文字符串（注释除外）、模块级 `i18n.t()` 调用、新建 `*-i18n.test.ts`
+**硬编码规则**：
+
+- **禁止**在 JSX 中硬编码用户可见的英文字符串或中文字符串（按钮文字、标题、提示、placeholder、错误提示、状态标签等一律走 `t()`）
+- 中文注释不受此限制
+- `console.log` / `console.error` 中的调试信息不受此限制
+- placeholder 默认值（如 `placeholder = "给智能体发送消息…"`）也必须走 i18n
+- `title` / `aria-label` 等 HTML 属性中的文字也必须走 i18n
+- toast 消息中的文字也必须走 i18n
+
+**常见违规模式**（绝对禁止）：
+
+```tsx
+// ❌ 硬编码中文
+<span>执行计划</span>
+<span>{running} 运行中</span>
+<span>暂无会话</span>
+placeholder = "给智能体发送消息…"
+title="命令列表"
+
+// ✅ 正确做法
+<span>{t("plan.title")}</span>
+<span>{t("toolCall.running", { count: running })}</span>
+placeholder={t("input.placeholder")}
+```
+
+**禁止**：模块级 `i18n.t()` 调用、新建 `*-i18n.test.ts`
 
 ## 配置存储
 
