@@ -12,7 +12,7 @@ COPY src ./src
 COPY web ./web
 COPY components.json drizzle.config.ts ./
 RUN bun run build:web
-RUN bun build src/index.ts --outfile=dist/server.js --target=bun
+RUN bun build src/index.ts --outfile=dist/server.js --target=bun --sourcemap=external
 
 ############### production image ###############
 
