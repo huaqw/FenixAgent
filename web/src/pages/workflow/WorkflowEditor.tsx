@@ -17,6 +17,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
 import {
   AlertTriangle,
@@ -404,7 +405,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
       } catch (err) {
         console.error(err);
-        alert(`${t("editor.import_yaml_failed")}: ${err instanceof Error ? err.message : String(err)}`);
+        toast.error(`${t("editor.import_yaml_failed")}: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
       syncYaml();
@@ -443,7 +444,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
           setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
         } catch (err) {
           console.error(err);
-          alert(`${t("editor.import_file_failed")}: ${err instanceof Error ? err.message : String(err)}`);
+          toast.error(`${t("editor.import_file_failed")}: ${err instanceof Error ? err.message : String(err)}`);
         }
       };
       reader.readAsText(file);
@@ -465,7 +466,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     } catch (err) {
       console.error(err);
       pushWorkflowError("save", (err as Error).message);
-      alert(`${t("editor.save_failed")}: ${(err as Error).message}`);
+      toast.error(`${t("editor.save_failed")}: ${(err as Error).message}`);
       setSaveStatus("idle");
     }
   }, [syncYaml, workflowId, t]);
@@ -481,7 +482,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
       setSaveStatus("idle");
     } catch (err) {
       console.error(err);
-      alert(`${t("editor.save_failed")}: ${(err as Error).message}`);
+      toast.error(`${t("editor.save_failed")}: ${(err as Error).message}`);
       setSaveStatus("idle");
       return;
     }
@@ -489,11 +490,11 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     setPublishing(true);
     try {
       const result = await workflowDefApi.publish(workflowId);
-      alert(t("editor.published_as", { version: result.version }));
+      toast.success(t("editor.published_as", { version: result.version }));
     } catch (err) {
       console.error(err);
       pushWorkflowError("publish", (err as Error).message);
-      alert(`${t("editor.publish_failed")}: ${(err as Error).message}`);
+      toast.error(`${t("editor.publish_failed")}: ${(err as Error).message}`);
     } finally {
       setPublishing(false);
     }
@@ -694,6 +695,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     } catch (err) {
       console.error(err);
       pushWorkflowError("run", (err as Error).message);
+      toast.error(`${t("editor.run_failed")}: ${(err as Error).message}`);
     } finally {
       setRunning(false);
     }
@@ -707,7 +709,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
       await loadRunData(activeRunId);
     } catch (err) {
       console.error(err);
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   }, [activeRunId, loadRunData]);
 
@@ -722,7 +724,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         setRunApprovals(Array.isArray(list) ? list : []);
       } catch (err) {
         console.error(err);
-        alert((err as Error).message);
+        toast.error((err as Error).message);
       }
     },
     [activeRunId, loadRunData],
@@ -788,7 +790,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         await loadRunData(result.runId);
       } catch (err) {
         console.error(err);
-        alert(`${t("editor.rerun_failed")}: ${(err as Error).message}`);
+        toast.error(`${t("editor.rerun_failed")}: ${(err as Error).message}`);
       } finally {
         setRunning(false);
       }
@@ -839,7 +841,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
       if (!selectedNode || newId === selectedNode.id || !newId.trim()) return;
       if (newId === START_NODE_ID) return;
       if (nodes.some((n) => n.id === newId)) {
-        alert(t("editor.node_id_exists"));
+        toast.error(t("editor.node_id_exists"));
         return;
       }
       const oldId = selectedNode.id;
@@ -2261,7 +2263,7 @@ function VersionPanel({
         loadData();
       } catch (err) {
         console.error(err);
-        alert(`${t("versions.operation_failed")}: ${(err as Error).message}`);
+        toast.error(`${t("versions.operation_failed")}: ${(err as Error).message}`);
       }
     },
     [workflowId, loadData, t],
@@ -2272,10 +2274,10 @@ function VersionPanel({
       if (!workflowId) return;
       try {
         await workflowDefApi.restoreToDraft(workflowId, version);
-        alert(t("versions.restore_success"));
+        toast.success(t("versions.restore_success"));
       } catch (err) {
         console.error(err);
-        alert(`${t("versions.restore_failed")}: ${(err as Error).message}`);
+        toast.error(`${t("versions.restore_failed")}: ${(err as Error).message}`);
       }
     },
     [workflowId, t],
