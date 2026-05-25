@@ -1,4 +1,4 @@
-import { type Edge, type Node } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -19,10 +19,12 @@ export interface UseWorkflowPersistenceParams {
   setYamlText: (text: string) => void;
   setSelectedNode: (node: Node | null) => void;
   setMeta: (fn: (prev: WfMeta) => WfMeta) => void;
-  setDryRunResult: (result: {
-    valid: boolean;
-    issues: Array<{ type: string; message: string; field?: string }>;
-  } | null) => void;
+  setDryRunResult: (
+    result: {
+      valid: boolean;
+      issues: Array<{ type: string; message: string; field?: string }>;
+    } | null,
+  ) => void;
   setYamlOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
 }
 
@@ -89,7 +91,19 @@ export function useWorkflowPersistence(params: UseWorkflowPersistenceParams): Us
       syncYaml();
       setYamlOpen(true);
     }
-  }, [yamlOpen, yamlText, setNodes, setEdges, setMeta, setSelectedNode, setDryRunResult, syncYaml, fitView, t, setYamlOpen]);
+  }, [
+    yamlOpen,
+    yamlText,
+    setNodes,
+    setEdges,
+    setMeta,
+    setSelectedNode,
+    setDryRunResult,
+    syncYaml,
+    fitView,
+    t,
+    setYamlOpen,
+  ]);
 
   const handleExportYaml = useCallback(() => {
     const y = syncYaml();

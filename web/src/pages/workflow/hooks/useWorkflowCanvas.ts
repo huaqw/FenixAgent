@@ -26,10 +26,12 @@ export interface UseWorkflowCanvasParams {
   fitView: (opts?: { padding?: number; duration?: number }) => void;
   pendingConnectSource: RefObject<string | null>;
   didConnect: RefObject<boolean>;
-  setDryRunResult: (result: {
-    valid: boolean;
-    issues: Array<{ type: string; message: string; field?: string }>;
-  } | null) => void;
+  setDryRunResult: (
+    result: {
+      valid: boolean;
+      issues: Array<{ type: string; message: string; field?: string }>;
+    } | null,
+  ) => void;
   setYamlText: (text: string) => void;
   setSelectedRunNodeId: (id: string | null) => void;
 }

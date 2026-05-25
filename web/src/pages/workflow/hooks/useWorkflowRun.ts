@@ -1,7 +1,8 @@
-import { type Edge, type Node } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { workflowDefApi } from "../../../api/workflow-defs";
 import {
   type DAGEvent,
   type DAGSnapshot,
@@ -9,10 +10,14 @@ import {
   type PendingApproval,
   workflowEngineApi,
 } from "../../../api/workflow-engine";
-import { workflowDefApi } from "../../../api/workflow-defs";
-import { buildRunSummary, clearWorkflowEvents, pushWorkflowError, pushWorkflowRunStatus } from "../../../lib/use-workflow-events";
-import { START_NODE_ID } from "../yaml-utils";
+import {
+  buildRunSummary,
+  clearWorkflowEvents,
+  pushWorkflowError,
+  pushWorkflowRunStatus,
+} from "../../../lib/use-workflow-events";
 import { dedupEvents } from "../utils";
+import { START_NODE_ID } from "../yaml-utils";
 
 export interface UseWorkflowRunParams {
   workflowId: string | undefined;
@@ -437,19 +442,7 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
     } catch (err) {
       console.error(`${t("editor.refresh_failed")}:`, err);
     }
-  }, [
-    workflowId,
-    isRunMode,
-    isRunDone,
-    activeRunId,
-    setNodes,
-    setEdges,
-    setMeta,
-    setLastSavedYaml,
-    fitView,
-    updateNodesFromSnapshotRef,
-    t,
-  ]);
+  }, [workflowId, isRunMode, isRunDone, activeRunId, setNodes, setEdges, setMeta, setLastSavedYaml, fitView, t]);
 
   const clearDryRunResult = useCallback(() => setDryRunResult(null), []);
 

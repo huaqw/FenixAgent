@@ -47,6 +47,8 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
+import { workflowDefApi } from "../../api/workflow-defs";
 import {
   type DAGEvent,
   type DAGSnapshot,
@@ -55,7 +57,6 @@ import {
   type RunSummary,
   workflowEngineApi,
 } from "../../api/workflow-engine";
-import { useWorkflowEvents } from "../../lib/use-workflow-events";
 import { ChatPanel } from "../agent-panel/ChatPanel";
 import { useWorkflowCanvas } from "./hooks/useWorkflowCanvas";
 import { useWorkflowMetaAgent } from "./hooks/useWorkflowMetaAgent";
@@ -64,15 +65,7 @@ import { useWorkflowRun } from "./hooks/useWorkflowRun";
 import { autoLayout } from "./layout";
 import { nodeTypes } from "./nodes";
 import { DAG_STATUS_CFG, dedupEvents } from "./utils";
-import {
-  createStartNode,
-  defaultMeta,
-  START_NODE_ID,
-  type WfMeta,
-  yamlToFlow,
-} from "./yaml-utils";
-import { workflowDefApi } from "../../api/workflow-defs";
-import { toast } from "sonner";
+import { createStartNode, defaultMeta, START_NODE_ID, type WfMeta, yamlToFlow } from "./yaml-utils";
 import "./workflow.css";
 
 const PALETTE_ITEMS = [
@@ -118,15 +111,8 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
   const didConnect = useRef(false);
 
   // ── Meta Agent Chat ──
-  const {
-    scenePrompt,
-    chatOpen,
-    setChatOpen,
-    metaAgentId,
-    agentList,
-    agentOverrideOpen,
-    setAgentOverrideOpen,
-  } = useWorkflowMetaAgent({ workflowId, meta });
+  const { scenePrompt, chatOpen, setChatOpen, metaAgentId, agentList, agentOverrideOpen, setAgentOverrideOpen } =
+    useWorkflowMetaAgent({ workflowId, meta });
 
   // ── Persistence hook ──
   const {
@@ -261,7 +247,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         console.error("Failed to load workflow:", err);
       }
     })();
-  }, [workflowId, fitView, setEdges, setNodes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workflowId, fitView, setEdges, setNodes, setLastSavedYaml]); // biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
 
   // Load historical run data (point-in-time replay)
   useEffect(() => {
