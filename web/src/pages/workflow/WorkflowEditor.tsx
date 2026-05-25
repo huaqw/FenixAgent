@@ -61,7 +61,7 @@ import {
   workflowEngineApi,
 } from "../../api/workflow-engine";
 import { ChatPanel } from "../agent-panel/ChatPanel";
-import { useWorkflowEvents } from "../../lib/use-workflow-events";
+import { buildRunSummary, useWorkflowEvents } from "../../lib/use-workflow-events";
 import { autoLayout } from "./layout";
 import { nodeTypes } from "./nodes";
 import {
@@ -606,6 +606,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         if (snap) {
           setRunSnapshot(snap);
           updateNodesFromSnapshot(snap);
+          pushWorkflowRunStatus(buildRunSummary(snap));
         }
         if (Array.isArray(evts)) setRunEvents(dedupEvents(evts));
       } catch (err) {
@@ -663,6 +664,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     const y = syncYaml();
     setRunning(true);
     setDryRunResult(null);
+    clearWorkflowEvents();
 
     if (workflowId) {
       try {
@@ -689,6 +691,9 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
       setSelectedNodeOutput(null);
       setRightTab("run");
       await loadRunData(result.runId);
+    } catch (err) {
+      console.error(err);
+      pushWorkflowError("run", (err as Error).message);
     } finally {
       setRunning(false);
     }
