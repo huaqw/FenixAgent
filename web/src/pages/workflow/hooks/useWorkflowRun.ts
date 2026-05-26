@@ -243,13 +243,11 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
       }
     }
 
-    setNodes((nds) => {
-      const updated = nds.map((n) =>
+    setNodes((nds) =>
+      nds.map((n) =>
         n.id === START_NODE_ID ? n : { ...n, data: { ...n.data, _runStatus: "RUNNING", _exitCode: undefined } },
-      );
-      return autoLayout(updated, edges);
-    });
-    setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
+      ),
+    );
 
     try {
       const result = await workflowEngineApi.run(y, undefined, workflowId);
@@ -271,7 +269,6 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
   }, [
     syncYaml,
     workflowId,
-    edges,
     setNodes,
     setActiveRunId,
     setRunSnapshot,
@@ -281,7 +278,6 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
     setSelectedNodeOutput,
     setRightTab,
     loadRunData,
-    fitView,
     t,
   ]);
 
@@ -357,15 +353,13 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
             }
           }
         }
-        const updated = nds.map((n) => {
+        return nds.map((n) => {
           if (n.id === START_NODE_ID) return n;
           const isTarget = n.id === fromNodeId || downstream.has(n.id);
           if (isTarget) return { ...n, data: { ...n.data, _runStatus: "RUNNING", _exitCode: undefined } };
           return n;
         });
-        return autoLayout(updated, edges);
       });
-      setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
 
       try {
         const result = await workflowEngineApi.rerunFrom(activeRunId, y, fromNodeId, workflowId);
@@ -398,7 +392,6 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
       setSelectedNodeOutput,
       setRightTab,
       loadRunData,
-      fitView,
       t,
     ],
   );
@@ -436,7 +429,7 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
       const wf = await workflowDefApi.get(workflowId);
       if (wf.draftYaml) {
         const { nodes: newNodes, edges: newEdges, meta: newMeta } = yamlToFlow(wf.draftYaml);
-        setNodes(newNodes);
+        setNodes(autoLayout(newNodes, newEdges));
         setEdges(newEdges);
         setMeta(() => newMeta);
         setLastSavedYaml(wf.draftYaml);
