@@ -158,10 +158,17 @@ export function ChatInput({
       const value = e.target.value;
       setText(value);
 
-      // 检测 slash 命令模式：仅在输入开头输入 / 时触发
+      // 检测 slash 命令模式：仅在输入开头输入 / 且还未输入参数时触发
       if (value.startsWith("/") && commands && commands.length > 0) {
-        setShowCommandMenu(true);
-        setCommandFilter(value.slice(1).split(/\s/)[0] || "");
+        const parts = value.slice(1).split(/\s/);
+        // 只在输入命令名阶段（没有空格后跟参数）才显示菜单
+        if (parts.length <= 1) {
+          setShowCommandMenu(true);
+          setCommandFilter(parts[0] || "");
+        } else {
+          setShowCommandMenu(false);
+          setCommandFilter("");
+        }
       } else if (showCommandMenu) {
         setShowCommandMenu(false);
         setCommandFilter("");

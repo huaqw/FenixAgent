@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { agentApi, kbApi, modelApi, skillConfigApi } from "@/src/api/sdk";
+import { agentApi, envApi, instanceApi, kbApi, modelApi, skillConfigApi } from "@/src/api/sdk";
 import { PermissionTab } from "../../components/PermissionTab";
 import {
   buildAgentPayload,
@@ -27,6 +37,7 @@ interface AgentConfigDialogProps {
 
 export function AgentConfigDialog({ open, onOpenChange, agentName }: AgentConfigDialogProps) {
   const { t } = useTranslation("agents");
+  const { t: tAgentPanel } = useTranslation("agentPanel");
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [knowledgeOptions, setKnowledgeOptions] = useState<KnowledgeBaseInfo[]>([]);
   const [skillOptions, setSkillOptions] = useState<{ id: string; name: string; description: string }[]>([]);
@@ -37,6 +48,8 @@ export function AgentConfigDialog({ open, onOpenChange, agentName }: AgentConfig
   const [formSteps, setFormSteps] = useState("50");
   const [formPrompt, setFormPrompt] = useState("");
   const [formSaving, setFormSaving] = useState(false);
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false);
+  const [restarting, setRestarting] = useState(false);
   const [formDescription, setFormDescription] = useState("");
   const [formVariant, setFormVariant] = useState("");
   const [formTemperature, setFormTemperature] = useState("");
@@ -190,8 +203,8 @@ export function AgentConfigDialog({ open, onOpenChange, agentName }: AgentConfig
         return;
       }
       toast.success(t("save.successUpdate"));
-      onOpenChange(false);
       dispatchConfigChange("agents");
+      setRestartDialogOpen(true);
     } catch (e) {
       console.error(t("save.errorGeneric", { message: "" }), e);
       toast.error(t("save.errorGeneric", { message: e instanceof Error ? e.message : t("unknownError") }));
@@ -217,9 +230,53 @@ export function AgentConfigDialog({ open, onOpenChange, agentName }: AgentConfig
     formSkillIds,
     agentName,
     knowledgeOptions,
-    onOpenChange,
     t,
   ]);
+
+  const getRunningInstanceIds = useCallback(async () => {
+    try {
+      const { data: agentsResult } = await agentApi.list();
+      const rawAgents = (agentsResult as unknown as { agents?: { id: string; name: string }[] } | null)?.agents;
+      const agents = Array.isArray(rawAgents) ? rawAgents : [];
+      const matchedAgent = agents.find((a) => a.name === agentName);
+      if (!matchedAgent) return [];
+
+      const { data: envsData } = await envApi.list();
+      const envs = Array.isArray(envsData)
+        ? (envsData as { id: string; agent_config_id?: string; instances_count?: number }[])
+        : [];
+      const matchedEnv = envs.find((e) => e.agent_config_id === matchedAgent.id);
+      if (!matchedEnv || (matchedEnv.instances_count ?? 0) <= 0) return [];
+
+      const { data: instData } = await envApi.listInstances({ id: matchedEnv.id });
+      const instances = (instData as { instances?: { id: string; status: string }[] } | null)?.instances ?? [];
+      return instances
+        .filter((inst) => inst.status === "running" || inst.status === "starting")
+        .map((inst) => ({ id: inst.id, environmentId: matchedEnv.id }));
+    } catch (err) {
+      console.error("Failed to get running instances:", err);
+      return [];
+    }
+  }, [agentName]);
+
+  const handleRestartAfterSave = useCallback(async () => {
+    setRestarting(true);
+    try {
+      const runningInstances = await getRunningInstanceIds();
+      for (const inst of runningInstances) {
+        await instanceApi.delete({ id: inst.id });
+        await instanceApi.spawn({ environmentId: inst.environmentId });
+      }
+      toast.success(tAgentPanel("restartSuccess"));
+    } catch (err) {
+      console.error("Failed to restart:", err);
+      toast.error(tAgentPanel("restartFailed", { message: (err as Error).message }));
+    } finally {
+      setRestarting(false);
+      setRestartDialogOpen(false);
+      onOpenChange(false);
+    }
+  }, [getRunningInstanceIds, tAgentPanel, onOpenChange]);
 
   if (!open) return null;
 
@@ -537,6 +594,36 @@ export function AgentConfigDialog({ open, onOpenChange, agentName }: AgentConfig
           </>
         )}
       </div>
+
+      <AlertDialog
+        open={restartDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRestartDialogOpen(false);
+            onOpenChange(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tAgentPanel("configSavedRestartTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{tAgentPanel("configSavedRestartDescription")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setRestartDialogOpen(false);
+                onOpenChange(false);
+              }}
+            >
+              {tAgentPanel("restartLater")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestartAfterSave} disabled={restarting}>
+              {restarting ? tAgentPanel("restarting") : tAgentPanel("restart")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

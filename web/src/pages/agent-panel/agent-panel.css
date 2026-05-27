@@ -323,6 +323,91 @@ file-tree-container {
   color: var(--color-text-secondary);
 }
 
+/* 智能体行操作按钮 */
+.agent-tree-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* hover 时才显示的操作按钮（重启、删除） */
+.agent-tree-hover-action {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.agent-tree-env-header:hover .agent-tree-hover-action {
+  opacity: 1;
+}
+
+.agent-tree-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms;
+  padding: 0;
+}
+
+.agent-tree-action-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.agent-tree-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 实例行操作按钮（hover 显示） */
+.agent-tree-instance-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.agent-tree-instance:hover .agent-tree-instance-actions {
+  opacity: 1;
+}
+
+/* chevron 可点击区域 */
+.agent-tree-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.agent-tree-chevron:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
 /* ---------- 状态指示灯 ---------- */
 .status-dot {
   width: 8px;

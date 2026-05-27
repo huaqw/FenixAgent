@@ -48,7 +48,7 @@ export function ModelSelectorPopover({ client, onModelSelect }: ModelSelectorPop
           disabled={!hasModels || isLoading}
         >
           {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-          <span className="max-w-32 truncate">{currentModel?.name ?? "Select Model"}</span>
+          <span className="truncate">{currentModel?.name ?? "Select Model"}</span>
           {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </Button>
       </PopoverTrigger>
