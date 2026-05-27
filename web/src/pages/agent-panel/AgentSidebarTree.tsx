@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronRight, Loader2, Plus, RotateCw, Settings, Square } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Loader2, Plus, RotateCw, Settings, Square, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -282,6 +282,24 @@ export function AgentSidebarTree({
     setRestartTargetNode(null);
   }, [restartTargetNode, getRunningInstances, selectedRestartInstances, handleRestartInstance]);
 
+  const handleDeleteAgent = useCallback(
+    async (node: AgentTreeNode) => {
+      try {
+        const { error } = await agentApi.delete(node.agent.name);
+        if (error) {
+          toast.error(t("deleteFailed", { message: error.message }));
+          return;
+        }
+        toast.success(t("deleteSuccess"));
+        await loadData();
+      } catch (err) {
+        console.error("Failed to delete agent:", err);
+        toast.error(t("deleteFailed", { message: (err as Error).message }));
+      }
+    },
+    [t, loadData],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-6">
@@ -380,6 +398,14 @@ export function AgentSidebarTree({
                   title={t("agentConfig")}
                 >
                   <Settings className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="agent-tree-action-btn"
+                  onClick={() => handleDeleteAgent(node)}
+                  title={t("deleteAgent")}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

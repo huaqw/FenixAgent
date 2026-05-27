@@ -49,5 +49,9 @@
   "restartLater": "稍后",
   "configSavedRestartTitle": "配置已保存",
   "configSavedRestartDescription": "配置已保存，需要重启智能体实例才能生效。是否立即重启？",
-  "selectAll": "全选"
+  "selectAll": "全选",
+  "deleteAgent": "删除智能体",
+  "deleteAgentConfirm": "确定要删除智能体 \"{{name}}\" 吗？此操作不可撤销。",
+  "deleteSuccess": "智能体已删除",
+  "deleteFailed": "删除智能体失败: {{message}}"
 }
