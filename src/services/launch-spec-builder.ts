@@ -118,7 +118,7 @@ export function setBuildLaunchSpec(fn: ((input: BuildLaunchSpecInput) => Promise
 
 export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<AgentLaunchSpec> {
   if (_buildLaunchSpec) return _buildLaunchSpec(input);
-  const { organizationId, userId, agentName, agentConfigId, agentPrompt, modelRef, fullConfig, environmentSecret } =
+  const { organizationId, userId, environmentId, agentName, agentConfigId, agentPrompt, modelRef, fullConfig, environmentSecret } =
     input;
 
   const agent = {
@@ -174,6 +174,7 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
   return {
     organizationId,
     userId,
+    ...(environmentId ? { environmentId } : {}),
     ...(input.extraEnv ? { env: input.extraEnv } : {}),
     agent,
     model,

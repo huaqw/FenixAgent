@@ -75,7 +75,7 @@ try {
     if (!env.userId) continue;
     if (!env.organizationId) continue;
     if (!env.autoStart) continue;
-    const cwd = resolveWorkspacePath(env.organizationId, env.userId);
+    const cwd = resolveWorkspacePath(env.organizationId, env.userId, env.id);
     if (!existsSync(cwd)) {
       console.log(`[RCS] Skipping environment ${env.name}: workspace directory does not exist (${cwd})`);
       continue;

@@ -203,6 +203,7 @@ export const environment = pgTable(
     id: varchar("id").primaryKey(),
     name: varchar("name").notNull(),
     description: text("description"),
+    // 已废弃：不再被读取，实际路径由 rowToRecord 用 resolveWorkspacePath(orgId, userId, envId) 实时计算
     workspacePath: varchar("workspace_path").notNull(),
     // UUID 强绑定 AgentConfig
     agentConfigId: uuid("agent_config_id").references(() => agentConfig.id, { onDelete: "set null" }),

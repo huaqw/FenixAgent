@@ -150,6 +150,7 @@ export async function spawnInstanceFromEnvironment(
   const launchSpec = await buildLaunchSpec({
     organizationId: env.organizationId ?? userId,
     userId: env.userId ?? userId,
+    environmentId: environmentId,
     agentName,
     agentConfigId: env.agentConfigId ?? null,
     agentPrompt,

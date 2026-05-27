@@ -126,10 +126,11 @@ bun test web/src/__tests__/config-mcp-page.test.ts  # 前端单个文件
 
 ### Workspace 自动计算
 
-路径：`{WORKSPACE_ROOT ?? cwd/workspaces}/{organizationId}/{userId}`
+路径：`{WORKSPACE_ROOT ?? cwd/workspaces}/{organizationId}/{userId}/{environmentId}`
 
-- `src/services/workspace-resolver.ts`：`resolveWorkspacePath(orgId, userId)`
-- 前端不填 workspace，后端自动计算写入 DB `workspacePath` 列
+- `src/services/workspace-resolver.ts`：`resolveWorkspacePath(orgId, userId, envId)`
+- workspace 路径运行时实时计算，不依赖 DB `workspacePath` 字段
+- 新 environment 的 `workspacePath` 列写空字符串，旧 environment 的为历史值
 
 ### ACP 协议要点
 
@@ -440,6 +441,10 @@ beforeEach(() => {
 7. **ACP vs RCS session ID**：ACP 返回 `ses_xxx`，RCS 用 `session_xxx`/`cse_xxx`。文件 API 须用 RCS ID（`resolveExistingSessionId` 转换）
 8. **requireOrgScope 校验链路**：新增 organization 级资源路由必须调用 `requireOrgScope`
 9. **@noble/ciphers 替代 crypto.subtle**：HTTP 环境下加密用 `@noble/ciphers`
+10. **`workspacePath` 废弃，实时计算**：`rowToRecord` 已统一用 `resolveWorkspacePath(orgId, userId, envId)` 计算 `workspacePath` 和 `directory`，DB 的 `workspace_path` 列不再被读取。禁止在其他地方直接用 `row.workspacePath`（DB 原始值）做路径操作，一律通过 `EnvironmentRecord.workspacePath`（已计算）使用
+11. **`||` vs `??` 陷阱**：`repo.create` 的默认值必须用 `??` 不用 `||`。空字符串 `""` 是 falsy 但不是 nullish，`"" || fallback` 会跳过空字符串直接走 fallback，`"" ?? fallback` 则保留空字符串。任何新参数如果允许空字符串作为合法值，必须用 `??`
+12. **改动涉及字段废弃时必须全局搜索所有读取点**：废弃一个 DB 字段（如 `workspacePath`）时，必须 `grep` 全部 `.workspacePath` / `.directory` 的读取点，逐一确认已迁移到新逻辑。不能只改写入端不改读取端——写入空字符串后，所有未迁移的读取点会拿到空值导致路径错误
+13. **workspace 路径由 plugin 根据 ID 自行计算，RCS 服务端不传绝对路径**：`opencode-runtime.ts` 的 `resolveWorkspace` 用 `organizationId + userId + environmentId` 拼 `cwd`。RCS 服务端只需确保 `environmentId` 通过 `AgentLaunchSpec` 正确传递（`instance.ts → buildLaunchSpec → launchInstance → plugin.prepareEnvironment`），不传 `workspace` 绝对路径——服务端和 plugin 的文件系统可能不同
 
 ### API/路由约定
 
