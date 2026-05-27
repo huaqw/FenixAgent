@@ -17,6 +17,7 @@ type AnyFn = (...args: any[]) => any;
  * 每个属性通过 Object.defineProperty 注册，getter 返回一个函数，
  * 调用时才查找 stub 注册表。
  */
+// biome-ignore lint/suspicious/noExplicitAny: stub 注册表需要宽松类型
 function createLazyMock(keys: readonly string[], getStub: (name: string) => any) {
   const obj: Record<string, unknown> = {};
   for (const key of keys) {
@@ -66,7 +67,10 @@ const CONFIG_PG_KEYS = [
   "upsertSkill",
 ] as const;
 
-mock.module("../services/config-pg", () => createLazyMock(CONFIG_PG_KEYS, getConfigPgStub as (name: string) => any));
+mock.module("../services/config-pg", () =>
+  // biome-ignore lint/suspicious/noExplicitAny: stub 注册表需要宽松类型
+  createLazyMock(CONFIG_PG_KEYS, getConfigPgStub as (name: string) => any),
+);
 
 // ── auth.api 方法名称 ──
 
@@ -82,6 +86,7 @@ const AUTH_API_KEYS = [
 ] as const;
 
 mock.module("../auth/better-auth", () => {
+  // biome-ignore lint/suspicious/noExplicitAny: stub 注册表需要宽松类型
   const apiObj = createLazyMock(AUTH_API_KEYS, getAuthApiStub as (name: string) => any);
   return {
     auth: {
@@ -96,6 +101,7 @@ mock.module("../auth/better-auth", () => {
 const API_KEY_SERVICE_KEYS = ["createApiKey", "hashApiKey"] as const;
 
 mock.module("../auth/api-key-service", () =>
+  // biome-ignore lint/suspicious/noExplicitAny: stub 注册表需要宽松类型
   createLazyMock(API_KEY_SERVICE_KEYS, getApiKeyServiceStub as (name: string) => any),
 );
 

@@ -6,6 +6,7 @@ type StubMap = Record<string, any>;
 
 export interface StubRegistry {
   stub: (overrides: StubMap) => void;
+  // biome-ignore lint/suspicious/noExplicitAny: stub 注册表需要宽松类型
   get: (name: string) => any;
   reset: () => void;
 }

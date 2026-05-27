@@ -86,11 +86,7 @@ export interface IEnvironmentRepo {
 }
 
 function rowToRecord(row: typeof environment.$inferSelect): EnvironmentRecord {
-  const computedWorkspace = resolveWorkspacePath(
-    row.organizationId ?? row.userId ?? "",
-    row.userId ?? "",
-    row.id,
-  );
+  const computedWorkspace = resolveWorkspacePath(row.organizationId ?? row.userId ?? "", row.userId ?? "", row.id);
   return {
     id: row.id,
     name: row.name,

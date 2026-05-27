@@ -11,7 +11,6 @@ import { PermissionTab } from "../../components/PermissionTab";
 import { dispatchConfigChange } from "../../lib/config-events";
 import type { KnowledgeBaseInfo } from "../../types/knowledge";
 import {
-  type AgentKnowledgeFormState,
   buildAgentPayload,
   buildKnowledgeFormState,
   DEFAULT_AGENT_MODE,

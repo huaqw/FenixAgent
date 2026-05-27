@@ -10,7 +10,7 @@ import type { AgentFullConfig } from "./config-pg";
 import { getAgentConfigById, getAgentFullConfig } from "./config-pg";
 import { getCoreRuntime } from "./core-bootstrap";
 import { buildLaunchSpec } from "./launch-spec-builder";
-import { _sessionRepo, findOrCreateForEnvironment } from "./session";
+import { _sessionRepo } from "./session";
 
 // ────────────────────────────────────────────
 // 公共类型

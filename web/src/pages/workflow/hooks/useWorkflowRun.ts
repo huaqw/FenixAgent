@@ -210,7 +210,6 @@ export function useWorkflowRun(params: UseWorkflowRunParams): UseWorkflowRunRetu
       cancelled = true;
       if (pollRef.current) clearTimeout(pollRef.current);
     };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: setRunning is a stable setState reference
   }, [activeRunId, runSnapshot, loadRunData]);
 
   useEffect(() => {
