@@ -33,5 +33,21 @@
   "navigation": "设置",
   "createAgent": "新建智能体",
   "agentConfig": "智能体配置",
-  "newInstance": "新建实例"
+  "newInstance": "新建实例",
+  "restart": "重启",
+  "stop": "停止",
+  "restartAgent": "重启智能体",
+  "restarting": "重启中...",
+  "stopping": "停止中...",
+  "restartSuccess": "实例已重启",
+  "restartFailed": "重启失败: {{message}}",
+  "stopSuccess": "实例已停止",
+  "noInstancesToRestart": "没有运行中的实例可重启",
+  "restartTitle": "重启智能体实例",
+  "restartDescription": "选择需要重启的实例。配置更改需要重启才能生效。",
+  "restartConfirm": "重启选中",
+  "restartLater": "稍后",
+  "configSavedRestartTitle": "配置已保存",
+  "configSavedRestartDescription": "配置已保存，需要重启智能体实例才能生效。是否立即重启？",
+  "selectAll": "全选"
 }

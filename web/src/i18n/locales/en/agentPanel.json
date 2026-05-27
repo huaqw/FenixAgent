@@ -33,5 +33,21 @@
   "navigation": "Settings",
   "createAgent": "New Agent",
   "agentConfig": "Agent Config",
-  "newInstance": "New Instance"
+  "newInstance": "New Instance",
+  "restart": "Restart",
+  "stop": "Stop",
+  "restartAgent": "Restart Agent",
+  "restarting": "Restarting...",
+  "stopping": "Stopping...",
+  "restartSuccess": "Instance restarted",
+  "restartFailed": "Restart failed: {{message}}",
+  "stopSuccess": "Instance stopped",
+  "noInstancesToRestart": "No running instances to restart",
+  "restartTitle": "Restart Agent Instances",
+  "restartDescription": "Select instances to restart. Configuration changes require a restart to take effect.",
+  "restartConfirm": "Restart Selected",
+  "restartLater": "Later",
+  "configSavedRestartTitle": "Configuration Saved",
+  "configSavedRestartDescription": "Configuration has been saved. Agent instances need to restart for changes to take effect. Restart now?",
+  "selectAll": "Select All"
 }
