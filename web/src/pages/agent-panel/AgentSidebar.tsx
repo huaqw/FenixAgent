@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { NS } from "@/src/i18n";
 import { signOut, useSession } from "../../../src/lib/auth-client";
 import { OrgSwitcher } from "../../components/OrgSwitcher";
 import { AgentSidebarConfig, AgentSidebarQuickNav } from "./AgentSidebarConfig";
@@ -21,8 +22,8 @@ export function AgentSidebar({
   onCreateAgent,
   onEditAgent,
 }: AgentSidebarProps) {
-  const { t } = useTranslation("agentPanel");
-  const { t: tSidebar } = useTranslation("sidebar");
+  const { t } = useTranslation(NS.AGENT_PANEL);
+  const { t: tSidebar } = useTranslation(NS.SIDEBAR);
   const { data: session } = useSession();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -66,7 +67,7 @@ export function AgentSidebar({
             "shadow-[0_2px_8px_rgba(99,102,241,0.25)]",
           ].join(" ")}
         >
-          X
+          F
         </div>
         <span className="text-sm font-bold tracking-[0.02em] text-text-bright whitespace-nowrap overflow-hidden">
           {t("brand")}

@@ -1,7 +1,9 @@
 // ── session.ts async 函数移除冗余 Promise.resolve 验证 ──
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { ISessionRepo } from "../repositories";
 import {
   _setEventService,
+  _setSessionRepo,
   _setUuid,
   archiveSession,
   createSession,
@@ -20,6 +22,30 @@ _setEventService({
 } as any);
 
 _setUuid(() => "test-uuid-1234-5678-9abc-def012345678");
+
+const mockSessionRepo: ISessionRepo = {
+  create: mock(async (params) => ({
+    id: `${params.idPrefix ?? "session_"}testuuid123456789abcdef012345678`,
+    environmentId: params.environmentId ?? null,
+    title: params.title ?? null,
+    status: "idle",
+    source: params.source ?? "acp",
+    username: params.username ?? null,
+    userId: params.userId ?? null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })),
+  getById: mock(async () => undefined),
+  update: mock(async () => true),
+  delete: mock(async () => true),
+  listAll: mock(async () => []),
+  listByEnvironment: mock(async () => []),
+  listByUserId: mock(async () => []),
+  bindOwner: mock(async () => {}),
+  reset: () => {},
+};
+
+_setSessionRepo(mockSessionRepo);
 
 describe("session async cleanup (removed redundant Promise.resolve)", () => {
   beforeEach(() => {

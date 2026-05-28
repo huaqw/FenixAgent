@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins/organization";
 import { db } from "../db";
 import * as schema from "../db/schema";
+import { buildTrustedOrigins } from "./trusted-origins";
 
 function generateId(size = 32): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -22,7 +23,11 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // refresh once per day
   },
-  trustedOrigins: ["http://localhost:5173"],
+  trustedOrigins: buildTrustedOrigins({
+    trustedOrigins: process.env.RCS_TRUSTED_ORIGINS,
+    betterAuthUrl: process.env.BETTER_AUTH_URL,
+    rcsBaseUrl: process.env.RCS_BASE_URL,
+  }),
   plugins: [
     organization({
       allowUserToCreateOrganization: true,
