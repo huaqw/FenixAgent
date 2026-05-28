@@ -9,6 +9,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   RCS_HOST: z.string().default("0.0.0.0"),
   RCS_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  RCS_CORS_ORIGIN: z.string().default("*"),
+  RCS_TRUSTED_ORIGINS: z.string().default(""),
   RCS_BASE_URL: z.string().default(""),
   RCS_VERSION: z.string().default("0.1.0"),
   SKILL_DIR: z.string().default("./data/skills"),

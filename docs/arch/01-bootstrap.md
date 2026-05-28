@@ -47,6 +47,8 @@
 | 环境变量 | 默认值 | 说明 |
 |---------|--------|------|
 | `RCS_PORT` | 3000 | HTTP 端口 |
+| `RCS_CORS_ORIGIN` | `*` | CORS 允许来源，支持逗号分隔多个 origin |
+| `RCS_TRUSTED_ORIGINS` | 空 | better-auth 可信前端来源，支持逗号分隔；默认包含 localhost dev 和公开 base URL |
 | `RCS_BASE_URL` | 空 | 外部访问 URL，acp-link 回连时用 |
 | `RCS_API_KEYS` | 空 | 全局 API Key（逗号分隔），遗留用途 |
 | `RCS_WS_IDLE_TIMEOUT` | 255 | Bun WebSocket 空闲超时（秒） |
