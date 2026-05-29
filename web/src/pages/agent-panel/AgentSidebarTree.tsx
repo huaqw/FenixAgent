@@ -216,6 +216,10 @@ export function AgentSidebarTree({
       try {
         await instanceApi.delete({ id: instance.id });
         await instanceApi.spawn({ environmentId: envId });
+
+        // 通知 ChatPanel 重新连接
+        window.dispatchEvent(new CustomEvent("agent:reconnect", { detail: { envId } }));
+
         await loadData();
         toast.success(t("restartSuccess"));
       } catch (err) {
@@ -310,7 +314,7 @@ export function AgentSidebarTree({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto py-2">
+    <div className="flex-1 overflow-y-auto py-2 space-y-2">
       <div className="flex items-center justify-between px-4 pt-1 pb-2">
         <span className="agent-tree-section-title">{t("agents")}</span>
         {onCreateAgent && (
@@ -324,70 +328,95 @@ export function AgentSidebarTree({
           </button>
         )}
       </div>
-      {treeNodes.map((node, idx) => {
+      {treeNodes.map((node) => {
         const { agent, instances } = node;
         const collapsed = !expandedAgents[agent.id];
         const isEntering = enteringAgentId === agent.id;
         const runningInstances = getRunningInstances(node);
         const isRestarting = runningInstances.some((inst) => restartingIds.has(inst.id));
+        const initial = agent.name.charAt(0).toUpperCase();
+        const avatarBg = agent.color || "var(--color-brand)";
+
         return (
-          <div key={agent.id} className={idx > 0 ? "mt-1.5" : ""}>
-            <div className="agent-tree-env-header">
-              {/* 左侧 chevron：展开/折叠 */}
+          <div key={agent.id} className="relative mx-2">
+            {/* 卡片主体 */}
+            <button
+              type="button"
+              disabled={isEntering}
+              onClick={() => handleEnterAgent(node)}
+              className={[
+                "flex items-center gap-2.5 w-full p-2.5",
+                "border border-border-subtle rounded-[10px] bg-surface-1",
+                "cursor-pointer text-left font-[inherit]",
+                "transition-all duration-150",
+                "hover:bg-surface-hover hover:border-border-default hover:shadow-sm",
+                "disabled:opacity-60 disabled:cursor-not-allowed",
+              ].join(" ")}
+            >
+              {/* 头像 */}
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+                style={{ background: avatarBg }}
+              >
+                {isEntering ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <span className="text-white font-bold text-sm">{initial}</span>
+                )}
+              </div>
+
+              {/* 名称 + 描述 */}
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-text-primary truncate">{agent.name}</div>
+                <div className="text-[11px] text-text-dim truncate mt-0.5">
+                  {agent.description || agent.model || t("agentDefaultDesc")}
+                </div>
+              </div>
+            </button>
+
+            {/* 悬浮操作栏 */}
+            <div className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 type="button"
-                className="agent-tree-chevron"
+                className="flex items-center justify-center w-6 h-6 border-none rounded-md bg-surface-2 text-text-dim cursor-pointer hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50"
                 onClick={() =>
                   setExpandedAgents((prev) => ({
                     ...prev,
                     [agent.id]: !prev[agent.id],
                   }))
                 }
+                title={collapsed ? t("expandInstances") : t("collapseInstances")}
               >
                 {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
-
-              {/* 点击名字区域：进入默认实例 */}
               <button
                 type="button"
-                disabled={isEntering}
-                onClick={() => handleEnterAgent(node)}
-                className="flex items-center gap-1 flex-1 min-w-0 bg-transparent border-none cursor-pointer text-inherit p-0 text-left"
+                className="flex items-center justify-center w-6 h-6 border-none rounded-md bg-surface-2 text-text-dim cursor-pointer hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50"
+                disabled={isRestarting}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRestartAgent(node);
+                }}
+                title={t("restartAgent")}
               >
-                {isEntering ? (
-                  <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />
-                ) : (
-                  <Bot className="w-4 h-4 flex-shrink-0" />
-                )}
-                <span className="truncate">{agent.name}</span>
-                {instances.length > 0 && <span className="agent-tree-instance-count">{instances.length}</span>}
+                <RotateCw className={`w-3.5 h-3.5 ${isRestarting ? "animate-spin" : ""}`} />
               </button>
-
-              {/* 右侧操作按钮 */}
-              <div className="agent-tree-actions">
-                <button
-                  type="button"
-                  className="agent-tree-action-btn"
-                  disabled={isRestarting}
-                  onClick={() => handleRestartAgent(node)}
-                  title={t("restartAgent")}
-                >
-                  <RotateCw className={`w-3.5 h-3.5 ${isRestarting ? "animate-spin" : ""}`} />
-                </button>
-                <button
-                  type="button"
-                  className="agent-tree-action-btn"
-                  onClick={() => onEditAgent?.(agent.name)}
-                  title={t("agentConfig")}
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                className="flex items-center justify-center w-6 h-6 border-none rounded-md bg-surface-2 text-text-dim cursor-pointer hover:bg-surface-hover hover:text-text-primary transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditAgent?.(agent.name);
+                }}
+                title={t("agentConfig")}
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {/* 展开的实例列表 */}
             {!collapsed && (
-              <div className="agent-tree-env-body">
+              <div className="mt-1 py-0.5">
                 {instances.length > 0
                   ? instances.map((inst) => {
                       const isInstRestarting = restartingIds.has(inst.id);
@@ -395,15 +424,20 @@ export function AgentSidebarTree({
                       return (
                         <div
                           key={inst.id}
-                          className={`agent-tree-instance ${selectedInstanceId === inst.id ? "selected" : ""}`}
+                          className={[
+                            "flex items-center gap-2 px-3 py-1.5 ml-2 text-[13px] rounded-md cursor-pointer transition-colors",
+                            selectedInstanceId === inst.id
+                              ? "bg-brand-subtle text-brand"
+                              : "text-text-primary hover:bg-surface-hover",
+                          ].join(" ")}
                           onClick={() => handleEnterAgent(node, { instanceNumber: inst.instance_number })}
                         >
                           <span className={`status-dot ${getInstanceStatus(inst)}`} />
                           <span className="truncate">{t("instanceN", { number: inst.instance_number })}</span>
-                          <div className="agent-tree-instance-actions">
+                          <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                             <button
                               type="button"
-                              className="agent-tree-action-btn"
+                              className="flex items-center justify-center w-5.5 h-5.5 border-none rounded bg-transparent text-text-dim cursor-pointer hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50"
                               disabled={isInstRestarting}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -415,7 +449,7 @@ export function AgentSidebarTree({
                             </button>
                             <button
                               type="button"
-                              className="agent-tree-action-btn"
+                              className="flex items-center justify-center w-5.5 h-5.5 border-none rounded bg-transparent text-text-dim cursor-pointer hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50"
                               disabled={isInstStopping}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -430,15 +464,14 @@ export function AgentSidebarTree({
                       );
                     })
                   : null}
-                {/* 新实例按钮在底部 */}
                 <button
                   type="button"
                   disabled={isEntering}
                   onClick={() => handleEnterAgent(node, { spawnNew: true })}
                   title={t("newInstance")}
-                  className="agent-tree-new-instance"
+                  className="flex items-center gap-1.5 px-3 py-1 ml-2 text-[13px] text-text-dim cursor-pointer border-none rounded-md bg-transparent hover:bg-surface-hover hover:text-text-secondary transition-colors whitespace-nowrap"
                 >
-                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
                   <span>{t("newInstance")}</span>
                 </button>
               </div>
