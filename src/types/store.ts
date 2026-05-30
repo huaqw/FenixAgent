@@ -79,6 +79,19 @@ export interface WsSessionCleanupEntry {
 }
 
 // ────────────────────────────────────────────
+// Instance Supplement
+// Extracted from: src/services/instance.ts
+// ────────────────────────────────────────────
+
+/** RCS business fields not tracked by core RuntimeInstanceSnapshot */
+export interface InstanceSupplement {
+  userId: string;
+  environmentId: string;
+  instanceNumber: number;
+  organizationId: string;
+}
+
+// ────────────────────────────────────────────
 // Scheduler Job
 // Extracted from: src/services/scheduler.ts
 // ────────────────────────────────────────────
