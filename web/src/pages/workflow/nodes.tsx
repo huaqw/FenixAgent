@@ -14,6 +14,7 @@ import {
   Terminal,
   XCircle,
 } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 const NODE_COLORS: Record<string, { main: string; light: string; headerText: string }> = {
@@ -131,10 +132,23 @@ export function WorkflowNode({ data, id, selected, type }: NodeProps) {
       ? `0 0 0 3px ${colors.main}30`
       : "var(--shadow-card)";
 
+  // 入口：从当前节点的 inputs 字段解析
+  const inputPoints = useMemo(() => {
+    const inputs = d.inputs;
+    if (!inputs || typeof inputs !== "object") return [];
+    return Object.keys(inputs as Record<string, string>);
+  }, [d.inputs]);
+
+  // 出口：从内部注入的 _outputFields 解析
+  const outputPoints = useMemo(() => {
+    const fields = d._outputFields as string[] | undefined;
+    return fields ?? [];
+  }, [d._outputFields]);
+
   return (
     <div
       data-node-id={id}
-      className="bg-surface-1 overflow-hidden transition-[border-color,box-shadow] duration-150"
+      className="bg-surface-1 transition-[border-color,box-shadow] duration-150"
       style={{
         borderRadius: 8,
         minWidth: isStart ? 120 : 180,
@@ -144,15 +158,6 @@ export function WorkflowNode({ data, id, selected, type }: NodeProps) {
         boxShadow,
       }}
     >
-      {!isStart && (
-        <Handle
-          type="target"
-          position={Position.Top}
-          className="!w-2 !h-2 !border-2 !border-white transition-transform duration-150 hover:scale-140"
-          style={{ background: colors.main }}
-        />
-      )}
-
       <div
         className="flex items-center gap-1.5 font-semibold"
         style={{
@@ -161,6 +166,7 @@ export function WorkflowNode({ data, id, selected, type }: NodeProps) {
           padding: "5px 10px",
           letterSpacing: 0.3,
           justifyContent: isStart ? "center" : undefined,
+          borderRadius: "6px 6px 0 0",
         }}
       >
         {icon}
@@ -228,12 +234,108 @@ export function WorkflowNode({ data, id, selected, type }: NodeProps) {
         </div>
       )}
 
+      {/* 顶部：数据流入口 Handles + 逻辑边 Handle，一起水平分散 */}
+      {!isStart &&
+        inputPoints.length > 0 &&
+        inputPoints.map((param, i) => {
+          const total = inputPoints.length + 1;
+          const p = total === 1 ? 50 : ((i + 1) / (total + 1)) * 100;
+          return (
+            <Handle
+              key={`in-${param}`}
+              type="target"
+              position={Position.Top}
+              id={`in-${param}`}
+              className="![width:8px] ![height:8px] !border-2 !border-white"
+              style={{ background: "#f59e0b", left: `${p}%` }}
+            />
+          );
+        })}
+      {/* 逻辑边 target Handle — 排在数据流入口后面 */}
+      {!isStart && (
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="!w-2 !h-2 !border-2 !border-white"
+          style={{
+            background: colors.main,
+            left: inputPoints.length === 0 ? "50%" : `${((inputPoints.length + 1) / (inputPoints.length + 2)) * 100}%`,
+          }}
+        />
+      )}
+      {/* 入口标签 — 覆盖层，不影响 Handle 定位 */}
+      {!isStart &&
+        inputPoints.map((param, i) => {
+          const pct = inputPoints.length === 1 ? 50 : ((i + 1) / (inputPoints.length + 1)) * 100;
+          return (
+            <div
+              key={`label-in-${param}`}
+              className="wf-point-label-overlay"
+              style={{
+                position: "absolute",
+                top: -20,
+                left: `${pct}%`,
+                transform: "translateX(-50%)",
+                pointerEvents: "none",
+                zIndex: 3,
+              }}
+            >
+              <span className="wf-point-label wf-point-label-in">{param}</span>
+            </div>
+          );
+        })}
+      {/* 底部：数据流出口 Handles + 逻辑边 Handle，一起水平分散 */}
+      {!isStart
+        ? outputPoints.map((field, i) => {
+            const total = outputPoints.length + 1;
+            const p = total === 1 ? 50 : ((i + 1) / (total + 1)) * 100;
+            return (
+              <Handle
+                key={`out-${field}`}
+                type="source"
+                position={Position.Bottom}
+                id={`out-${field}`}
+                className="![width:8px] ![height:8px] !border-2 !border-white"
+                style={{ background: "#10b981", left: `${p}%` }}
+              />
+            );
+          })
+        : null}
+      {/* 逻辑边默认 Handle — start 节点居中，其他节点排在数据流 Handle 后面 */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-2 !h-2 !border-2 !border-white transition-transform duration-150 hover:scale-140"
-        style={{ background: colors.main }}
+        className="!w-2 !h-2 !border-2 !border-white"
+        style={{
+          background: colors.main,
+          left: isStart
+            ? "50%"
+            : outputPoints.length === 0
+              ? "50%"
+              : `${((outputPoints.length + 1) / (outputPoints.length + 2)) * 100}%`,
+        }}
       />
+      {/* 出口标签 — 覆盖层 */}
+      {!isStart &&
+        outputPoints.map((field, i) => {
+          const total = outputPoints.length + 1;
+          const p = total === 1 ? 50 : ((i + 1) / (total + 1)) * 100;
+          return (
+            <div
+              key={`label-out-${field}`}
+              style={{
+                position: "absolute",
+                bottom: -20,
+                left: `${p}%`,
+                transform: "translateX(-50%)",
+                pointerEvents: "none",
+                zIndex: 3,
+              }}
+            >
+              <span className="wf-point-label wf-point-label-out">{field}</span>
+            </div>
+          );
+        })}
     </div>
   );
 }

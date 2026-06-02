@@ -57,6 +57,7 @@ import { TriggerPanel } from "./components/TriggerPanel";
 import { VersionPanel } from "./components/VersionPanel";
 import { WorkflowMetaPopover } from "./components/WorkflowMetaPopover";
 import { YamlSlidePanel } from "./components/YamlSlidePanel";
+import { edgeTypes } from "./edges";
 import { useWorkflowCanvas } from "./hooks/useWorkflowCanvas";
 import { useWorkflowMetaAgent } from "./hooks/useWorkflowMetaAgent";
 import { useWorkflowPersistence } from "./hooks/useWorkflowPersistence";
@@ -116,6 +117,9 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingConnectSource = useRef<string | null>(null);
   const didConnect = useRef(false);
+  const setDryRunResultRef = useRef<
+    (result: { valid: boolean; issues: Array<{ type: string; message: string; field?: string }> } | null) => void
+  >(() => {});
 
   // ── Meta Agent Chat ──
   const { scenePrompt, chatOpen, setChatOpen, metaAgentId, agentList } = useWorkflowMetaAgent({ workflowId, meta });
@@ -146,7 +150,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     setYamlText,
     setSelectedNode,
     setMeta,
-    setDryRunResult: () => {}, // placeholder, will be overridden by run hook
+    setDryRunResult: (r) => setDryRunResultRef.current(r),
     setYamlOpen,
     readOnly: readOnly || activeRunId !== null,
   });
@@ -179,7 +183,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     fitView,
     pendingConnectSource,
     didConnect,
-    setDryRunResult: () => {}, // placeholder
+    setDryRunResult: (r) => setDryRunResultRef.current(r),
     setYamlText,
     setSelectedRunNodeId,
   });
@@ -195,6 +199,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     handleRerunFrom,
     handleRefreshDraft,
     dryRunResult,
+    setDryRunResult,
     running,
     isRunMode,
     isRunDone,
@@ -232,6 +237,11 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
     lastSavedYaml,
     setLastSavedYaml,
     meta,
+  });
+
+  // 将真正的 setDryRunResult 注入 ref，供 persistence/canvas hook 使用
+  useEffect(() => {
+    setDryRunResultRef.current = setDryRunResult;
   });
 
   // ── 运行模式下画布自动只读 ──
@@ -428,13 +438,12 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         style={{ display: "none" }}
       />
 
-      {effectiveReadOnly && (
-        <div className="wf-readonly-badge" style={{ right: 12 }}>
-          <Lock size={12} /> {t("editor.readonly_mode")}
-        </div>
-      )}
-
       <div className="flex-1 relative overflow-hidden">
+        {effectiveReadOnly && (
+          <div className="wf-readonly-badge" style={{ right: 12 }}>
+            <Lock size={12} /> {t("editor.readonly_mode")}
+          </div>
+        )}
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -456,13 +465,14 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
           onDragOver={onDragOver}
           onDrop={onDrop}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           nodesDraggable={!effectiveReadOnly}
           nodesConnectable={!effectiveReadOnly}
           elementsSelectable
           deleteKeyCode={effectiveReadOnly ? null : "Delete"}
           fitView
           fitViewOptions={{ padding: 0.15 }}
-          defaultEdgeOptions={{ type: "smoothstep", animated: true }}
+          defaultEdgeOptions={{ type: "logic" }}
           minZoom={0.2}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
