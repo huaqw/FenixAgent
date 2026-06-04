@@ -366,6 +366,21 @@ html [data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-b
   transform: rotate(90deg);
 }
 
+/* 流式工具输入指示器脉冲 */
+.streaming-input-dot {
+  animation: streamingInputPulse 1s ease-in-out infinite;
+}
+
+@keyframes streamingInputPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* ============================================================
    Chat loading dots — 品牌色脉冲波纹
    ============================================================ */

@@ -80,7 +80,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const switchOrg = useCallback(async (orgId: string) => {
     localStorage.setItem(STORAGE_KEY, orgId);
     await orgApi.setActive(orgId);
-    window.location.reload();
+    // 切换组织后导航回首页，避免停留在旧组织的资源详情页（如 chat/$agentId）
+    window.location.href = "/ctrl/agent/chat/_new";
   }, []);
 
   return (

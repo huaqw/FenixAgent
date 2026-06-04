@@ -291,5 +291,9 @@
     "loadError": "加载失败",
     "retry": "重试",
     "empty": "暂无内容"
+  },
+  "todoPanel": {
+    "completed": "已完成",
+    "inProgress": "进行中"
   }
 }

@@ -291,5 +291,9 @@
     "loadError": "Failed to load",
     "retry": "Retry",
     "empty": "No items"
+  },
+  "todoPanel": {
+    "completed": "completed",
+    "inProgress": "in progress"
   }
 }

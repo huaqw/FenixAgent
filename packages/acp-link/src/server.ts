@@ -278,9 +278,8 @@ export function createAcpClient(config: ServerConfig): { close: () => void } {
                   clearInterval(fileWsHeartbeat);
                   fileWsHeartbeat = null;
                 }
-                if (!manualClose) {
-                  setTimeout(connectFileWs, 5000);
-                }
+                fileWs = null;
+                // 不自动重连 file-ws，由主 WS 的 registered 回调统一管理
               };
               fileWs.onerror = () => {
                 // onclose will handle

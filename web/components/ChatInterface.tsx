@@ -29,6 +29,8 @@ import { ContextPanel } from "./ContextPanel";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatView } from "./chat/ChatView";
 import { PermissionPanel } from "./chat/PermissionPanel";
+import type { TodoItem } from "./chat/TodoPanel";
+import { isTodoWriteToolCall, parseTodosFromRawInput, TodoPanel } from "./chat/TodoPanel";
 import { ModelSelectorPopover } from "./model-selector";
 
 // Image compression options
@@ -182,6 +184,8 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
   const scenePromptUsedRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Todo 面板状态 — 每次 todowrite 调用替换
+  const [todoItems, setTodoItems] = useState<TodoItem[]>([]);
   // Reference: Zed's supports_images() checks prompt_capabilities.image
   const [supportsImages, setSupportsImages] = useState(false);
   const [contextPanelOpen, setContextPanelOpen] = useState(true);
@@ -197,6 +201,7 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
     setEntries([]);
     setIsLoading(false);
     setSessionReady(false);
+    setTodoItems([]);
   }, []);
 
   const storageKey = agentId ? `acp_last_session_${agentId}` : null;
@@ -413,6 +418,14 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
         rawOutput: update.rawOutput,
       };
 
+      // 拦截 todowrite 工具调用 → 更新 Todo 面板
+      if (isTodoWriteToolCall(update.title, update.rawInput)) {
+        const todos = parseTodosFromRawInput(update.rawInput!);
+        if (todos.length > 0) {
+          setTodoItems(todos);
+        }
+      }
+
       setEntries((prev) => {
         // UPSERT: Check if tool call already exists
         const existingIndex = findToolCallIndex(prev, update.toolCallId);
@@ -445,6 +458,14 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
     }
     // Handle tool call update (partial update)
     else if (update.sessionUpdate === "tool_call_update") {
+      // 拦截 todowrite 更新 → 替换 Todo 面板
+      if (update.rawInput && isTodoWriteToolCall(update.title || "", update.rawInput)) {
+        const todos = parseTodosFromRawInput(update.rawInput);
+        if (todos.length > 0) {
+          setTodoItems(todos);
+        }
+      }
+
       setEntries((prev) => {
         const existingIndex = findToolCallIndex(prev, update.toolCallId);
 
@@ -904,6 +925,9 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
 
         {/* Permission panel — fixed above input */}
         <PermissionPanel requests={pendingPermissions} onRespond={handlePermissionPanelRespond} />
+
+        {/* Todo panel — 显示在输入框上方 */}
+        <TodoPanel todos={todoItems} />
 
         {/* Error banner */}
         {errorMessage && (
