@@ -168,6 +168,7 @@ function ImageThumbnail({ image }: { image: UserMessageImage }) {
 function StreamingThoughtView({ text }: { text: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: text 变化时滚动到底部
   useEffect(() => {
     const el = containerRef.current;
     if (el) {
