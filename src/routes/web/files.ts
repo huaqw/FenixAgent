@@ -96,15 +96,16 @@ app.get(
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
     // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
-    const filePath = normalizeUserRoutePath((params as any)["*"] as string);
+    const rawFilePath = (params as any)["*"] as string;
     const preview = (query as Record<string, string | undefined>)?.preview === "true";
 
     // 远程环境
     const machineId = await getRemoteMachineId(envId);
     if (machineId) {
+      // 远程节点支持 workspace 全路径，不强制 user/ 前缀
       try {
         if (preview) {
-          const binResult = await remoteReadBinaryFile(machineId, envId, filePath);
+          const binResult = await remoteReadBinaryFile(machineId, envId, rawFilePath);
           const buffer = Buffer.from(binResult.data, "base64");
           set.headers["Content-Type"] = binResult.mimeType || "application/octet-stream";
           set.headers["Content-Security-Policy"] =
@@ -113,7 +114,7 @@ app.get(
         }
         // 非预览：先尝试文本，失败则走二进制下载
         try {
-          const textResult = await remoteReadFile(machineId, envId, filePath);
+          const textResult = await remoteReadFile(machineId, envId, rawFilePath);
           return {
             name: textResult.name,
             path: textResult.path,
@@ -122,7 +123,7 @@ app.get(
             encoding: "utf-8",
           };
         } catch {
-          const binResult = await remoteReadBinaryFile(machineId, envId, filePath);
+          const binResult = await remoteReadBinaryFile(machineId, envId, rawFilePath);
           const buffer = Buffer.from(binResult.data, "base64");
           set.headers["Content-Disposition"] = `attachment; filename="${binResult.name}"`;
           set.headers["Content-Type"] = "application/octet-stream";
@@ -134,6 +135,7 @@ app.get(
       }
     }
 
+    const filePath = normalizeUserRoutePath(rawFilePath);
     const result = await resolveWorkspacePath(envId, filePath);
     if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });
 
@@ -183,10 +185,7 @@ app.post(
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
     // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
-    const dirPath = normalizeUserRoutePath(((params as any)["*"] as string) || "");
-
-    if (!isUserPath(dirPath))
-      return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
+    const rawDirPath = ((params as any)["*"] as string) || "";
 
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
@@ -207,6 +206,7 @@ app.post(
     // 远程环境
     const machineId = await getRemoteMachineId(envId);
     if (machineId) {
+      // 远程节点支持 workspace 全路径
       try {
         const remoteFiles = await Promise.all(
           files.map(async (file, i) => {
@@ -219,13 +219,17 @@ app.post(
             };
           }),
         );
-        const result = await remoteUploadFiles(machineId, envId, dirPath, remoteFiles);
+        const result = await remoteUploadFiles(machineId, envId, rawDirPath, remoteFiles);
         return result;
       } catch (e) {
         const message = e instanceof Error ? e.message : "Remote file operation failed";
         return error(503, { error: { type: "remote_error", message } });
       }
     }
+
+    const dirPath = normalizeUserRoutePath(rawDirPath);
+    if (!isUserPath(dirPath))
+      return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
 
     const result = await resolveWorkspacePath(envId, dirPath);
     if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });
@@ -268,10 +272,7 @@ app.put(
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
     // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
-    const filePath = normalizeUserRoutePath((params as any)["*"] as string);
-
-    if (!isUserPath(filePath))
-      return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
+    const rawFilePath = (params as any)["*"] as string;
 
     const b = body as { content?: string };
     if (typeof b.content !== "string")
@@ -283,14 +284,19 @@ app.put(
     // 远程环境
     const machineId = await getRemoteMachineId(envId);
     if (machineId) {
+      // 远程节点支持 workspace 全路径，不强制 user/ 前缀
       try {
-        const result = await remoteWriteFile(machineId, envId, filePath, b.content);
+        const result = await remoteWriteFile(machineId, envId, rawFilePath, b.content);
         return result;
       } catch (e) {
         const message = e instanceof Error ? e.message : "Remote file operation failed";
         return error(503, { error: { type: "remote_error", message } });
       }
     }
+
+    const filePath = normalizeUserRoutePath(rawFilePath);
+    if (!isUserPath(filePath))
+      return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
 
     const result = await resolveWorkspacePath(envId, filePath);
     if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });
@@ -312,22 +318,24 @@ app.delete(
     const envId = params.id;
     await requireEnv(envId, authCtx.organizationId, error);
     // biome-ignore lint/suspicious/noExplicitAny: Elysia splat param not typed
-    const filePath = normalizeUserRoutePath((params as any)["*"] as string);
-
-    if (!isUserPath(filePath))
-      return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
+    const rawFilePath = (params as any)["*"] as string;
 
     // 远程环境
     const machineId = await getRemoteMachineId(envId);
     if (machineId) {
+      // 远程节点支持 workspace 全路径
       try {
-        await remoteDeleteFile(machineId, envId, filePath);
+        await remoteDeleteFile(machineId, envId, rawFilePath);
         return { ok: true as const };
       } catch (e) {
         const message = e instanceof Error ? e.message : "Remote file operation failed";
         return error(503, { error: { type: "remote_error", message } });
       }
     }
+
+    const filePath = normalizeUserRoutePath(rawFilePath);
+    if (!isUserPath(filePath))
+      return error(400, { error: { type: "validation_error", message: "Only user/ paths are writable" } });
 
     const result = await resolveWorkspacePath(envId, filePath);
     if (!result) return error(404, { error: { type: "not_found", message: "Environment not found" } });

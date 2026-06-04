@@ -85,12 +85,9 @@ app.post(
     await requireEnv(params.id, authCtx.organizationId, error);
     const { oldPath, newPath } = body as { oldPath: string; newPath: string };
 
-    if (!isUserPath(oldPath) || !isUserPath(newPath)) {
-      return error(400, { error: { type: "validation_error", message: "Only user/ paths are allowed" } });
-    }
-
     const machineId = await getRemoteMachineId(params.id);
     if (machineId) {
+      // 远程节点支持 workspace 全路径
       try {
         await remoteRename(machineId, params.id, oldPath, newPath);
         return { oldPath, newPath };
@@ -98,6 +95,10 @@ app.post(
         const message = e instanceof Error ? e.message : "Remote rename operation failed";
         return error(503, { error: { type: "remote_error", message } });
       }
+    }
+
+    if (!isUserPath(oldPath) || !isUserPath(newPath)) {
+      return error(400, { error: { type: "validation_error", message: "Only user/ paths are allowed" } });
     }
 
     const oldResolved = await resolveWorkspacePath(params.id, oldPath);
@@ -126,12 +127,9 @@ app.post(
     await requireEnv(params.id, authCtx.organizationId, error);
     const { path } = body as { path: string };
 
-    if (!isUserPath(path)) {
-      return error(400, { error: { type: "validation_error", message: "Only user/ paths are allowed" } });
-    }
-
     const machineId = await getRemoteMachineId(params.id);
     if (machineId) {
+      // 远程节点支持 workspace 全路径
       try {
         await remoteMkdir(machineId, params.id, path);
         return { path };
@@ -139,6 +137,10 @@ app.post(
         const message = e instanceof Error ? e.message : "Remote mkdir operation failed";
         return error(503, { error: { type: "remote_error", message } });
       }
+    }
+
+    if (!isUserPath(path)) {
+      return error(400, { error: { type: "validation_error", message: "Only user/ paths are allowed" } });
     }
 
     const resolved = await resolveWorkspacePath(params.id, path);
@@ -160,13 +162,10 @@ app.delete(
 
     const machineId = await getRemoteMachineId(params.id);
     if (machineId) {
+      // 远程节点支持 workspace 全路径
       const deleted: string[] = [];
       const failed: Array<{ path: string; error: string }> = [];
       for (const p of paths) {
-        if (!isUserPath(p)) {
-          failed.push({ path: p, error: "Only user/ paths are allowed" });
-          continue;
-        }
         try {
           await remoteDeleteFile(machineId, params.id, p);
           deleted.push(p);
