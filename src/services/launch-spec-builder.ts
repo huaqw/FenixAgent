@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { log, error as logError } from "@fenix/logger";
 import { dirname, join } from "node:path";
+import { log, error as logError } from "@fenix/logger";
 import type { AgentLaunchSpec, McpServerConfig, ModelConfig } from "@fenix/plugin-sdk";
 import { getBaseUrl } from "../config";
 import { listAgentKnowledgeBindingsById } from "./agent-knowledge";
@@ -10,6 +10,55 @@ import { buildSkillDownloadUrl } from "./skill-download-token";
 import { getSkillArchivePath, getSkillSourceDir } from "./skill-fs";
 
 type LaunchModelProtocol = ModelConfig["protocol"];
+
+function summarizeProviders(providers: AgentFullConfig["providers"]) {
+  return providers.map((provider) => ({
+    id: provider.id,
+    organizationId: provider.organizationId,
+    name: provider.name,
+    displayName: provider.displayName ?? null,
+    resourceKey: provider.resourceAccess?.resourceKey ?? null,
+    ownership: provider.resourceAccess?.ownership ?? null,
+    hasApiKey: Boolean(provider.apiKey),
+    baseUrl: provider.baseUrl || "",
+    protocol: provider.protocol ?? null,
+  }));
+}
+
+function summarizeSkills(skills: AgentFullConfig["skills"]) {
+  return skills.map((skill) => ({
+    id: skill.id,
+    organizationId: skill.organizationId,
+    name: skill.name,
+    contentPath: skill.contentPath ?? null,
+    resourceKey: skill.resourceAccess?.resourceKey ?? null,
+    ownership: skill.resourceAccess?.ownership ?? null,
+  }));
+}
+
+function summarizeRawMcpServers(mcpServers: AgentFullConfig["mcpServers"]) {
+  return mcpServers.map((server) => ({
+    id: server.id,
+    organizationId: server.organizationId,
+    name: server.name,
+    enabled: server.enabled,
+    type: server.type,
+    configType:
+      server.config && typeof server.config === "object"
+        ? ((server.config as Record<string, unknown>).type ?? null)
+        : null,
+  }));
+}
+
+function summarizeLaunchMcpServers(mcpServers: McpServerConfig[]) {
+  return mcpServers.map((server) => ({
+    name: server.name,
+    type: server.type,
+    command: server.type === "stdio" ? server.command : undefined,
+    url: server.type === "streamable-http" ? server.url : undefined,
+    timeout: server.timeout,
+  }));
+}
 
 /** 递归收集目录下所有文件的最晚修改时间 */
 function getLatestMtime(dir: string): number {
@@ -98,7 +147,14 @@ function resolveModelConfig(modelRef: string | null | undefined, providers: Agen
     model: "gpt-4o",
   };
 
-  if (!modelRef) return fallback;
+  if (!modelRef) {
+    log("[launch-spec-builder] resolveModelConfig: modelRef is empty, using fallback model");
+    return fallback;
+  }
+
+  log(
+    `[launch-spec-builder] resolveModelConfig: start modelRef='${modelRef}', providers=${JSON.stringify(summarizeProviders(providers))}`,
+  );
 
   const stableParts = modelRef.split("/");
   if (stableParts.length >= 3) {
@@ -106,9 +162,15 @@ function resolveModelConfig(modelRef: string | null | undefined, providers: Agen
     const modelId = stableParts.slice(2).join("/");
     const prov = providers.find((p) => p.resourceAccess?.resourceKey === resourceKey);
     if (!prov) {
-      log(`[launch-spec-builder] 未找到 provider resourceKey '${resourceKey}'，使用默认配置`);
+      log(
+        `[launch-spec-builder] resolveModelConfig: no shared provider matched resourceKey='${resourceKey}', fallback model='${modelRef}'`,
+      );
       return { ...fallback, model: modelRef };
     }
+
+    log(
+      `[launch-spec-builder] resolveModelConfig: matched shared provider resourceKey='${resourceKey}' -> provider='${prov.name}', modelId='${modelId}', hasApiKey=${Boolean(prov.apiKey)}`,
+    );
 
     return {
       provider: prov.name,
@@ -133,14 +195,20 @@ function resolveModelConfig(modelRef: string | null | undefined, providers: Agen
     candidates.find((p) => p.resourceAccess === undefined) ??
     candidates[0];
   if (!prov) {
-    log(`[launch-spec-builder] 未找到 provider '${providerName}'，使用默认配置`);
+    log(
+      `[launch-spec-builder] resolveModelConfig: no legacy provider matched providerName='${providerName}', fallback model='${modelRef}'`,
+    );
     return { ...fallback, model: modelRef };
   }
   if (candidates.length > 1) {
     log(
-      `[launch-spec-builder] provider '${providerName}' 存在同名资源，旧模型引用优先使用 ${prov.organizationId}/${prov.id}`,
+      `[launch-spec-builder] resolveModelConfig: provider '${providerName}' has ${candidates.length} candidates, prefer ${prov.organizationId}/${prov.id}`,
     );
   }
+
+  log(
+    `[launch-spec-builder] resolveModelConfig: matched legacy providerName='${providerName}' -> provider='${prov.name}', modelId='${modelId}', hasApiKey=${Boolean(prov.apiKey)}`,
+  );
 
   return {
     provider: prov.name,
@@ -202,7 +270,16 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
     ...(agentPrompt ? { prompt: agentPrompt } : {}),
   };
 
+  log(
+    `[launch-spec-builder] buildLaunchSpec: agent='${agentName}', agentConfigId='${agentConfigId ?? ""}', modelRef='${modelRef ?? ""}', providerCount=${fullConfig.providers.length}, skillCount=${fullConfig.skills.length}, mcpCount=${fullConfig.mcpServers.length}`,
+  );
+  log(
+    `[launch-spec-builder] buildLaunchSpec: raw providers=${JSON.stringify(summarizeProviders(fullConfig.providers))}, raw skills=${JSON.stringify(summarizeSkills(fullConfig.skills))}, raw mcpServers=${JSON.stringify(summarizeRawMcpServers(fullConfig.mcpServers))}`,
+  );
   const model = resolveModelConfig(modelRef, fullConfig.providers);
+  log(
+    `[launch-spec-builder] buildLaunchSpec: resolved model provider='${model.provider}', model='${model.model}', modelName='${model.modelName ?? ""}', baseUrl='${model.baseUrl}', hasApiKey=${Boolean(model.apiKey)}`,
+  );
 
   const mcpServers: McpServerConfig[] = [];
   for (const server of fullConfig.mcpServers) {
@@ -213,9 +290,17 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
       log(`[launch-spec-builder] 跳过无效 JSON 配置: ${server.name}`);
       continue;
     }
+    log(
+      `[launch-spec-builder] buildLaunchSpec: translating mcp '${server.name}' rawType='${String(raw.type ?? server.type ?? "unknown")}'`,
+    );
     const sdkConfig = toSdkMcpConfig(server.name, raw);
     if (sdkConfig) {
       mcpServers.push(sdkConfig);
+      log(
+        `[launch-spec-builder] buildLaunchSpec: translated mcp '${server.name}' -> ${JSON.stringify(summarizeLaunchMcpServers([sdkConfig])[0])}`,
+      );
+    } else {
+      log(`[launch-spec-builder] buildLaunchSpec: mcp '${server.name}' skipped after translation`);
     }
   }
 
@@ -223,6 +308,9 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
   const skills: { name: string; url: string }[] = [];
   for (const s of fullConfig.skills) {
     const { archivePath, sourceDir } = resolveSkillArchivePath(skillRoot, s);
+    log(
+      `[launch-spec-builder] buildLaunchSpec: translating skill '${s.name}' sourceDir='${sourceDir}' archivePath='${archivePath}' contentPath='${s.contentPath ?? ""}'`,
+    );
     if (isSkillStale(sourceDir, archivePath)) {
       if (existsSync(sourceDir)) {
         log(`[launch-spec-builder] Skill archive stale, rebuilding: ${s.name}`);
@@ -245,6 +333,9 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
         { expiresInSeconds: 3600 },
       ),
     });
+    log(
+      `[launch-spec-builder] buildLaunchSpec: translated skill '${s.name}' -> url generated for org='${s.organizationId}', id='${s.id}'`,
+    );
   }
 
   const knowledgeBindings = agentConfigId ? await listAgentKnowledgeBindingsById(agentConfigId) : [];
@@ -256,7 +347,12 @@ export async function buildLaunchSpec(input: BuildLaunchSpecInput): Promise<Agen
       headers: { Authorization: `Bearer ${environmentSecret}` },
       timeout: 15000,
     });
+    log(`[launch-spec-builder] buildLaunchSpec: appended knowledge mcp for ${knowledgeBindings.length} bindings`);
   }
+
+  log(
+    `[launch-spec-builder] buildLaunchSpec: final skills=${JSON.stringify(skills)}, final mcpServers=${JSON.stringify(summarizeLaunchMcpServers(mcpServers))}`,
+  );
 
   return {
     organizationId,

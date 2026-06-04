@@ -221,4 +221,74 @@ describe("launch spec agent sharing access", () => {
       },
     ]);
   });
+
+  // 当前组织 Agent 引用外部共享 provider 时，只按 modelRef 精确拉取被引用 provider
+  test("getAgentFullConfig 按 modelRef 精确拉取外部 provider", async () => {
+    let selectCount = 0;
+    stubResourcePermissionRepo({
+      listOwnedByOrganization: async () => [],
+    });
+    stubDb({
+      select: () => ({
+        from: () => ({
+          where: () => {
+            selectCount += 1;
+            if (selectCount === 1) {
+              return queryResult([
+                {
+                  id: "agc_internal",
+                  userId: "user_owner",
+                  organizationId: "org_current",
+                  name: "internal-agent",
+                  prompt: null,
+                  model: "org_source/prov_source/shared-model",
+                  steps: 10,
+                  mode: "primary",
+                  permission: null,
+                  variant: null,
+                  temperature: null,
+                  topP: null,
+                  disable: false,
+                  hidden: false,
+                  color: null,
+                  description: null,
+                  knowledge: null,
+                  machineId: null,
+                  createdAt: now,
+                  updatedAt: now,
+                },
+              ]);
+            }
+            if (selectCount === 2) {
+              return queryResult([
+                {
+                  id: "prov_source",
+                  userId: "user_source",
+                  organizationId: "org_source",
+                  name: "ali",
+                  displayName: "Ali",
+                  protocol: "anthropic",
+                  baseUrl: "https://dashscope.aliyuncs.com/apps/anthropic/v1",
+                  apiKey: "source-key",
+                  extraOptions: {},
+                  createdAt: now,
+                  updatedAt: now,
+                },
+              ]);
+            }
+            if (selectCount === 3) return queryResult([]);
+            return queryResult([]);
+          },
+        }),
+      }),
+    });
+
+    const fullConfig = await getAgentFullConfig(ctx, "agc_internal");
+
+    expect(fullConfig.providers.map((row) => row.id)).toEqual(["prov_source"]);
+    expect(fullConfig.providers.find((row) => row.id === "prov_source")).toMatchObject({
+      organizationId: "org_source",
+      apiKey: "source-key",
+    });
+  });
 });
