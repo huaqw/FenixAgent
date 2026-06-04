@@ -24,8 +24,9 @@ export class WSTransport extends EventEmitter<TransportEvents> {
   private _state: TransportState = "disconnected";
   private url = "";
   private reconnectAttempt = 0;
-  private static readonly MAX_RECONNECT_ATTEMPTS = 3;
+  private static readonly MAX_RECONNECT_ATTEMPTS = 5;
   private static readonly BASE_DELAY_MS = 1000;
+  private static readonly MAX_DELAY_MS = 30000;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private manualDisconnect = false;
 
@@ -99,7 +100,12 @@ export class WSTransport extends EventEmitter<TransportEvents> {
             attempt: this.reconnectAttempt,
             maxAttempts: WSTransport.MAX_RECONNECT_ATTEMPTS,
           });
-          const delay = WSTransport.BASE_DELAY_MS * 2 ** (this.reconnectAttempt - 1);
+          const rawDelay = Math.min(
+            WSTransport.BASE_DELAY_MS * 2 ** (this.reconnectAttempt - 1),
+            WSTransport.MAX_DELAY_MS,
+          );
+          // Full jitter: randomize between 50%-100% of raw delay
+          const delay = Math.round(rawDelay * (0.5 + Math.random() * 0.5));
           this.reconnectTimer = setTimeout(() => {
             this.createConnection();
           }, delay);
