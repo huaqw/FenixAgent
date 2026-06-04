@@ -402,20 +402,32 @@ export function closeAllRelayConnections(): void {
 
 /** machine 断连后清理关联的 relay 连接：关闭前端 WS 让前端感知断连 */
 export function handleMachineDisconnected(machineId: string): void {
+  closeRelayByMachine(machineId, "machine disconnected");
+}
+
+/**
+ * machine 重连后关闭关联的旧 relay 连接，让前端自动重连并触发 ensureRunning。
+ * 这确保新的 relay handle 使用新的 transport（而非旧的断连 transport）。
+ */
+export function handleMachineReconnect(machineId: string): void {
+  closeRelayByMachine(machineId, "machine reconnected");
+}
+
+function closeRelayByMachine(machineId: string, reason: string): void {
   for (const [relayWsId, entry] of manager.entries()) {
     // 匹配条件：instanceId 等于 machineId（远程实例的 instanceId 即为 machineId）
     if (entry.instanceId !== machineId) continue;
-    log(`[ACP-Relay] Machine ${machineId} disconnected, closing relay ${relayWsId}`);
+    log(`[ACP-Relay] Closing relay ${relayWsId} (${reason})`);
     try {
-      entry.relayHandle?.close(1011, "machine disconnected");
+      entry.relayHandle?.close(1011, reason);
     } catch {
       /* ignore */
     }
     entry.relayUnsub?.();
     if (entry.ws.readyState === 1) {
-      sendToRelayWs(entry.ws, { type: "error", payload: { message: "Machine disconnected" } });
+      sendToRelayWs(entry.ws, { type: "error", payload: { message: reason } });
       try {
-        entry.ws.close(1011, "machine disconnected");
+        entry.ws.close(1011, reason);
       } catch {
         /* ignore */
       }

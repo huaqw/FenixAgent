@@ -93,7 +93,11 @@ export function resetCoreRuntime(): void {
  * 远程 machine 注册成功后，动态注册 remote node 到 core。
  * @param acpEntry 对应的 AcpConnectionEntry，用于在消息路由时注入到 transport
  */
-export function registerRemoteNode(machineId: string, ws: WsConnection, acpEntry: AcpConnectionEntry): void {
+export async function registerRemoteNode(
+  machineId: string,
+  ws: WsConnection,
+  acpEntry: AcpConnectionEntry,
+): Promise<void> {
   const runtime = getCoreRuntime();
 
   // WsConnection 没有 onmessage，通过 injectMessage 由 handleAcpWsMessage 路由
@@ -106,8 +110,19 @@ export function registerRemoteNode(machineId: string, ws: WsConnection, acpEntry
 
   const existing = runtime.getNode(machineId);
   if (existing) {
-    // node 已存在（重连场景）：更新状态为 online
+    // node 已存在（重连场景）：更新状态为 online，清理旧实例以触发重新 launch
     runtime.updateNodeStatus(machineId, "online");
+    // 删除该 machineId 下所有旧实例，确保 relay handle 使用新 transport
+    for (const instance of runtime.listInstances()) {
+      if (instance.nodeId !== machineId) continue;
+      runtime.deleteInstance(instance.instanceId);
+      log(`[core-bootstrap] Deleted instance ${instance.instanceId} on reconnected machine ${machineId}`);
+    }
+    // 关闭依赖该 machineId 的 relay 连接，前端会自动重连并触发 ensureRunning
+    try {
+      const { handleMachineReconnect } = await import("../transport/relay/relay-handler");
+      handleMachineReconnect(machineId);
+    } catch {}
     return;
   }
 
