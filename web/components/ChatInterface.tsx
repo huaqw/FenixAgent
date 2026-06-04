@@ -636,7 +636,8 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
   // 1. Mark all pending/running/waiting_for_confirmation tool calls as canceled
   // 2. Send cancel notification to agent
   // 3. Do NOT set isLoading=false here - wait for prompt_complete with stopReason="cancelled"
-  const handleCancel = () => {
+  // 4. Safety: if prompt_complete never arrives (agent dead), force isLoading=false after timeout
+  const handleCancel = useCallback(() => {
     console.log("[ChatInterface] Cancel requested");
 
     // Like Zed: iterate all entries, mark Pending/WaitingForConfirmation/InProgress tool calls as Canceled
@@ -666,7 +667,16 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
     client.cancel();
     // Note: Do NOT set isLoading=false here!
     // Wait for prompt_complete with stopReason="cancelled" from the agent
-  };
+    // Safety: if agent is dead and prompt_complete never arrives, force after 3s
+    setTimeout(() => {
+      setIsLoading((prev) => {
+        if (prev) {
+          console.log("[ChatInterface] Cancel timeout - forcing isLoading=false");
+        }
+        return false;
+      });
+    }, 3000);
+  }, [client]);
 
   const handlePermissionResponse = useCallback(
     (requestId: string, optionId: string | null, optionKind: PermissionOption["kind"] | null) => {
