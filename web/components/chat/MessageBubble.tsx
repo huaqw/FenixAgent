@@ -11,6 +11,8 @@ import { AgentAvatar } from "./AgentAvatar";
 
 // 用户消息折叠最大高度（px）
 const COLLAPSED_MAX_HEIGHT = 200;
+// 思考内容流式显示的最大高度（≈4 行）
+const THOUGHT_STREAMING_MAX_HEIGHT = 96;
 
 // =============================================================================
 // 用户消息 — 右对齐，品牌色淡底，可折叠
@@ -111,10 +113,14 @@ export function AssistantBubble({ entry, isStreaming, envId }: AssistantBubblePr
               const isThoughtStreaming = isStreaming && isLastChunk;
               return (
                 // biome-ignore lint/suspicious/noArrayIndexKey: chunks lack a unique identifier
-                <Reasoning key={i} isStreaming={isThoughtStreaming}>
+                <Reasoning key={i} isStreaming={isThoughtStreaming} defaultOpen={isThoughtStreaming}>
                   <ReasoningTrigger />
                   <ReasoningContent>
-                    <div className="text-sm text-text-secondary leading-relaxed">{chunk.text}</div>
+                    {isThoughtStreaming ? (
+                      <StreamingThoughtView text={chunk.text} />
+                    ) : (
+                      <div className="text-sm text-text-secondary leading-relaxed">{chunk.text}</div>
+                    )}
                   </ReasoningContent>
                 </Reasoning>
               );
@@ -152,5 +158,33 @@ function ImageThumbnail({ image }: { image: UserMessageImage }) {
     >
       <img src={dataUrl} alt={t("messageBubble.uploadedImage")} className="h-20 w-20 object-cover" />
     </Button>
+  );
+}
+
+// =============================================================================
+// 流式思考内容 — 固定高度显示最后 4 行，底部渐变遮罩
+// =============================================================================
+
+function StreamingThoughtView({ text }: { text: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: text 变化时滚动到底部
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [text]);
+
+  return (
+    <div className="relative">
+      <div
+        ref={containerRef}
+        className="text-sm text-text-secondary leading-relaxed overflow-y-auto"
+        style={{ maxHeight: `${THOUGHT_STREAMING_MAX_HEIGHT}px` }}
+      >
+        {text}
+      </div>
+    </div>
   );
 }
