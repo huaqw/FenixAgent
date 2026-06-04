@@ -163,7 +163,7 @@ export function createAcpClient(config: ServerConfig): { close: () => void } {
   }
 
   const sessionMgr = new SessionManager(config.command, 5, config.cwd || process.cwd());
-  const instanceMgr = new InstanceManager(config.command, config.cwd || process.cwd());
+  const instanceMgr = new InstanceManager(config.command, config.cwd || process.cwd(), config.args);
   const url = `${config.rcsUrl}/acp/ws?secret=${encodeURIComponent(config.rcsSecret ?? "")}`;
   let ws: WebSocket | null = null;
   let fileWs: WebSocket | null = null;

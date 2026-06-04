@@ -29,10 +29,12 @@ interface InstanceState {
 export class InstanceManager {
   private instances = new Map<string, InstanceState>();
   private readonly agentName: string;
+  private readonly agentArgs: string[];
   private readonly workspaceRoot: string;
 
-  constructor(agentName: string, workspaceRoot: string) {
+  constructor(agentName: string, workspaceRoot: string, agentArgs?: string[]) {
     this.agentName = agentName;
+    this.agentArgs = agentArgs ?? ["acp"];
     this.workspaceRoot = workspaceRoot;
   }
 
@@ -75,7 +77,7 @@ export class InstanceManager {
     const opencodeExecutable = resolveExecutable(this.agentName);
     const spawnEnv = state.launchSpec.env ? { ...process.env, ...state.launchSpec.env } : { ...process.env };
 
-    const proc = spawn(opencodeExecutable, ["acp"], {
+    const proc = spawn(opencodeExecutable, this.agentArgs, {
       cwd: state.workspace,
       stdio: ["pipe", "pipe", "inherit"],
       env: spawnEnv,
