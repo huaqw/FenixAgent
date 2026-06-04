@@ -422,6 +422,8 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
           return prev.map((entry, index) => {
             if (index !== existingIndex) return entry;
             if (entry.type !== "tool_call") return entry;
+            // 等待用户确认权限时不覆盖，防止权限弹窗被竞态更新吞掉
+            if (entry.toolCall.status === "waiting_for_confirmation") return entry;
 
             return {
               type: "tool_call",
@@ -464,6 +466,8 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
         return prev.map((entry, index) => {
           if (index !== existingIndex) return entry;
           if (entry.type !== "tool_call") return entry;
+          // 等待用户确认权限时不覆盖，防止权限弹窗被竞态更新吞掉
+          if (entry.toolCall.status === "waiting_for_confirmation") return entry;
 
           const newStatus = update.status ? mapToolStatus(update.status) : entry.toolCall.status;
           const mergedContent = update.content
