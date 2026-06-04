@@ -13,8 +13,8 @@ import { buildOpencodeRuntimeConfig, installSkills, writeOpencodeConfig } from "
 import type { AgentLaunchSpec } from "@fenix/plugin-sdk";
 import { AcpDispatcher, type AcpSessionState, createAcpSessionState } from "../acp-dispatcher.js";
 import { ACP_METHOD, createNotification } from "../json-rpc.js";
-import { registerWorkspace } from "./file-operations.js";
 import { resolveExecutable } from "./resolve-executable";
+import { registerWorkspace, unregisterWorkspace } from "./workspace-registry.js";
 
 export type AgentType = "opencode" | "ccb";
 
@@ -56,7 +56,7 @@ export class InstanceManager {
 
     // Register workspace mapping for file operations
     if (launchSpec.environmentId) {
-      registerWorkspace(launchSpec.environmentId, workspace);
+      await registerWorkspace(launchSpec.environmentId, workspace);
     }
 
     if (this.agentType === "ccb") {
@@ -192,6 +192,12 @@ export class InstanceManager {
     if (state.process && !state.process.killed) {
       state.process.kill("SIGTERM");
     }
+
+    const launchSpec = state.launchSpec;
+    if (launchSpec?.environmentId) {
+      await unregisterWorkspace(launchSpec.environmentId).catch(() => {});
+    }
+
     state.process = null;
     state.connection = null;
     state.dispatcher = null;
