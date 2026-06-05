@@ -164,6 +164,7 @@ function scanBuiltinSkills(): {
  * 返回 meta AgentConfig ID。
  */
 async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
+  console.log("[meta-agent] ensureMetaConfig called");
   let agentConfig = await getAgentConfig(ctx, META_AGENT_CONFIG_NAME);
   if (!agentConfig) {
     const defaultModelRef = await resolveDefaultMetaModelRef(ctx);
@@ -181,7 +182,9 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
 
   // 扫描当前文件系统中的内置 skill
   const builtinSkills = scanBuiltinSkills();
-  log(`[meta-agent] scanBuiltinSkills: cwd=${process.cwd()}, found=${builtinSkills.length} skills`);
+  console.log(
+    `[meta-agent] scanBuiltinSkills: cwd=${process.cwd()}, found=${builtinSkills.length} skills (${builtinSkills.map((s) => s.name).join(", ")})`,
+  );
   const builtinNames = new Set(builtinSkills.map((s) => s.name));
 
   // 查询 DB 中由 meta agent 注册的 skill，找出需要清理的孤儿
@@ -222,6 +225,7 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
         content: builtin.content,
         metadata: { ...META_BUILTIN_MARKER },
       });
+      console.log(`[meta-agent] setSkill OK: ${builtin.name} id=${info.id} extraFiles=${builtin.extraFiles.length}`);
       if (info.id) {
         skillIds.push(info.id);
       }
@@ -243,7 +247,7 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
         `[meta-agent] Registered built-in skill: ${builtin.name} (id=${info.id}, extraFiles=${builtin.extraFiles.length})`,
       );
     } catch (err) {
-      console.error(`[meta-agent] Failed to register skill ${builtin.name}:`, err);
+      console.error(`[meta-agent] FAILED to register skill ${builtin.name}:`, err);
     }
   }
 
