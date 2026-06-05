@@ -1,4 +1,16 @@
-import { Bot, ChevronDown, ChevronRight, Eye, Loader2, Plus, RotateCw, Settings, Sparkles, Square } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Loader2,
+  Plus,
+  RotateCw,
+  Settings,
+  Sparkles,
+  Square,
+  Trash2,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -81,6 +93,8 @@ export function AgentSidebarTree({
   const [restartDialogOpen, setRestartDialogOpen] = useState(false);
   const [restartTargetNode, setRestartTargetNode] = useState<AgentTreeNode | null>(null);
   const [selectedRestartInstances, setSelectedRestartInstances] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<AgentConfigItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [modelLabelMap, setModelLabelMap] = useState<Map<string, string>>(new Map());
 
   // Meta Agent 显示控制
@@ -289,6 +303,28 @@ export function AgentSidebarTree({
           next.delete(instanceId);
           return next;
         });
+      }
+    },
+    [t, loadData],
+  );
+
+  const handleDeleteAgent = useCallback(
+    async (agent: AgentConfigItem) => {
+      setDeleting(true);
+      try {
+        const { error } = await agentApi.delete(agent.name);
+        if (error) {
+          toast.error(t("deleteFailed", { message: error.message }));
+          return;
+        }
+        toast.success(t("deleteSuccess"));
+        await loadData();
+      } catch (err) {
+        console.error("Failed to delete agent:", err);
+        toast.error(t("deleteFailed", { message: (err as Error).message }));
+      } finally {
+        setDeleting(false);
+        setDeleteTarget(null);
       }
     },
     [t, loadData],
@@ -518,6 +554,19 @@ export function AgentSidebarTree({
               >
                 {writable ? <Settings className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
+              {writable && !agent.builtIn && (
+                <button
+                  type="button"
+                  className="flex items-center justify-center w-6 h-6 border-none rounded-md bg-surface-2 text-text-dim cursor-pointer hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(agent);
+                  }}
+                  title={t("deleteAgent")}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* 展开的实例列表 */}
@@ -633,6 +682,28 @@ export function AgentSidebarTree({
             <AlertDialogCancel>{t("restartLater")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleRestartConfirm} disabled={selectedRestartInstances.size === 0}>
               {t("restartConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 删除智能体确认弹窗 */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteAgent")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteAgentConfirm", { name: deleteTarget ? getAgentDisplayName(deleteTarget) : "" })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={() => deleteTarget && handleDeleteAgent(deleteTarget)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : t("deleteAgent")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
