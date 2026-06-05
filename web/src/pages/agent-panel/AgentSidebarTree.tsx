@@ -186,7 +186,7 @@ export function AgentSidebarTree({
         // 没有 environment，自动创建
         if (!envId) {
           const { data: newEnv } = await envApi.create({
-            name: agent.name,
+            name: `env-${agent.id.slice(0, 8)}`,
             agentConfigId: agent.id,
             autoStart: true,
           });
