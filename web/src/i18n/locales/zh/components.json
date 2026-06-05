@@ -142,7 +142,6 @@
     "hintDragUpload": "拖拽上传",
     "hintDoubleClick": "双击预览",
     "hintDrag": "拖拽上传",
-    "hintDoubleClick": "双击预览",
     "uploadTo": "上传到: {{path}}",
     "uploadingFile": "正在上传 {{name}}...",
     "uploadingProgress": "{{percent}}%",

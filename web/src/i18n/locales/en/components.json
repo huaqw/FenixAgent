@@ -142,7 +142,6 @@
     "hintDragUpload": "Drag to upload",
     "hintDoubleClick": "Double-click to preview",
     "hintDrag": "Drag to upload",
-    "hintDoubleClick": "Double-click to preview",
     "uploadTo": "Upload to: {{path}}",
     "uploadingFile": "Uploading {{name}}...",
     "uploadingProgress": "{{percent}}%",
