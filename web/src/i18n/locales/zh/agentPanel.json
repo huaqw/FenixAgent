@@ -64,5 +64,6 @@
   "metaAgentToggle": "显示 Meta Agent",
   "metaAgentStarting": "正在启动 Meta Agent...",
   "metaAgentFailed": "启动 Meta Agent 失败",
-  "cancel": "取消"
+  "cancel": "取消",
+  "remoteNode": "远程"
 }

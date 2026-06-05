@@ -64,5 +64,6 @@
   "metaAgentToggle": "Show Meta Agent",
   "metaAgentStarting": "Starting Meta Agent...",
   "metaAgentFailed": "Failed to start Meta Agent",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "remoteNode": "Remote"
 }

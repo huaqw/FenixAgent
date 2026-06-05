@@ -49,6 +49,7 @@ interface AgentConfigItem {
   description: string | null;
   color: string | null;
   resourceAccess?: ResourceAccess;
+  machineId?: string | null;
 }
 
 function buildModelLabelMap(available: ModelEntry[]): Map<string, string> {
@@ -511,6 +512,12 @@ export function AgentSidebarTree({
                     {t("sharedFrom", {
                       source: agent.resourceAccess.sourceOrganizationName ?? agent.resourceAccess.sourceOrganizationId,
                     })}
+                  </div>
+                )}
+                {agent.machineId && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                    <span className="text-[10px] text-text-muted">{t("remoteNode")}</span>
                   </div>
                 )}
               </div>
