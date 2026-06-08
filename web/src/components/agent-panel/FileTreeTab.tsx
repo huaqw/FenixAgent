@@ -7,7 +7,7 @@ import type { NodeState, TreeNodeData } from "@/components/ui/tree";
 import { Tree } from "@/components/ui/tree";
 import { fileApi, userFileApi } from "@/src/api/sdk";
 import { NS } from "../../i18n";
-import { encodePathSegment } from "./preview/utils";
+import { buildPreviewUrl, encodePathSegment } from "./preview/utils";
 
 interface FileTreeTabProps {
   envId: string | null;
@@ -397,7 +397,7 @@ export const FileTreeTab = forwardRef<FileTreeTabHandle, FileTreeTabProps>(funct
           a.click();
           document.body.removeChild(a);
         } else {
-          const url = `/web/environments/${envId}/user/${nodePath.split("/").map(encodePathSegment).join("/")}?preview=true`;
+          const url = buildPreviewUrl(envId, nodePath);
           const a = document.createElement("a");
           a.href = url;
           a.download = nodePath.split("/").pop() || "file";

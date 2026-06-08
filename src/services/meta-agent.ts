@@ -15,7 +15,7 @@ import { log } from "@fenix/logger";
 import { auth } from "../auth/better-auth";
 import type { AuthContext } from "../plugins/auth";
 import { spawnInstanceFromEnvironment } from "../transport/relay";
-import { createAgentConfig, getAgentConfig } from "./config/agent-config";
+import { createAgentConfig, getAgentConfig, updateAgentConfig } from "./config/agent-config";
 import { syncAgentSkills } from "./config/agent-config-skill";
 import { getProvider, listProviders } from "./config/provider";
 import { deleteSkill, getSkill, listSkills } from "./config/skill";
@@ -91,7 +91,11 @@ function parseSkillFrontmatter(raw: string): { name: string; description: string
 }
 
 /** 扫描仓库内置 skill 源目录；这里读取的是源码模板，不是运行时组织目录。 */
-function scanBuiltinSkills(): { name: string; description: string; content: string }[] {
+function scanBuiltinSkills(): {
+  name: string;
+  description: string;
+  content: string;
+}[] {
   const skillsDir = join(process.cwd(), BUILTIN_SKILLS_DIR);
   if (!existsSync(skillsDir)) {
     log(`[meta-agent] Built-in skills directory not found: ${skillsDir}`);
@@ -262,6 +266,19 @@ async function ensureMetaConfig(ctx: AuthContext): Promise<string> {
     }
   }
 
+  // 已有配置但 model 为空时，自动解析并填充默认模型
+  if (!agentConfig.model?.trim()) {
+    const defaultModelRef = await resolveDefaultMetaModelRef(ctx);
+    if (defaultModelRef) {
+      log(`[meta-agent] Auto-filling empty model for meta AgentConfig: ${defaultModelRef}`);
+      await updateAgentConfig(ctx, META_AGENT_CONFIG_NAME, {
+        model: defaultModelRef,
+      });
+    } else {
+      log(`[meta-agent] No provider/model available to auto-fill meta AgentConfig model`);
+    }
+  }
+
   // 收集所有应绑定到 meta AgentConfig 的 skill ID
   const skillIds = await listBuiltinSkillIds(ctx);
 
@@ -285,7 +302,10 @@ async function ensureMetaApiKey(ctx: AuthContext, headers: Headers): Promise<str
   for (const old of existingKeys.filter((k) => k.name === META_KEY_LABEL)) {
     try {
       // biome-ignore lint/suspicious/noExplicitAny: better-auth deleteApiKey return type is untyped
-      await (auth.api as any).deleteApiKey({ body: { id: old.id }, headers });
+      await (auth.api as any).deleteApiKey({
+        body: { id: old.id },
+        headers,
+      });
     } catch {
       // 旧 key 删除失败不阻断
     }
