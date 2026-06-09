@@ -24,6 +24,8 @@ export async function ensureBank(bankId: string): Promise<{ ok: boolean; error?:
     const res = await fetch(`${config.url}/v1/default/banks/${encodeURIComponent(bankId)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      // Hindsight API 要求 body 不能为空（422 missing body），传空 JSON 即可
+      body: JSON.stringify({}),
     });
     if (!res.ok) {
       const body = await res.text();
