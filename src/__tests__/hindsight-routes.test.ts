@@ -8,6 +8,8 @@ import { resetAllStubs, stubDb } from "../test-utils/helpers";
 const TEST_MEMBER_ID = "mem-test-member-id";
 /** 测试用 Hindsight URL */
 const TEST_HINDSIGHT_URL = "http://localhost:9999";
+/** v1 bank 路径前缀，与后端 bankPath() 一致 */
+const BANK_PREFIX = `${TEST_HINDSIGHT_URL}/v1/default/banks/${TEST_MEMBER_ID}`;
 
 describe("web hindsight routes", () => {
   const originalEnv = { ...process.env };
@@ -30,7 +32,6 @@ describe("web hindsight routes", () => {
     globalThis.fetch = mockFetch as typeof fetch;
 
     // Stub db：让 resolveMemberId 返回 TEST_MEMBER_ID
-    // resolveMemberId 调用链: db.select({id}).from(member).where(...).limit(1)
     stubDb({
       select: () => ({
         from: () => ({
@@ -75,61 +76,89 @@ describe("web hindsight routes", () => {
     expect(json.data.url).toBe(TEST_HINDSIGHT_URL);
   });
 
-  // ── Memories ────────────────────────────────────────────
+  // ── Graph ───────────────────────────────────────────────
 
-  // GET /memories 正确注入 bank_id 并转发到 /api/list
-  test("GET /hindsight/members 注入 bank_id 并转发", async () => {
-    const response = await webHindsight.handle(new Request("http://localhost/hindsight/memories"));
+  // GET /graph 转发到 v1 bank 路径，参数通过 query string
+  test("GET /hindsight/graph 转发到 v1 graph 端点", async () => {
+    const response = await webHindsight.handle(new Request("http://localhost/hindsight/graph?type=world&limit=50"));
     expect(response.status).toBe(200);
-    const json = await response.json();
-    expect(json.ok).toBe(true);
-    // fetch 应被调用一次，URL 包含 /api/list 且 bank_id=TEST_MEMBER_ID
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/list?");
-    expect(fetchCalls[0].url).toContain(`bank_id=${TEST_MEMBER_ID}`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/graph?type=world&limit=50`);
+    // GET 方法，不应有 options.method
+    expect(fetchCalls[0].options?.method).toBeUndefined();
   });
 
-  // GET /memories/:id 正确注入 bank_id 到查询参数
-  test("GET /hindsight/memories/:id 注入 bank_id", async () => {
+  // ── Bank Stats ──────────────────────────────────────────
+
+  // GET /bank-stats 转发到 v1 stats 端点
+  test("GET /hindsight/bank-stats 转发到 v1 stats 端点", async () => {
+    const response = await webHindsight.handle(new Request("http://localhost/hindsight/bank-stats"));
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/stats`);
+  });
+
+  // ── Memories ────────────────────────────────────────────
+
+  // GET /memories 转发到 v1 memories/list 端点
+  test("GET /hindsight/memories 转发到 v1 memories/list", async () => {
+    const response = await webHindsight.handle(new Request("http://localhost/hindsight/memories"));
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/memories/list`);
+  });
+
+  // GET /memories 带 query 参数透传
+  test("GET /hindsight/memories 透传 query 参数", async () => {
+    const response = await webHindsight.handle(
+      new Request("http://localhost/hindsight/memories?type=world&limit=10&offset=5"),
+    );
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/memories/list?type=world&limit=10&offset=5`);
+  });
+
+  // GET /memories/:id 转发到 v1 memories/{id}
+  test("GET /hindsight/memories/:id 转发到 v1 端点", async () => {
     const response = await webHindsight.handle(new Request("http://localhost/hindsight/memories/mem-abc"));
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/memories/mem-abc?");
-    expect(fetchCalls[0].url).toContain(`bank_id=${TEST_MEMBER_ID}`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/memories/mem-abc`);
   });
 
-  // DELETE /memories/:id 发送 DELETE 方法
+  // DELETE /memories/:id 使用 DELETE 方法
   test("DELETE /hindsight/memories/:id 使用 DELETE 方法", async () => {
     const response = await webHindsight.handle(
       new Request("http://localhost/hindsight/memories/mem-abc", { method: "DELETE" }),
     );
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/memories/mem-abc`);
     expect(fetchCalls[0].options?.method).toBe("DELETE");
-    expect(fetchCalls[0].url).toContain(`bank_id=${TEST_MEMBER_ID}`);
   });
 
-  // POST /memories 在 body 中注入 bank_id
-  test("POST /hindsight/memories 在 body 中注入 bank_id", async () => {
+  // POST /memories body 直接透传，不再注入 bank_id
+  test("POST /hindsight/memories body 直接透传", async () => {
     const response = await webHindsight.handle(
       new Request("http://localhost/hindsight/memories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: "hello" }),
+        body: JSON.stringify({ items: [{ content: "hello" }] }),
       }),
     );
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/memories/retain");
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/memories`);
     const body = JSON.parse(fetchCalls[0].options?.body as string);
-    expect(body.bank_id).toBe(TEST_MEMBER_ID);
-    expect(body.content).toBe("hello");
+    // body 直接透传，不应包含 bank_id
+    expect(body).toEqual({ items: [{ content: "hello" }] });
+    expect(body.bank_id).toBeUndefined();
   });
 
   // ── Recall ──────────────────────────────────────────────
 
-  // POST /recall 在 body 中注入 bank_id
-  test("POST /hindsight/recall 注入 bank_id 并转发", async () => {
+  // POST /recall 转发到 v1 memories/recall，body 直接透传
+  test("POST /hindsight/recall 转发到 v1 memories/recall", async () => {
     const response = await webHindsight.handle(
       new Request("http://localhost/hindsight/recall", {
         method: "POST",
@@ -139,16 +168,16 @@ describe("web hindsight routes", () => {
     );
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/recall");
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/memories/recall`);
     const body = JSON.parse(fetchCalls[0].options?.body as string);
-    expect(body.bank_id).toBe(TEST_MEMBER_ID);
-    expect(body.query).toBe("test query");
+    expect(body).toEqual({ query: "test query" });
+    expect(body.bank_id).toBeUndefined();
   });
 
   // ── Reflect ─────────────────────────────────────────────
 
-  // POST /reflect 在 body 中注入 bank_id
-  test("POST /hindsight/reflect 注入 bank_id 并转发", async () => {
+  // POST /reflect 转发到 v1 reflect，body 直接透传
+  test("POST /hindsight/reflect 转发到 v1 reflect", async () => {
     const response = await webHindsight.handle(
       new Request("http://localhost/hindsight/reflect", {
         method: "POST",
@@ -158,29 +187,27 @@ describe("web hindsight routes", () => {
     );
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/reflect");
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/reflect`);
     const body = JSON.parse(fetchCalls[0].options?.body as string);
-    expect(body.bank_id).toBe(TEST_MEMBER_ID);
+    expect(body.bank_id).toBeUndefined();
   });
 
   // ── Documents ───────────────────────────────────────────
 
-  // GET /documents 注入 bank_id 到查询参数
-  test("GET /hindsight/documents 注入 bank_id 并转发", async () => {
+  // GET /documents 转发到 v1 documents 端点
+  test("GET /hindsight/documents 转发到 v1 documents", async () => {
     const response = await webHindsight.handle(new Request("http://localhost/hindsight/documents"));
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/documents?");
-    expect(fetchCalls[0].url).toContain(`bank_id=${TEST_MEMBER_ID}`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/documents`);
   });
 
-  // GET /documents/:id/chunks 注入 bank_id
-  test("GET /hindsight/documents/:id/chunks 注入 bank_id", async () => {
+  // GET /documents/:id/chunks 转发到 v1 端点
+  test("GET /hindsight/documents/:id/chunks 转发到 v1 端点", async () => {
     const response = await webHindsight.handle(new Request("http://localhost/hindsight/documents/doc-123/chunks"));
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain("/api/documents/doc-123/chunks?");
-    expect(fetchCalls[0].url).toContain(`bank_id=${TEST_MEMBER_ID}`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/documents/doc-123/chunks`);
   });
 
   // DELETE /documents/:id 使用 DELETE 方法
@@ -190,8 +217,8 @@ describe("web hindsight routes", () => {
     );
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/documents/doc-123`);
     expect(fetchCalls[0].options?.method).toBe("DELETE");
-    expect(fetchCalls[0].url).toContain(`bank_id=${TEST_MEMBER_ID}`);
   });
 
   // ── Mental Models ───────────────────────────────────────
@@ -201,7 +228,7 @@ describe("web hindsight routes", () => {
     const response = await webHindsight.handle(new Request("http://localhost/hindsight/mental-models"));
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toBe(`${TEST_HINDSIGHT_URL}/v1/default/banks/${TEST_MEMBER_ID}/mental-models`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/mental-models`);
   });
 
   // GET /mental-models/:id 包含 bankId 和 model ID
@@ -209,7 +236,7 @@ describe("web hindsight routes", () => {
     const response = await webHindsight.handle(new Request("http://localhost/hindsight/mental-models/mm-42"));
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toBe(`${TEST_HINDSIGHT_URL}/v1/default/banks/${TEST_MEMBER_ID}/mental-models/mm-42`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/mental-models/mm-42`);
   });
 
   // DELETE /mental-models/:id 使用 DELETE 方法
@@ -220,6 +247,34 @@ describe("web hindsight routes", () => {
     expect(response.status).toBe(200);
     expect(fetchCalls).toHaveLength(1);
     expect(fetchCalls[0].options?.method).toBe("DELETE");
-    expect(fetchCalls[0].url).toBe(`${TEST_HINDSIGHT_URL}/v1/default/banks/${TEST_MEMBER_ID}/mental-models/mm-42`);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/mental-models/mm-42`);
+  });
+
+  // ── Entities ────────────────────────────────────────────
+
+  // GET /entities 转发到 v1 entities 端点
+  test("GET /hindsight/entities 转发到 v1 entities", async () => {
+    const response = await webHindsight.handle(new Request("http://localhost/hindsight/entities"));
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/entities`);
+  });
+
+  // GET /entities/:id 转发到 v1 端点
+  test("GET /hindsight/entities/:id 转发到 v1 端点", async () => {
+    const response = await webHindsight.handle(new Request("http://localhost/hindsight/entities/ent-99"));
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/entities/ent-99`);
+  });
+
+  // GET /entities/graph 转发到 v1 端点
+  test("GET /hindsight/entities/graph 转发到 v1 端点", async () => {
+    const response = await webHindsight.handle(
+      new Request("http://localhost/hindsight/entities/graph?limit=20&min_count=3"),
+    );
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe(`${BANK_PREFIX}/entities/graph?limit=20&min_count=3`);
   });
 });

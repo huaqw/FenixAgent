@@ -2,6 +2,15 @@ import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
 import { getHindsightConfig, proxyToHindsight, resolveMemberId } from "../../services/hindsight";
 
+/** 构造 Hindsight v1 bank 路径前缀：/v1/default/banks/{bankId} */
+const bankPath = (bankId: string) => `/v1/default/banks/${encodeURIComponent(bankId)}`;
+
+/** 拼接 query string，空参数返回原始 base */
+const withQs = (base: string, query: Record<string, string>) => {
+  const qs = new URLSearchParams(query);
+  return qs.toString() ? `${base}?${qs.toString()}` : base;
+};
+
 const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
   .use(authGuardPlugin)
 
@@ -19,17 +28,52 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     };
   })
 
+  // ── Graph ───────────────────────────────────────────────
+  // 获取内存图谱数据，GET 方法，参数通过 query string 传递
+  .get(
+    "/graph",
+    async ({ query, store, error }) => {
+      const bankId = await resolveMemberId(store.authContext!);
+      if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
+      try {
+        const res = await proxyToHindsight(withQs(`${bankPath(bankId)}/graph`, query as Record<string, string>));
+        return await res.json();
+      } catch (err) {
+        console.error("[hindsight] GET /graph proxy failed:", err);
+        return error(503, { error: { type: "service_unavailable", message: "Hindsight service unavailable" } });
+      }
+    },
+    { sessionAuth: true },
+  )
+
+  // ── Bank Stats ──────────────────────────────────────────
+  .get(
+    "/bank-stats",
+    async ({ store, error }) => {
+      const bankId = await resolveMemberId(store.authContext!);
+      if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
+      try {
+        const res = await proxyToHindsight(`${bankPath(bankId)}/stats`);
+        return await res.json();
+      } catch (err) {
+        console.error("[hindsight] GET /bank-stats proxy failed:", err);
+        return error(503, { error: { type: "service_unavailable", message: "Hindsight service unavailable" } });
+      }
+    },
+    { sessionAuth: true },
+  )
+
   // ── Memories ────────────────────────────────────────────
-  // 列出 memories
+  // 列出 memories：转发到 /v1/.../memories/list
   .get(
     "/memories",
     async ({ query, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      const qs = new URLSearchParams(query as Record<string, string>);
-      qs.set("bank_id", bankId);
       try {
-        const res = await proxyToHindsight(`/api/list?${qs.toString()}`);
+        const res = await proxyToHindsight(
+          withQs(`${bankPath(bankId)}/memories/list`, query as Record<string, string>),
+        );
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /memories proxy failed:", err);
@@ -46,7 +90,7 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(`/api/memories/${params.id}?bank_id=${encodeURIComponent(bankId)}`);
+        const res = await proxyToHindsight(`${bankPath(bankId)}/memories/${params.id}`);
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /memories/:id proxy failed:", err);
@@ -63,9 +107,7 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(`/api/memories/${params.id}?bank_id=${encodeURIComponent(bankId)}`, {
-          method: "DELETE",
-        });
+        const res = await proxyToHindsight(`${bankPath(bankId)}/memories/${params.id}`, { method: "DELETE" });
         return await res.json();
       } catch (err) {
         console.error("[hindsight] DELETE /memories/:id proxy failed:", err);
@@ -75,17 +117,17 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     { sessionAuth: true },
   )
 
-  // 创建/保留 memory（retain）
+  // 创建/保留 memory（retain），body 直接透传（不再注入 bank_id）
   .post(
     "/memories",
     async ({ body, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight("/api/memories/retain", {
+        const res = await proxyToHindsight(`${bankPath(bankId)}/memories`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bank_id: bankId, ...(body as Record<string, unknown>) }),
+          body: JSON.stringify(body),
         });
         return await res.json();
       } catch (err) {
@@ -96,56 +138,18 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     { sessionAuth: true },
   )
 
-  // POST /memories/graph — 获取内存图谱数据（Hindsight v1 API）
-  .post(
-    "/memories/graph",
-    async ({ body, store, error }) => {
-      const bankId = await resolveMemberId(store.authContext!);
-      if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      try {
-        const res = await proxyToHindsight(`/v1/default/banks/${encodeURIComponent(bankId)}/memories/graph`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...(body as Record<string, unknown>) }),
-        });
-        return await res.json();
-      } catch (err) {
-        console.error("[hindsight] POST /memories/graph proxy failed:", err);
-        return error(503, { error: { type: "service_unavailable", message: "Hindsight service unavailable" } });
-      }
-    },
-    { sessionAuth: true },
-  )
-
-  // GET /bank-stats — 获取 bank 统计信息（Hindsight v1 API）
-  .get(
-    "/bank-stats",
-    async ({ store, error }) => {
-      const bankId = await resolveMemberId(store.authContext!);
-      if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      try {
-        const res = await proxyToHindsight(`/v1/default/banks/${encodeURIComponent(bankId)}/stats`);
-        return await res.json();
-      } catch (err) {
-        console.error("[hindsight] GET /bank-stats proxy failed:", err);
-        return error(503, { error: { type: "service_unavailable", message: "Hindsight service unavailable" } });
-      }
-    },
-    { sessionAuth: true },
-  )
-
   // ── Recall & Reflect ────────────────────────────────────
-  // Recall: 语义检索记忆
+  // Recall: 语义检索记忆，转发到 /v1/.../memories/recall
   .post(
     "/recall",
     async ({ body, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight("/api/recall", {
+        const res = await proxyToHindsight(`${bankPath(bankId)}/memories/recall`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bank_id: bankId, ...(body as Record<string, unknown>) }),
+          body: JSON.stringify(body),
         });
         return await res.json();
       } catch (err) {
@@ -156,17 +160,17 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     { sessionAuth: true },
   )
 
-  // Reflect: 触发反思/整合
+  // Reflect: 触发反思/整合，转发到 /v1/.../reflect
   .post(
     "/reflect",
     async ({ body, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight("/api/reflect", {
+        const res = await proxyToHindsight(`${bankPath(bankId)}/reflect`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bank_id: bankId, ...(body as Record<string, unknown>) }),
+          body: JSON.stringify(body),
         });
         return await res.json();
       } catch (err) {
@@ -184,13 +188,41 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     async ({ query, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      const qs = new URLSearchParams(query as Record<string, string>);
-      qs.set("bank_id", bankId);
       try {
-        const res = await proxyToHindsight(`/api/documents?${qs.toString()}`);
+        const res = await proxyToHindsight(withQs(`${bankPath(bankId)}/documents`, query as Record<string, string>));
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /documents proxy failed:", err);
+        return error(503, { error: { type: "service_unavailable", message: "Hindsight service unavailable" } });
+      }
+    },
+    { sessionAuth: true },
+  )
+
+  // 上传文档（multipart/form-data 转发）
+  .post(
+    "/documents",
+    async ({ body, store, error }) => {
+      const bankId = await resolveMemberId(store.authContext!);
+      if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
+      try {
+        // Elysia 自动解析 multipart body，重构 FormData 转发给 Hindsight
+        const fd = new FormData();
+        const parsed = body as Record<string, unknown>;
+        for (const [key, value] of Object.entries(parsed)) {
+          if (value instanceof Blob) {
+            fd.append(key, value);
+          } else if (typeof value === "string") {
+            fd.append(key, value);
+          }
+        }
+        const res = await proxyToHindsight(`${bankPath(bankId)}/documents`, {
+          method: "POST",
+          body: fd,
+        });
+        return await res.json();
+      } catch (err) {
+        console.error("[hindsight] POST /documents proxy failed:", err);
         return error(503, { error: { type: "service_unavailable", message: "Hindsight service unavailable" } });
       }
     },
@@ -204,9 +236,7 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(`/api/documents/${params.id}?bank_id=${encodeURIComponent(bankId)}`, {
-          method: "DELETE",
-        });
+        const res = await proxyToHindsight(`${bankPath(bankId)}/documents/${params.id}`, { method: "DELETE" });
         return await res.json();
       } catch (err) {
         console.error("[hindsight] DELETE /documents/:id proxy failed:", err);
@@ -222,10 +252,10 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     async ({ params, query, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      const qs = new URLSearchParams(query as Record<string, string>);
-      qs.set("bank_id", bankId);
       try {
-        const res = await proxyToHindsight(`/api/documents/${params.id}/chunks?${qs.toString()}`);
+        const res = await proxyToHindsight(
+          withQs(`${bankPath(bankId)}/documents/${params.id}/chunks`, query as Record<string, string>),
+        );
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /documents/:id/chunks proxy failed:", err);
@@ -236,14 +266,14 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
   )
 
   // ── Mental Models ───────────────────────────────────────
-  // 列出 mental models（v1 API）
+  // 列出 mental models
   .get(
     "/mental-models",
     async ({ store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(`/v1/default/banks/${encodeURIComponent(bankId)}/mental-models`);
+        const res = await proxyToHindsight(`${bankPath(bankId)}/mental-models`);
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /mental-models proxy failed:", err);
@@ -260,9 +290,7 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(
-          `/v1/default/banks/${encodeURIComponent(bankId)}/mental-models/${params.id}`,
-        );
+        const res = await proxyToHindsight(`${bankPath(bankId)}/mental-models/${params.id}`);
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /mental-models/:id proxy failed:", err);
@@ -279,12 +307,7 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(
-          `/v1/default/banks/${encodeURIComponent(bankId)}/mental-models/${params.id}`,
-          {
-            method: "DELETE",
-          },
-        );
+        const res = await proxyToHindsight(`${bankPath(bankId)}/mental-models/${params.id}`, { method: "DELETE" });
         return await res.json();
       } catch (err) {
         console.error("[hindsight] DELETE /mental-models/:id proxy failed:", err);
@@ -301,10 +324,8 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     async ({ query, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      const qs = new URLSearchParams(query as Record<string, string>);
-      qs.set("bank_id", bankId);
       try {
-        const res = await proxyToHindsight(`/api/entities?${qs.toString()}`);
+        const res = await proxyToHindsight(withQs(`${bankPath(bankId)}/entities`, query as Record<string, string>));
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /entities proxy failed:", err);
@@ -321,7 +342,7 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
       try {
-        const res = await proxyToHindsight(`/api/entities/${params.id}?bank_id=${encodeURIComponent(bankId)}`);
+        const res = await proxyToHindsight(`${bankPath(bankId)}/entities/${params.id}`);
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /entities/:id proxy failed:", err);
@@ -337,10 +358,10 @@ const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
     async ({ query, store, error }) => {
       const bankId = await resolveMemberId(store.authContext!);
       if (!bankId) return error(403, { error: { type: "forbidden", message: "Cannot resolve bank ID" } });
-      const qs = new URLSearchParams(query as Record<string, string>);
-      qs.set("bank_id", bankId);
       try {
-        const res = await proxyToHindsight(`/api/entities/graph?${qs.toString()}`);
+        const res = await proxyToHindsight(
+          withQs(`${bankPath(bankId)}/entities/graph`, query as Record<string, string>),
+        );
         return await res.json();
       } catch (err) {
         console.error("[hindsight] GET /entities/graph proxy failed:", err);

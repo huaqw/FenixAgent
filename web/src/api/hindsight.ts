@@ -79,11 +79,16 @@ export const hindsightApi = {
     tags?: string[];
     document_id?: string;
     chunk_id?: string;
-  }) =>
-    apiFetch<Record<string, any>>("/memories/graph", {
-      method: "POST",
-      body: JSON.stringify(params),
-    }),
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.type) qs.set("type", params.type);
+    if (params.limit !== undefined) qs.set("limit", String(params.limit));
+    if (params.q) qs.set("q", params.q);
+    if (params.tags) qs.set("tags", params.tags.join(","));
+    if (params.document_id) qs.set("document_id", params.document_id);
+    if (params.chunk_id) qs.set("chunk_id", params.chunk_id);
+    return apiFetch<Record<string, any>>(`/graph?${qs.toString()}`);
+  },
 
   /** 获取 Bank 统计信息（整合状态等） */
   getBankStats: () => apiFetch<Record<string, any>>("/bank-stats"),
