@@ -166,7 +166,7 @@ export function MentalModelsView() {
     setLoading(true);
     try {
       const res = await hindsightApi.listMentalModels();
-      setModels(res.items);
+      setModels(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       console.error("Failed to load mental models:", err);
       toast.error(err instanceof Error ? err.message : "Failed to load mental models");

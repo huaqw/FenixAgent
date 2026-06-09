@@ -41,8 +41,8 @@ export function DocumentsView() {
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       });
-      setDocuments(res.items);
-      setTotal(res.total);
+      setDocuments(Array.isArray(res.items) ? res.items : []);
+      setTotal(typeof res.total === "number" ? res.total : 0);
     } catch (err) {
       console.error("Failed to load documents:", err);
       toast.error(err instanceof Error ? err.message : "Failed to load documents");
