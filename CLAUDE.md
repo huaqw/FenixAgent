@@ -180,7 +180,7 @@ react-i18next + i18next，英文默认，中英双语。适用范围：**所有 
 
 ### better-auth 服务端 API 调用约定
 
-所有参数通过**单参数对象**传递，POST 业务数据嵌套在 `body` 中，需要 session 的 API 必须传 `headers: request.headers`。`expiresIn` 单位是**天**，`listMembers` 返回 `{ members, total }`
+所有参数通过**单参数对象**传递，POST 业务数据嵌套在 `body` 中，需要 session 的 API 必须传 `headers: request.headers`。`listMembers` 返回 `{ members, total }`。`createApiKey` 的 `expiresIn` 单位是**秒**，内部自动转为天；默认最小 1 天 (86400 秒)
 
 ### Skills 存储路径
 

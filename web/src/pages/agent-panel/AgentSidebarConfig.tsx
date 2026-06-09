@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
+  Brain,
   Clock,
   Cpu,
   KeyRound,
@@ -39,6 +40,7 @@ interface NavGroup {
 const QUICK_NAV: NavEntry[] = [
   { id: "models", labelKey: "agentPanel:models", icon: Cpu },
   { id: "skills", labelKey: "agentPanel:skills", icon: Settings },
+  { id: "memories", labelKey: "agentPanel:memories", icon: Brain },
   { id: "mcp", labelKey: "agentPanel:mcp", icon: Plug },
   { id: "organizations", labelKey: "sidebar:organizations", icon: Users },
 ];
