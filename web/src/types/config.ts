@@ -150,7 +150,6 @@ export interface ProviderModel {
   options?: Record<string, unknown>;
   providerResourceAccess?: ResourceAccess;
   providerResourceKey?: string;
-  stableFullId?: string;
 }
 
 export interface ProviderDetail {
@@ -169,14 +168,14 @@ export interface ProviderDetail {
 
 export interface ModelEntry {
   id: string;
+  modelId: string;
+  displayName: string;
   provider: string;
-  fullId: string;
-  label: string;
+  providerDisplayName: string;
   contextLimit: number | null;
   outputLimit: number | null;
   providerResourceAccess?: ResourceAccess;
   providerResourceKey?: string;
-  stableFullId?: string;
 }
 
 export interface ModelConfig {
@@ -195,6 +194,7 @@ export interface AgentInfo {
   name: string;
   builtIn: boolean;
   model: string | null;
+  modelId: string | null;
   modelLabel?: string | null;
   mode: string | null;
   description: string | null;
@@ -210,6 +210,7 @@ export interface AgentDetail {
   name: string;
   builtIn: boolean;
   model: string | null;
+  modelId: string | null;
   prompt: string | null;
   tools: Record<string, boolean> | null;
   steps: number | null;

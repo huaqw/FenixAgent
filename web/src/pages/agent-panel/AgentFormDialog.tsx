@@ -56,8 +56,8 @@ interface AgentRelatedResourcesView {
 export function mapModelOptions(available: ModelEntry[]): { value: string; label: string }[] {
   return available.map((model) => {
     const source = model.providerResourceAccess?.sourceOrganizationName;
-    const label = source ? `${source}/${model.fullId}` : model.fullId;
-    return { value: model.stableFullId ?? model.fullId, label };
+    const providerLabel = source ? `${source}/${model.providerDisplayName}` : model.providerDisplayName;
+    return { value: model.id, label: `${providerLabel}/${model.displayName}` };
   });
 }
 
@@ -166,7 +166,7 @@ export function AgentFormDialog({ open, onOpenChange, mode, defaultName, onSucce
           const d = agentResult.data as unknown as Record<string, unknown>;
           setCurrentAgentId((d.id as string) ?? null);
           setDisplayAgentName(String(d.name ?? agentName ?? ""));
-          setFormModel((d.model as string) || "");
+          setFormModel((d.modelId as string) || "");
           setFormMode((d.mode as string) || DEFAULT_AGENT_MODE);
           setFormSteps(String(d.steps ?? 50));
           setFormPrompt(String(d.prompt ?? ""));
@@ -391,7 +391,7 @@ export function AgentFormDialog({ open, onOpenChange, mode, defaultName, onSucce
         }
         const data: Record<string, unknown> = {
           ...buildAgentPayload({
-            model: formModel,
+            modelId: formModel,
             mode: formMode,
             steps: formSteps,
             prompt: formPrompt,
@@ -427,7 +427,7 @@ export function AgentFormDialog({ open, onOpenChange, mode, defaultName, onSucce
         const name = formName.trim();
         const { error } = await agentApi.create(name, {
           ...buildAgentPayload({
-            model: formModel,
+            modelId: formModel,
             mode: formMode,
             steps: formSteps,
             prompt: formPrompt,

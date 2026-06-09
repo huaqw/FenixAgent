@@ -45,6 +45,7 @@ interface AgentConfigItem {
   name: string;
   builtIn: boolean;
   model: string | null;
+  modelId?: string | null;
   modelLabel?: string | null;
   description: string | null;
   color: string | null;
@@ -56,8 +57,8 @@ function buildModelLabelMap(available: ModelEntry[]): Map<string, string> {
   return new Map(
     available.map((model) => {
       const source = model.providerResourceAccess?.sourceOrganizationName;
-      const label = source ? `${source}/${model.fullId}` : model.fullId;
-      return [model.stableFullId ?? model.fullId, label];
+      const providerLabel = source ? `${source}/${model.providerDisplayName}` : model.providerDisplayName;
+      return [model.id, `${providerLabel}/${model.displayName}`];
     }),
   );
 }
@@ -504,7 +505,7 @@ export function AgentSidebarTree({
                 <div className="text-[11px] text-text-dim truncate mt-0.5">
                   {agent.description ||
                     agent.modelLabel ||
-                    (agent.model ? (modelLabelMap.get(agent.model) ?? agent.model) : null) ||
+                    (agent.modelId ? (modelLabelMap.get(agent.modelId) ?? agent.modelId) : null) ||
                     t("agentDefaultDesc")}
                 </div>
                 {agent.resourceAccess?.ownership === "external" && (

@@ -85,9 +85,10 @@ export const ProviderDetailSchema = z.object({
 
 export const ModelEntrySchema = z.object({
   id: z.string(),
+  modelId: z.string(),
+  displayName: z.string(),
   provider: z.string(),
-  fullId: z.string(),
-  label: z.string(),
+  providerDisplayName: z.string(),
   contextLimit: z.number().nullable(),
   outputLimit: z.number().nullable(),
 });
@@ -107,6 +108,7 @@ export const AgentInfoSchema = z.object({
   name: z.string(),
   builtIn: z.boolean(),
   model: z.string().nullable(),
+  modelId: z.string().nullable(),
   mode: z.string().nullable(),
   description: z.string().nullable(),
   color: z.string().nullable(),
@@ -117,6 +119,7 @@ export const AgentDetailSchema = z.object({
   name: z.string(),
   builtIn: z.boolean(),
   model: z.string().nullable(),
+  modelId: z.string().nullable(),
   prompt: z.string().nullable(),
   steps: z.number().nullable(),
   mode: z.string().nullable(),
