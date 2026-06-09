@@ -30,7 +30,7 @@
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
 import { Writable } from "node:stream";
 import pino from "pino";
 import pretty from "pino-pretty";
@@ -97,6 +97,7 @@ const isTest = process.env.NODE_ENV === "test" || (typeof Bun !== "undefined" &&
 const logFormat = process.env.LOG_FORMAT ?? "pretty";
 const logLevel = isTest ? "silent" : (process.env.LOG_LEVEL ?? "info");
 const logDir = process.env.LOG_DIR ?? "logs";
+const logRetentionDays = parseInt(process.env.LOG_RETENTION_DAYS ?? "30", 10);
 const usePretty = logFormat !== "json";
 
 // ━━━━━ 按天滚动文件流 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -114,6 +115,7 @@ const usePretty = logFormat !== "json";
 class DailyRollingFileStream extends Writable {
   private currentDate = "";
   private filePath = "";
+  private cleanedUp = false;
 
   constructor(
     private readonly baseDir: string,
@@ -123,6 +125,28 @@ class DailyRollingFileStream extends Writable {
     mkdirSync(baseDir, { recursive: true });
   }
 
+  /** 清理超过 retentionDays 的过期日志文件。只在首次日期切换时执行一次。 */
+  private cleanupExpiredLogs(): void {
+    if (this.cleanedUp || logRetentionDays <= 0) return;
+    this.cleanedUp = true;
+    try {
+      const files = readdirSync(this.baseDir);
+      const prefix = `${this.prefix}.`;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - logRetentionDays);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      for (const file of files) {
+        if (!file.startsWith(prefix) || !file.endsWith(".log")) continue;
+        const dateStr = file.slice(prefix.length, -".log".length);
+        if (dateStr < cutoffStr) {
+          unlinkSync(`${this.baseDir}/${file}`);
+        }
+      }
+    } catch {
+      // 清理失败不影响主流程
+    }
+  }
+
   // biome-ignore lint/suspicious/noExplicitAny: Writable _write signature
   _write(chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     try {
@@ -130,6 +154,7 @@ class DailyRollingFileStream extends Writable {
       if (today !== this.currentDate) {
         this.currentDate = today;
         this.filePath = `${this.baseDir}/${this.prefix}.${today}.log`;
+        this.cleanupExpiredLogs();
       }
       appendFileSync(this.filePath, chunk);
       callback();
