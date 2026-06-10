@@ -1,4 +1,5 @@
 import { createLogger, interceptConsole } from "@fenix/logger";
+import * as z from "zod/v4";
 
 // ⚠️ 必须在所有其他代码之前拦截 console，保证全局日志统一
 interceptConsole();
@@ -7,7 +8,7 @@ const startupLog = createLogger("rcs");
 
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import swagger from "@elysiajs/swagger";
+import openapi from "@elysiajs/openapi";
 import Elysia from "elysia";
 import { applyEnv, config } from "./config";
 import { db, initDb, client as pgClient } from "./db";
@@ -41,6 +42,9 @@ import { resolveWorkspacePath } from "./services/workspace-resolver";
 import { closeAllAcpConnections } from "./transport/acp-ws-handler";
 import { closeAllFileWsConnections } from "./transport/file-ws-handler";
 import { closeAllRelayConnections } from "./transport/relay";
+
+const OPENAPI_PATH = "/docs/api";
+const OPENAPI_SPEC_PATH = `${OPENAPI_PATH}/json`;
 
 await initDb();
 startupLog.info("Database initialized");
@@ -126,47 +130,96 @@ import("./services/registry-heartbeat").then(({ startMachineSweep }) => {
 const app = new Elysia()
   .use(corsPlugin)
   .use(
-    swagger({
+    openapi({
       documentation: {
         info: {
-          title: "RCS API",
+          title: "Fenix API",
           version: config.version,
-          description: "Remote Control Server API — config, sessions, environments, ACP protocol",
+          description: "Fenix API 文档。",
         },
         tags: [
           {
             name: "Config",
-            description: "Configuration management (providers, models, agents, skills, MCP)",
+            description: "配置管理，包括 Provider、模型、Agent、Skill 和 MCP 服务配置。",
           },
           {
             name: "Sessions",
-            description: "Session management and event streaming",
+            description: "会话管理与事件历史查询。",
           },
           {
             name: "Environments",
-            description: "ACP agent environments",
+            description: "Agent 运行环境管理。",
           },
           {
             name: "Instances",
-            description: "Agent instance lifecycle",
+            description: "Agent 实例的启动、查询与销毁。",
           },
-          { name: "Tasks", description: "Scheduled HTTP tasks" },
+          {
+            name: "Control",
+            description: "会话控制接口，包括事件发送、控制指令和中断操作。",
+          },
+          {
+            name: "Files",
+            description: "环境工作区文件管理，包括文件内容读写、文件树、目录操作与批量删除。",
+          },
+          {
+            name: "Auth",
+            description: "认证相关扩展接口，包括会话归属绑定等能力。",
+          },
+          {
+            name: "Branding",
+            description: "品牌展示配置接口，包括品牌名称和 Logo 资源获取。",
+          },
+          { name: "Tasks", description: "定时 HTTP 任务管理与执行日志查询。" },
+          {
+            name: "Organizations",
+            description: "组织、成员和 API Key 管理。",
+          },
           {
             name: "Knowledge",
-            description: "Knowledge bases and resources",
+            description: "知识库与知识资源管理。",
           },
-          { name: "Channels", description: "IM channel bindings" },
+          { name: "Channels", description: "IM 通道绑定与消息路由配置。" },
+          {
+            name: "Registry",
+            description: "机器注册表管理，包括机器列表、详情与事件历史查询。",
+          },
+          {
+            name: "Meta Agent",
+            description: "Meta Agent 自举与运行环境确保接口。",
+          },
+          {
+            name: "Hindsight",
+            description: "Hindsight 记忆服务状态查询与相关能力入口。",
+          },
+          {
+            name: "ACP",
+            description: "ACP 机器接入、Relay 中继与 Agent 列表查询接口。",
+          },
+          {
+            name: "Code Session",
+            description: "Code Session、Worker 状态同步、Bridge 接入与 Session Ingress 相关接口。",
+          },
           {
             name: "Workflow Engine",
-            description: "Native DAG workflow execution engine",
+            description: "原生 DAG 工作流执行引擎相关接口。",
           },
         ],
       },
-      swaggerOptions: {
-        persistAuthorization: true,
+      provider: "scalar",
+      scalar: {
+        // 显式指定 JSON 地址，避免 UI 在嵌套路径下拼错相对地址。
+        url: OPENAPI_SPEC_PATH,
       },
-      exclude: ["/health", /^\/ctrl\/.*/],
-      path: "/docs/swagger",
+      mapJsonSchema: {
+        // 让 Zod 模型直接输出成 OpenAPI 可消费的 JSON Schema。
+        zod: z.toJSONSchema,
+      },
+      exclude: {
+        paths: ["/health", /^\/ctrl\/.*/],
+      },
+      path: OPENAPI_PATH,
+      specPath: OPENAPI_SPEC_PATH,
     }),
   )
   .derive(deriveRequestId)
@@ -206,10 +259,20 @@ const app = new Elysia()
   })
   // Health check
   .get("/health", () => ({ status: "ok", version: config.version }))
-  .get("/", ({ set }) => {
-    set.status = 302;
-    set.headers.Location = "/ctrl/";
-  })
+  .get(
+    "/",
+    ({ set }) => {
+      set.status = 302;
+      set.headers.Location = "/ctrl/";
+    },
+    {
+      detail: {
+        hide: true,
+        summary: "根路径跳转到控制台",
+        description: "服务根路径访问时统一重定向到 `/ctrl/` 控制台首页。该入口仅用于站点导航，默认不在公开文档中展示。",
+      },
+    },
+  )
   // better-auth handler
   .use(authPlugin)
   // Static files under /ctrl

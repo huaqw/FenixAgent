@@ -2,8 +2,10 @@ import { createLogger } from "@fenix/logger";
 import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
 import {
+  EventQuerySchema,
   MachineDetailResponseSchema,
   MachineListResponseSchema,
+  MachineQuerySchema,
   RegistryEventListResponseSchema,
 } from "../../schemas/registry.schema";
 import { getMachine, listEvents, listMachines } from "../../services/registry";
@@ -11,14 +13,17 @@ import { getMachine, listEvents, listMachines } from "../../services/registry";
 const logger = createLogger("registry");
 
 const app = new Elysia({ name: "web-registry" }).use(authGuardPlugin).model({
+  "event-query": EventQuerySchema,
   "machine-list-response": MachineListResponseSchema,
   "machine-detail-response": MachineDetailResponseSchema,
+  "machine-query": MachineQuerySchema,
   "registry-event-list-response": RegistryEventListResponseSchema,
 });
 
 app.get(
   "/registry/machines",
-  async ({ store, query, error }) => {
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia 在 query/response 组合下类型推断不稳定
+  async ({ store, query, error }: any) => {
     const authCtx = store.authContext!;
     const q = query as {
       status?: string;
@@ -49,12 +54,22 @@ app.get(
       return error(500, { error: { type: "INTERNAL_ERROR", message: (err as Error).message } });
     }
   },
-  { sessionAuth: true },
+  {
+    sessionAuth: true,
+    query: "machine-query",
+    response: "machine-list-response",
+    detail: {
+      tags: ["Registry"],
+      summary: "获取机器列表",
+      description: "分页返回当前组织可见的机器注册列表，支持按状态和标签过滤。",
+    },
+  },
 );
 
 app.get(
   "/registry/machines/:id",
-  async ({ store, params, error }) => {
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia 在 response schema + error 分支组合下类型推断不稳定
+  async ({ store, params, error }: any) => {
     const authCtx = store.authContext!;
     try {
       const result = await getMachine(authCtx, params.id);
@@ -67,12 +82,21 @@ app.get(
       return error(500, { error: { type: "INTERNAL_ERROR", message: (err as Error).message } });
     }
   },
-  { sessionAuth: true },
+  {
+    sessionAuth: true,
+    response: "machine-detail-response",
+    detail: {
+      tags: ["Registry"],
+      summary: "获取机器详情",
+      description: "根据机器 ID 返回单台机器的完整信息及最近事件。",
+    },
+  },
 );
 
 app.get(
   "/registry/machines/:id/events",
-  async ({ store, params, query, error }) => {
+  // biome-ignore lint/suspicious/noExplicitAny: Elysia 在 query/response 组合下类型推断不稳定
+  async ({ store, params, query, error }: any) => {
     const authCtx = store.authContext!;
     const q = query as { limit?: string; offset?: string };
     const limit = q.limit ? Number(q.limit) : 20;
@@ -85,7 +109,16 @@ app.get(
       return error(500, { error: { type: "INTERNAL_ERROR", message: (err as Error).message } });
     }
   },
-  { sessionAuth: true },
+  {
+    sessionAuth: true,
+    query: "event-query",
+    response: "registry-event-list-response",
+    detail: {
+      tags: ["Registry"],
+      summary: "获取机器事件列表",
+      description: "分页返回指定机器的注册表事件历史，用于状态排查和追踪。",
+    },
+  },
 );
 
 export default app;

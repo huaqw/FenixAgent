@@ -4,8 +4,19 @@ import { auth } from "../../auth/better-auth";
 import { db } from "../../db";
 import { member, user } from "../../db/schema";
 import { authGuardPlugin } from "../../plugins/auth";
+import {
+  ApiKeyActionRequestSchema,
+  ApiKeyActionResponseSchema,
+  OrganizationActionRequestSchema,
+  OrganizationActionResponseSchema,
+} from "../../schemas/organization.schema";
 
-const app = new Elysia({ name: "web-organizations" }).use(authGuardPlugin);
+const app = new Elysia({ name: "web-organizations" }).use(authGuardPlugin).model({
+  "organization-action-request": OrganizationActionRequestSchema,
+  "organization-action-response": OrganizationActionResponseSchema,
+  "apikey-action-request": ApiKeyActionRequestSchema,
+  "apikey-action-response": ApiKeyActionResponseSchema,
+});
 
 // 窄化 better-auth API 类型，仅暴露本文件使用的方法
 interface OrgApi {
@@ -248,7 +259,16 @@ app.post(
         });
     }
   },
-  { sessionAuth: true },
+  {
+    sessionAuth: true,
+    body: "organization-action-request",
+    response: "organization-action-response",
+    detail: {
+      tags: ["Organizations"],
+      summary: "组织管理",
+      description: "统一的组织管理入口，通过 action 区分列表、详情、创建、更新、删除、成员管理与激活组织切换等操作。",
+    },
+  },
 );
 
 // ────────────────────────────────────────────
@@ -300,7 +320,16 @@ app.post(
         });
     }
   },
-  { sessionAuth: true },
+  {
+    sessionAuth: true,
+    body: "apikey-action-request",
+    response: "apikey-action-response",
+    detail: {
+      tags: ["Organizations"],
+      summary: "API Key 管理",
+      description: "统一的 API Key 管理入口，通过 action 区分列表、创建、更新和删除操作。",
+    },
+  },
 );
 
 export default app;
