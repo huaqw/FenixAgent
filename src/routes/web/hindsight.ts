@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { authGuardPlugin } from "../../plugins/auth";
+import { HindsightStatusResponseSchema } from "../../schemas";
 import { getHindsightConfig, proxyToHindsight, resolveMemberId } from "../../services/hindsight";
 
 /** 构造 Hindsight v1 bank 路径前缀：/v1/default/banks/{bankId} */
@@ -13,20 +14,36 @@ const withQs = (base: string, query: Record<string, string>) => {
 
 const app = new Elysia({ name: "web-hindsight", prefix: "/hindsight" })
   .use(authGuardPlugin)
+  .model({
+    "hindsight-status-response": HindsightStatusResponseSchema,
+  })
 
   // ── Status ──────────────────────────────────────────────
   // 检查 Hindsight 配置状态，尝试解析 bankId
-  .get("/status", async ({ store }) => {
-    const config = getHindsightConfig();
-    let bankId: string | null = null;
-    if (config && store.authContext) {
-      bankId = await resolveMemberId(store.authContext);
-    }
-    return {
-      success: true as const,
-      data: config ? { enabled: true, url: config.url, bankId } : { enabled: false },
-    };
-  })
+  .get(
+    "/status",
+    async ({ store }) => {
+      const config = getHindsightConfig();
+      let bankId: string | null = null;
+      if (config && store.authContext) {
+        bankId = await resolveMemberId(store.authContext);
+      }
+      return {
+        success: true as const,
+        data: config
+          ? ({ enabled: true as const, url: config.url, bankId } as const)
+          : ({ enabled: false as const } as const),
+      };
+    },
+    {
+      response: "hindsight-status-response",
+      detail: {
+        tags: ["Hindsight"],
+        summary: "获取 Hindsight 状态",
+        description: "返回当前 Hindsight 服务是否已启用，以及启用时对应的服务地址和当前用户映射的 bankId。",
+      },
+    },
+  )
 
   // ── Graph ───────────────────────────────────────────────
   // 获取内存图谱数据，GET 方法，参数通过 query string 传递

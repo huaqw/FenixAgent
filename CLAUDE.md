@@ -172,6 +172,41 @@ react-i18next + i18next，英文默认，中英双语。适用范围：**所有 
 
 配置 API：`POST /web/config/:module`（providers/models/agents/skills/mcp），action 分发（list/get/set/create/delete/enable/disable），响应 `{ success, data }` 或 `{ success, error: { code, message } }`。
 
+## API 设计约定
+
+新增接口、修改接口或重写 route 时，先满足下面这些 API 设计约束，再补文档元数据。
+
+### 设计规则
+
+- API 功能必须单一、明确。正常情况下不要在一个接口里通过 `action` 等字段分支处理不同业务行为；只有明确要求，或 WebSocket / 长连接事件流这类天然多消息类型场景，才允许这样设计。
+- API 分为两类：面向控制台前端使用的 `/web/*` API，以及通过 API Key 提供给外部系统访问的 OpenAPI。设计、命名、鉴权和兼容性判断时必须先明确接口属于哪一类。
+- 对外 OpenAPI 必须向后兼容；如果新的实现无法兼容旧协议，不要直接修改旧接口，应新增新的 API 接口或新版本接口。
+
+## API 文档约定
+
+本仓库默认使用 OpenAPI + Scalar 展示接口文档。新增接口、修改接口或重写 route 时，必须同步把文档元数据写完整，不能等到后面再补。
+
+### 开发目标
+
+- 让新写出来的 API 默认就是可展示、可理解、可调试的
+- 让 route、schema、全局 tags 的说明保持一致
+
+### 写 API 时必须同步完成的内容
+
+- 在 route 上补充 `detail`
+- 在 route 上显式声明 `params`、`query`、`headers`、`body`、`response`
+- 为 schema、字段、请求体、响应体补充描述信息
+- 为 OpenAPI 展示补充必要的 `model` 注册
+- 为所属 OpenAPI 全局 `tag` 补充中文 `description`
+
+### 编写规则
+
+- `summary`、`description`、tag 描述统一优先使用中文
+- route 元数据必须就近声明在 route 文件中，不要在 Swagger/OpenAPI 服务层做兜底推断
+- schema 字段描述必须与真实实现一致，不能为了文档展示虚构字段语义
+- 如果接口属于内部使用、框架透传、静态资源、代理入口、MCP 服务入口、WebSocket/协议入口等不面向外部开发者的能力，也要补说明；需要隐藏时使用 `detail.hide: true`
+- WebSocket / MCP / 代理入口如果无法被 OpenAPI 准确建模，优先补协议说明，不伪造 REST 风格响应结构
+
 ### API Key 安全策略
 
 - `@better-auth/api-key` 插件管理，SHA-256 hash 存储，创建时返回明文（仅一次）
