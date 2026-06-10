@@ -64,7 +64,10 @@ export class AgentExecutor implements NodeExecutor {
         lastError = error instanceof Error ? error : new Error(String(error));
 
         if (error instanceof DOMException && error.name === "AbortError") {
-          throw new WorkflowError("Node cancelled", WorkflowErrorCode.DAG_CANCELLED, { node_id: node.id });
+          throw new WorkflowError("Node cancelled", WorkflowErrorCode.DAG_CANCELLED, {
+            node_id: node.id,
+            abort_reason: error.message,
+          });
         }
 
         if (attempt === maxAttempts - 1) {
