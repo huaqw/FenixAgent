@@ -100,7 +100,11 @@ export function VersionIndicator({
             type="button"
             className={`wf-meta-trigger-btn ${isPreviewing ? "active" : ""}`}
             title={t("editor.tooltip_version_indicator")}
-            style={isPreviewing ? { borderColor: "#3b82f6", color: "#3b82f6" } : undefined}
+            style={{
+              width: "auto",
+              padding: "0 10px",
+              ...(isPreviewing ? { borderColor: "#3b82f6", color: "#3b82f6" } : {}),
+            }}
           >
             <GitBranch size={14} />
             <span style={{ fontSize: 10, fontWeight: 600, marginLeft: 2 }}>{badgeText}</span>
