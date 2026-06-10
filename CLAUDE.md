@@ -180,7 +180,21 @@ react-i18next + i18next，英文默认，中英双语。适用范围：**所有 
 
 - API 功能必须单一、明确。正常情况下不要在一个接口里通过 `action` 等字段分支处理不同业务行为；只有明确要求，或 WebSocket / 长连接事件流这类天然多消息类型场景，才允许这样设计。
 - API 分为两类：面向控制台前端使用的 `/web/*` API，以及通过 API Key 提供给外部系统访问的 OpenAPI。设计、命名、鉴权和兼容性判断时必须先明确接口属于哪一类。
+- 对外 OpenAPI 路径统一放在 `/api/*` 下，不要把面向外部系统的接口散落到其他前缀中。
 - 对外 OpenAPI 必须向后兼容；如果新的实现无法兼容旧协议，不要直接修改旧接口，应新增新的 API 接口或新版本接口。
+
+### 风格规则
+
+- URL 使用小写 kebab-case，资源名优先用复数，例如 `/web/knowledge-bases`、`/api/agents`，不要混用驼峰、下划线和复数单数风格。
+- URL 表达资源，动作用 HTTP 方法表达；正常情况下不要写成 `/create`、`/update`、`/delete` 这类动词路径。确实不是标准 CRUD 的行为，使用明确的动作后缀，例如 `POST /api/sessions/:id/cancel`。
+- 路径参数只放资源标识和层级关系，例如 `:id`、`:sessionId`；筛选、分页、排序、开关类参数放 `query`，不要混进路径里。
+- `GET` 只做查询，不带请求体；`POST` 用于创建或触发动作；更新统一使用 `PUT`；`DELETE` 用于删除。
+- 请求体只承载本次操作的业务数据，不要再包一层 `data`、`payload`、`params` 之类的无意义壳；只有历史兼容场景才允许保留。
+- 分页参数统一优先使用 `page`、`pageSize`；排序参数统一优先使用 `sortBy`、`sortOrder`；布尔筛选参数使用语义化命名，例如 `includeDisabled`、`withMembers`。
+- 控制台内部 `/web/*` API 默认返回 `{ success: true, data }` 或 `{ success: false, error }`；没有业务数据时也优先返回 `{ success: true, data: ... }`，避免同一类接口有时返回 `data`、有时完全不返回。
+- 错误响应统一返回 `error` 对象，至少包含 `code` 和 `message`；需要补充上下文时再增加字段，不要直接返回裸字符串或格式不固定的对象。
+- 对外 OpenAPI 返回结构要稳定、可预测，列表接口优先返回对象结构而不是裸数组；至少明确区分列表数据和分页元信息，例如 `{ items, total, page, pageSize }`。
+- 新接口必须遵循这套风格；历史接口如果暂时不一致，先保持兼容，不要为了“统一风格”直接改坏已有调用方。
 
 ## API 文档约定
 

@@ -181,7 +181,17 @@ bun test web/src/__tests__/config-mcp-page.test.ts
 
 - API 功能必须单一、明确。正常情况下不要在一个接口里通过 `action` 等字段分支处理不同业务行为；只有明确要求，或 WebSocket / 长连接事件流这类场景才允许这样设计。
 - 先区分接口类型：`/web/*` 是给控制台前端使用的内部业务 API；通过 API Key 暴露给外部系统访问的是 OpenAPI。两类接口的设计目标、暴露范围和兼容性要求不要混淆。
+- 对外 OpenAPI 路径统一放在 `/api/*` 下，不要把面向外部系统的接口散落到其他前缀中。
 - 对外 OpenAPI 必须向后兼容；如果新的实现无法兼容旧协议，不要直接修改旧接口，应新增新的 API 接口或新版本接口。
+- URL 使用小写 kebab-case，资源名优先用复数，例如 `/web/knowledge-bases`、`/api/agents`。
+- URL 负责表达资源，动作优先由 HTTP 方法表达；只有确实不是 CRUD 的行为，才使用类似 `POST /api/sessions/:id/cancel` 这种动作后缀。
+- 路径参数只放资源标识；筛选、分页、排序、开关类参数统一放 `query`；`GET` 不带请求体。
+- `POST` 用于创建或触发动作，更新统一使用 `PUT`，`DELETE` 用于删除。
+- 请求体直接承载业务数据，不要无意义再包一层 `data`、`payload`、`params`；历史兼容接口除外。
+- 分页参数优先统一为 `page`、`pageSize`；排序参数优先统一为 `sortBy`、`sortOrder`；布尔筛选参数使用语义化命名。
+- `/web/*` API 默认返回 `{ success: true, data }` 或 `{ success: false, error }`；错误响应里的 `error` 至少包含 `code` 和 `message`。
+- 对外 OpenAPI 返回结构要稳定，列表接口优先返回对象结构，例如 `{ items, total, page, pageSize }`，不要默认返回裸数组。
+- 新接口必须遵循这套风格；历史接口先保持兼容，不要为了统一风格直接改坏已有调用方。
 
 ### API 文档要求
 
