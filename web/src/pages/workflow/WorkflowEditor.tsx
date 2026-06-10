@@ -456,7 +456,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
         toast.error(t("editor.load_failed"));
       }
     },
-    [workflowId, setNodes, setEdges, setMeta, setYamlText, setYamlBaseText, fitView, t],
+    [workflowId, setNodes, setEdges, fitView, t],
   );
 
   // ── 版本预览：切回草稿 ──
@@ -481,7 +481,7 @@ function WorkflowEditorInner({ workflowId, runId }: WorkflowEditorProps) {
       console.error("Failed to load draft:", err);
       toast.error(t("editor.load_failed"));
     }
-  }, [workflowId, setNodes, setEdges, setMeta, setLastSavedYaml, fitView, t]);
+  }, [workflowId, setNodes, setEdges, setLastSavedYaml, fitView, t]);
 
   return (
     <div className="flex w-full h-full bg-surface-0">
