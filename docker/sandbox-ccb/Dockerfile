@@ -25,7 +25,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Claude Code (CCB)
-RUN bun install -g claude-code-best
+RUN bun install -g claude-code-best@2.6.12
 
 COPY --from=build /tmp/bundle/start-remote-runtime.js ./
 
