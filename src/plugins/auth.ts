@@ -130,32 +130,56 @@ export async function lookupUserById(userId: string): Promise<UserInfo | null> {
 /** Mounts better-auth handler at /api/auth/* */
 export const authPlugin = new Elysia({ name: "auth", prefix: "/api/auth" })
   /** 前端获取 AES 加密公钥 */
-  .get("/encryption-key", () => ({ key: getEncryptionKey() }))
+  .get("/encryption-key", () => ({ key: getEncryptionKey() }), {
+    detail: {
+      tags: ["Auth"],
+      summary: "获取登录加密公钥",
+      description: "前端登录或注册前调用，获取用于密码 AES-GCM 加密的公钥材料。",
+    },
+  })
   /** 前端查询注册开关 */
-  .get("/signup-status", () => ({ signupAllowed: !config.disableSignup }))
-  .all("/*", async ({ request }) => {
-    const url = new URL(request.url);
-    const decryptRoutes = ["/sign-in/email", "/sign-up/email"];
-    if (request.method === "POST" && decryptRoutes.some((r) => url.pathname.endsWith(r))) {
-      try {
-        // biome-ignore lint/suspicious/noExplicitAny: request body parsed dynamically
-        const body: any = await request.clone().json();
-        if (body?.password && typeof body.password === "string" && body.password.startsWith("AESGCM:")) {
-          body.password = decryptPassword(body.password);
-          return auth.handler(
-            new Request(request.url, {
-              method: request.method,
-              headers: request.headers,
-              body: JSON.stringify(body),
-            }),
-          );
+  .get("/signup-status", () => ({ signupAllowed: !config.disableSignup }), {
+    detail: {
+      tags: ["Auth"],
+      summary: "获取注册开关状态",
+      description: "前端登录页调用，判断当前系统是否允许新用户注册。",
+    },
+  })
+  .all(
+    "/*",
+    async ({ request }) => {
+      const url = new URL(request.url);
+      const decryptRoutes = ["/sign-in/email", "/sign-up/email"];
+      if (request.method === "POST" && decryptRoutes.some((r) => url.pathname.endsWith(r))) {
+        try {
+          // biome-ignore lint/suspicious/noExplicitAny: request body parsed dynamically
+          const body: any = await request.clone().json();
+          if (body?.password && typeof body.password === "string" && body.password.startsWith("AESGCM:")) {
+            body.password = decryptPassword(body.password);
+            return auth.handler(
+              new Request(request.url, {
+                method: request.method,
+                headers: request.headers,
+                body: JSON.stringify(body),
+              }),
+            );
+          }
+        } catch {
+          // 解密失败，使用原始请求透传
         }
-      } catch {
-        // 解密失败，使用原始请求透传
       }
-    }
-    return auth.handler(request);
-  });
+      return auth.handler(request);
+    },
+    {
+      detail: {
+        hide: true,
+        tags: ["Auth"],
+        summary: "better-auth 认证框架入口",
+        description:
+          "better-auth 的通用认证入口，承接登录、注册、会话、组织等框架级认证请求。该入口主要服务于认证框架内部流程，默认不在公开文档中展示。",
+      },
+    },
+  );
 
 /** Provides `error(code, body)` to route handler context */
 export function errorResponse(code: number, response: unknown): Response {
