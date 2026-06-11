@@ -295,6 +295,16 @@ class AcpTransport implements Transport {
     // 挂载 channel 消息 → protocol（可能同步触发 buffer flush，投递已缓冲的 status）
     const unsub = channel.onMessage((msg) => feedProtocol(protocol, msg));
 
+    // 主动发 connect 确保 acp-link 回传 status。
+    // 场景 1（新 relay handle）：relay handle onopen 已发过 connect，这里多发一次，
+    //   handleConnect 检测到 state.connection 已设（同步赋值在 await init 之前），
+    //   会立即回传 status { connected: true }，waitForAgentReady 提前 resolve，
+    //   后续 session/new 请求在 ndjson 流中排队，agent 处理完 init 后自然处理。
+    // 场景 2（复用 relay handle）：前一次连接的 status 早已消费，不发 connect 则
+    //   永远等不到 status → 120s 超时 → "Node cancelled"。
+    //   发 connect 后 handleConnect 检测到 agent 已初始化，直接重发完整 status。
+    channel.send({ type: "connect" });
+
     try {
       // 阶段 1：等待 agent 初始化完成（status { connected: true }）
       await readyPromise;
