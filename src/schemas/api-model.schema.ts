@@ -8,7 +8,7 @@ export const ApiProviderUpsertBodySchema = z.object({
   protocol: z.enum(["openai", "anthropic"]).default("openai"),
   baseUrl: z.string().optional(),
   apiKey: z.string().optional(),
-  extraOptions: z.record(z.unknown()).optional(),
+  extraOptions: z.record(z.string(), z.string()).optional(),
   publicReadable: z.boolean().optional(),
 });
 
@@ -43,7 +43,7 @@ export const ApiProviderDetailSchema = z.object({
   protocol: z.enum(["openai", "anthropic"]),
   baseUrl: z.string().nullable(),
   apiKey: z.string().nullable(),
-  extraOptions: z.record(z.unknown()).nullable().optional(),
+  extraOptions: z.record(z.string(), z.string()).nullable().optional(),
   models: z.array(
     z.object({
       id: z.string(),
@@ -73,7 +73,7 @@ export const ApiModelUpsertBodySchema = z.object({
   modalities: z.unknown().optional(),
   limitConfig: z.object({ context: z.number().int().optional(), output: z.number().int().optional() }).optional(),
   cost: z.object({ input: z.number().optional(), output: z.number().optional() }).optional(),
-  options: z.record(z.unknown()).optional(),
+  options: z.record(z.string(), z.string()).optional(),
 });
 
 export const ApiModelUpdateBodySchema = ApiModelUpsertBodySchema.partial();
@@ -96,7 +96,7 @@ export const ApiModelDetailSchema = z.object({
   modalities: z.unknown().nullable(),
   limitConfig: z.unknown().nullable(),
   cost: z.unknown().nullable(),
-  options: z.record(z.unknown()).nullable(),
+  options: z.record(z.string(), z.string()).nullable(),
 });
 
 export const ApiModelDeleteResponseSchema = z.object({
